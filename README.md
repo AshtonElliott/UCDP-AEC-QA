@@ -1,2 +1,3 @@
 # UCDP-AEC-QA
-Additional QA done using the UCDP-AEC Dataset
+This is the documentation of additional QA done on the UCDP-AEC Dataset found here:
+https://github.com/ltgoslo/ucdp-aec
