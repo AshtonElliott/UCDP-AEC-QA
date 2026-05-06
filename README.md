@@ -18,6 +18,9 @@ input_jsonl_file = 'C:/Users/ashto/Documents/UCDP-AEC Dataset/train.jsonl'  # Ch
 
 output_json_folder = 'C:/Users/ashto/Documents/UCDP-AEC Dataset/JSON_Files'  # Change this to your desired output folder path
 
+
+
+
 Once in JSON format, you can annotate them however you please manually. For us, we utilized Label Studio:
 https://labelstud.io/
 
