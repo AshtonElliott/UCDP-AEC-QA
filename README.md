@@ -41,9 +41,9 @@ Within the script, you can change the source JSON file location, the LLM model, 
   response = ollama.chat(model='gemma4:31b', messages=[
 ```
 
-- New JSON file name (Line 25):
+- New JSON file name and Filepath (Line 25):
 ```bash
-  with open('Results.json', 'w') as f:
+  with open(''C:/Users/atown/OneDrive/Documents/ConfliBERT/Local Results/Results.json', 'w') as f:
 ```
 ---
 
