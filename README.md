@@ -2,6 +2,7 @@
 This is the documentation of additional QA done on the UCDP-AEC Dataset found here:
 https://github.com/ltgoslo/ucdp-aec
 
+## JSON Conversion
 The JSONL files above are the UCDP-AEC Dataset that was converted from their id form. The details and how-to can be found on the original repository.
 
 We have two versions of the conversion script:
@@ -22,6 +23,8 @@ output_json_folder = 'C:/Users/ashto/Documents/UCDP-AEC Dataset/JSON_Files'  # C
 
 Once in JSON format, you can annotate them however you please manually. For us, we utilized Label Studio:
 https://labelstud.io/
+
+## LLM Annotation
 
 For LLMs, we have a script that can be ran locally (alongside Ollama) to output to a new JSON file that holds the LLM's response in a similiar structure to the one found in the exported Label Studio Json Format. The new JSON File can be found where the script is located.
 
