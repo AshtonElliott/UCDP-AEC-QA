@@ -24,6 +24,8 @@ output_json_folder = 'C:/Users/ashto/Documents/UCDP-AEC Dataset/JSON_Files'  # C
 Once in JSON format, you can annotate them however you please manually. For us, we utilized Label Studio:
 https://labelstud.io/
 
+---
+
 ## LLM Annotation
 
 For LLMs, we have a script that can be ran locally (alongside Ollama) to output to a new JSON file that holds the LLM's response in a similiar structure to the one found in the exported Label Studio Json Format. The new JSON File can be found where the script is located.
@@ -43,6 +45,7 @@ Within the script, you can change the source JSON file location, the LLM model, 
 ```bash
   with open('Results.json', 'w') as f:
 ```
+---
 
 To run the script, locate the folder it is located in and use the cd command in the Command Prompt:
 ```bash
