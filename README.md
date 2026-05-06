@@ -25,7 +25,21 @@ https://labelstud.io/
 
 For LLMs, we have a script that can be ran locally (alongside Ollama) to output to a new JSON file that holds the LLM's response in a similiar structure to the one found in the exported Label Studio Json Format. The new JSON File can be found where the script is located.
 
-Within the script, you can change the source JSON file location, the LLM model, and the name newly created JSON file.
+Within the script, you can change the source JSON file location, the LLM model, and the name newly created JSON file. It can be found at the following lines:
+- Source JSON file location (Line 5):
+```bash
+  with open('C:/Users/atown/OneDrive/Documents/ConfliBERT/AEC Dataset/JSON_Files/sample.json', 'r') as f:
+```
+
+- LLM Model (Line 16):
+```bash
+  response = ollama.chat(model='gemma4:31b', messages=[
+```
+
+- New JSON file name (Line 25):
+```bash
+  with open('Results.json', 'w') as f:
+```
 
 To run the script, locate the folder it is located in and use the cd command in the Command Prompt:
 ```bash
