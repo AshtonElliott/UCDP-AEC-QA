@@ -54,5 +54,5 @@ To run the script, locate the folder it is located in and use the cd command in 
 
 Then, you run the script with the following command:
 ```bash
-  Python LocalQA.py
+  Python Local_QA.py
 ```
