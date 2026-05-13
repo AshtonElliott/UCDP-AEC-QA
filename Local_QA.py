@@ -16,7 +16,7 @@ for entry in dataset:
     
     # Change Model Here
     response = ollama.chat(model='qwen3.6:latest', messages=[
-        {'role': 'system', 'content': 'Answer in exactly one or two words. No punctuation.'},
+        {'role': 'system', 'content': 'Answer in exactly one or two words. There can be more than one answer to the question. No punctuation.'},
         {'role': 'user', 'content': f"Context: {context}\n\nQuestion: {question}"}
     ], options={'num_predict': 5})
 
