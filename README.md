@@ -26,7 +26,7 @@ https://labelstud.io/
 
 ---
 
-## LLM Annotation
+## Local LLM Annotation
 
 For LLMs, we have a script that can be ran locally (using Ollama) to output to a new JSON file that holds the LLM's response in a similiar structure to the one found in the exported Label Studio Json Format. The new JSON File can be found where the script is located.
 
