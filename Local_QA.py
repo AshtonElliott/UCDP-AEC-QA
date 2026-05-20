@@ -4,7 +4,7 @@ import re
 
 
 # Change json source file here
-with open('C:/Users/atown/OneDrive/Documents/ConfliBERT/AEC Dataset/JSON_Files/train_cont.json', 'r') as f:
+with open('C:/Users/atown/OneDrive/Documents/ConfliBERT/AEC Dataset/JSON_Files/train.json', 'r') as f:
     dataset = json.load(f)
 
 # Wrap in a list if the file contains only one object
