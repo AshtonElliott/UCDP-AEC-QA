@@ -109,7 +109,7 @@ When first running the on a HPC, run the PrepEnvironment.sh script to create the
 
 After Setup, runt the RunLLM.sh script to load Ollama, start a local Ollama Server, and run the python script. It is important to note that this version uses modules instead of a container, so this script will only work on your HPC provided:\
 a) Your HPC uses modules\
-b) Your HPC provides a module of Ollama\
+b) Your HPC provides a module of Ollama
 
 ```bash
   RunLLM.sh
