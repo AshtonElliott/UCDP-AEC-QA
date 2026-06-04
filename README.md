@@ -112,7 +112,7 @@ After Setup, runt the RunLLM.sh script to load Ollama, start a local Ollama Serv
 a) Your HPC uses modules.\
 \
 b) Your HPC provides a module of Ollama.
-
+\
 ```bash
   RunLLM.sh
 ```
