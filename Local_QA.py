@@ -18,8 +18,12 @@ for entry in dataset:
     retrieved_context = "\n".join(chunks[:5])
     
     # Change Model Here
-    response = ollama.chat(model='mistral-small3.2', messages=[
-        {'role': 'system', 'content': 'Identify the words that answer the question. Return only a comma-separated list of words found in the article. It can only be a maximum of 3 words, and there can be more than one answer to the question in the text.'},
+    response = ollama.chat(model='qwen3:8b', messages=[
+        {'role': 'system', 'content': (
+            'Identify a word or string of words that answer the question.'
+            'Do NOT include words that are considered generic such as "clashes", "military equipment", "fighting", "ambush", and "weapons".' 
+            'Return only a comma-separated list of specific, concrete answers found in the article.'
+            )},
         {'role': 'user', 'content': f"Context: {retrieved_context}\n\nQuestion: {question}"}
     ])
 
@@ -38,16 +42,13 @@ for entry in dataset:
                     "labels": ["Answer"]
                 })
                 
-            if spans == []:
-                entry['no_answer'] = "No arms or methods mentioned"
-            else:
-                entry['answer_labels'] = spans
-                
-        else:
-            entry['no_answer'] = "No arms or methods mentioned"
+    if len(spans) == 0:
+        entry['no_answer'] = "No arms or methods mentioned"
+    else:
+        entry['answer_labels'] = spans
     
     # Print Results to JSON; change JSON File Name and Filepath here
-    with open('C:/Users/atown/OneDrive/Documents/ConfliBERT/Local Results/Mistral-small3.2_Results.json', 'w') as f:
+    with open('C:/Users/atown/OneDrive/Documents/ConfliBERT/Local Results/qwen3.8b_Results.json', 'w') as f:
         json.dump(dataset, f, indent=4)
 
     print("Process complete. Results saved to newly created JSON File.")
