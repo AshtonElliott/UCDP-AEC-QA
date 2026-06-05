@@ -86,17 +86,17 @@ Within each script, the path locations can be changed to your needs. It can be f
 ```bash
   conda activate $PWD/Python_Env
 ```
-- Source JSON file location (Line 7):
+- Source JSON file location in HPC_QA.py (Line 7):
 ```bash
   with open('C:/Users/atown/OneDrive/Documents/ConfliBERT/AEC Dataset/JSON_Files/sample.json', 'r') as f:
 ```
 
-- LLM Model (Line 21):
+- LLM Model in HPC_QA.py (Line 21):
 ```bash
   response = ollama.chat(model='gemma4:31b', messages=[
 ```
 
-- New JSON file name and Filepath (Line 50):
+- New JSON file name and Filepath in HPC_QA.py (Line 50):
 ```bash
   with open('C:/Users/atown/OneDrive/Documents/ConfliBERT/Local Results/Results.json', 'w') as f:
 ```
