@@ -19,6 +19,7 @@ def convert_jsonl_to_json(input_jsonl_file, output_json_folder):
                 continue
             try:
                 data.append(json.loads(line + ' "question": "What arms or methods of force are used?"}'))
+                data.append(json.loads(line + ' "question_2": "Who is using the arms??"}'))
             except json.JSONDecodeError as e:
                 print(f"Error decoding JSON on line {line_number}: {e}")
                 continue
@@ -30,7 +31,7 @@ def convert_jsonl_to_json(input_jsonl_file, output_json_folder):
     print(f"Converted {input_jsonl_file} to {output_json_file}")
 
 # Example usage
-input_jsonl_file = 'C:/Users/ashto/Documents/UCDP-AEC Dataset/train.jsonl'  # Change this to your actual input file path
-output_json_folder = 'C:/Users/ashto/Documents/UCDP-AEC Dataset/JSON_Files'  # Change this to your desired output folder path
+input_jsonl_file = 'C:/Users/atown/OneDrive/Documents/ConfliBERT/AEC Dataset/JSONL Files/train.jsonl'  # Change this to your actual input file path
+output_json_folder = 'C:/Users/atown/OneDrive/Documents/ConfliBERT/AEC Dataset'  # Change this to your desired output folder path
 
 convert_jsonl_to_json(input_jsonl_file, output_json_folder)
