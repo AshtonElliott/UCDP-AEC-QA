@@ -20,10 +20,18 @@ for entry in dataset:
     # Change Model Here
     response = ollama.chat(model='qwen3:8b', messages=[
         {'role': 'system', 'content': (
-            'Identify a word or string of words that answer the question.'
-            'Do NOT include words that are considered generic such as "clashes", "military equipment", "fighting", "ambush", and "weapons".' 
+            'Identify a word or string of words that answer the question.' 
             'Return only a comma-separated list of specific, concrete answers found in the article.'
             )},
+            
+        # Positive Example From train.json, ID# 215280
+        {'role': 'user', 'content': 'Article: Shelling targets the countryside of Deir Ezzor, and airstrikes carried out on al- Qaryatain, while IS targets YPG in al- Raqqa\nHoms Province:\nThe warplanes carried out 3 raids at least on the IS-held city of al- Qaryatian in the southeast of Homs, no information about casualties.\nAl- Raqqa Province:\nIS targeted a YPG vehicle in the east of the town of Sluk in the eastern countryside of al- Raqqa, information reported casualties.\nDeir Ezzor Province:\nThe regime forces shelled places in the village of al- Husayniyya in the west of Deir Ezzor.'},
+        {'role': 'assistant', 'content': 'Shelling, airstrikes, shelled'},
+        
+        # Negative Example from.json, ID# 269371
+        {'role': 'user', 'content': 'Article: Taliban Militants Killed in Faryab Conflict\nTuesday, October 30, 2018\nMaimana (BNA) Three armed militants were killed by security forces in Faryab province the other day.\nHead of Faryab security commandment told BNA, the clash occurred in Qoriash village, Doulatabad District, Faryab province, in which three armed Taliban including a local commander of them were killed and five others were injured.\nThe source added, no harm and casualties sustained to security forces in the conflict.\nT. Yarzada'},
+        {'role': 'assistant', 'content': ''},
+        
         {'role': 'user', 'content': f"Context: {retrieved_context}\n\nQuestion: {question}"}
     ])
 
