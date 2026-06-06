@@ -18,10 +18,9 @@ for entry in dataset:
     retrieved_context = "\n".join(chunks[:5])
     
     # Change Model Here
-    response = ollama.chat(model='qwen3:8b', messages=[
+    response = ollama.chat(model='llama3.1', messages=[
         {'role': 'system', 'content': (
             'Identify a word or string of words that answer the question.'
-            'Do NOT include generic terms like "clashes", "attack", "violence", or "military equipment". '
             'Return only a comma-separated list of specific, concrete answers found in the article.'
             )},
             
@@ -61,7 +60,7 @@ for entry in dataset:
         entry['answer_labels'] = spans
     
     # Print Results to JSON; change JSON File Name and Filepath here
-    with open('C:/Users/atown/OneDrive/Documents/ConfliBERT/Local Results/qwen3.8b_Results.json', 'w') as f:
+    with open('C:/Users/atown/OneDrive/Documents/ConfliBERT/Local Results/llama3.1_Results.json', 'w') as f:
         json.dump(dataset, f, indent=4)
 
     print("Process complete. Results saved to newly created JSON File.")
