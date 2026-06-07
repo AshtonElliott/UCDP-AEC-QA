@@ -13,9 +13,6 @@
 module load ollama
 module load miniconda
 
-# Ensure GPU Visibility
-export CUDA_VISIBLE_DEVICES=0
-
 # Redirect Ollama Model Storage
 export OLLAMA_MODELS=$PWD/Ollama_Models
 
@@ -27,7 +24,7 @@ conda activate $PWD/Python_Env
 ollama serve &
 
 # Wait for Server
-sleep 20
+sleep 180
 
 # Run python script
 python HPC_QA.py
