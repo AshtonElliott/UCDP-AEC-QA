@@ -1,5 +1,7 @@
 #!/bin/bash
 
+source ~/.bashrc
+
 # Create Conda Environment
 conda create -p $PWD/Python_Env python=3.12
 
