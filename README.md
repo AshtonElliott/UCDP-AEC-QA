@@ -64,9 +64,9 @@ Then, you run the script with the following command:
 For the more larger or resource-heavy models, we have concocted a series of scripts that run the local script above in an HPC Environment. It should be noted that this has only been tested and fixed on the UTDallas Juno HPC and may not translate perfectly to every other HPC.
 
 For the HPC, we have three scripts:
-  - a Bash script for setup
-  - a Bash script that prepares the HPC
-  - the Python script
+  - a Bash script for setup.
+  - a Bash script that performs that preps and runs the python script.
+  - the Python script.
 
 Within each script, the path locations can be changed to your needs. It can be found in the following lines:
 - Conda Environment Filepath Location in PrepEnvironment.sh (Lines 4 & 7):
@@ -77,12 +77,12 @@ Within each script, the path locations can be changed to your needs. It can be f
   conda activate $PWD/Python_Env
 ```
 
-- Ollama Model Storage Filepath Location in RunLLM.sh (Line 7):
+- Ollama Model Storage Filepath Location in RunLLM.sh (Line 20):
 ```bash
   OLLAMA_MODELS=$PWD/Ollama_Models
 ```
 
-- Conda Environment Filepath Location in RunLLM.sh (Line 10):
+- Conda Environment Filepath Location in RunLLM.sh (Line 24):
 ```bash
   conda activate $PWD/Python_Env
 ```
@@ -107,7 +107,7 @@ When first running the on a HPC, run the PrepEnvironment.sh script to create the
   PrepEnvironment.sh
 ```
 
-After Setup, runt the RunLLM.sh script to load Ollama, start a local Ollama Server, and run the python script. It is important to note that this version uses modules instead of a container, so this script will only work on your HPC provided:\
+After Setup, run the RunLLM.sh script to load Ollama, start a local Ollama Server, and run the python script. It is important to note that this version uses modules instead of a container, so this script will only work on your HPC provided:\
 \
 a) Your HPC uses modules.\
 \
