@@ -25,7 +25,18 @@ Once in JSON format, you can annotate them however you please manually. For us, 
 https://labelstud.io/
 
 ---
+## Manual Annotation
+The manual Annoation can be done any way you prefer. For us, it was using Label Studio. Should you also choose to use Label Studio, it is worth noting that the JSON exported will be condensed to one line. To ease the viewing process, we will provide a script here that creates a new json that holds the exported json's data in the non-one line format. Here's how to use it:
+- Change the source directory to your exported JSON file (Line 4):
+```bash
+  with open('C:/Users/atown/OneDrive/Documents/ConfliBERT/APSA_Temp.json', 'r', encoding='utf-8') as f:
+```
+- Provide the result directory and name to your new formatted JSON file (Line 8):
+```bash
+  with open('C:/Users/atown/OneDrive/Documents/ConfliBERT/Annotated_APSA.json', 'w') as f:
+```
 
+---
 ## Local LLM Annotation
 
 For LLMs, we have a script that can be ran locally (using Ollama) to output to a new JSON file that holds the LLM's response in a similiar structure to the one found in the exported Label Studio Json Format. The new JSON File can be found where the script is located.
@@ -58,7 +69,6 @@ Then, you run the script with the following command:
 ```
 
 ---
-
 ## HPC LLM Annotation
 
 For the more larger or resource-heavy models, we have concocted a series of scripts that run the local script above in an HPC Environment. It should be noted that this has only been tested and fixed on the UTDallas Juno HPC and may not translate perfectly to every other HPC.
