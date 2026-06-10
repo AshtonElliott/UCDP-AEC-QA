@@ -47,12 +47,12 @@ Within the script, you can change the source JSON file location, the LLM model, 
   with open('C:/Users/atown/OneDrive/Documents/ConfliBERT/AEC Dataset/JSON_Files/sample.json', 'r') as f:
 ```
 
-- LLM Model (Line 21):
+- LLM Model (Line 24):
 ```bash
-  response = ollama.chat(model='gemma4:31b', messages=[
+  model='mistral',
 ```
 
-- New JSON file name and Filepath (Line 50):
+- New JSON file name and Filepath (Line 73):
 ```bash
   with open('C:/Users/atown/OneDrive/Documents/ConfliBERT/Local Results/Results.json', 'w') as f:
 ```
@@ -96,19 +96,19 @@ Within each script, the path locations can be changed to your needs. It can be f
 ```bash
   conda activate $PWD/Python_Env
 ```
-- Source JSON file location in HPC_QA.py (Line 7):
+- Source JSON file location in HPC_QA.py (Line 12):
 ```bash
-  with open('C:/Users/atown/OneDrive/Documents/ConfliBERT/AEC Dataset/JSON_Files/sample.json', 'r') as f:
+  with open('/groups/pbrandt/aee230007/JSON_Files/train.json', 'r') as f:
 ```
 
-- LLM Model in HPC_QA.py (Line 21):
+- LLM Model in HPC_QA.py (Line 28):
 ```bash
-  response = ollama.chat(model='gemma4:31b', messages=[
+  model='gemma4:31b',
 ```
 
-- New JSON file name and Filepath in HPC_QA.py (Line 50):
+- New JSON file name and Filepath in HPC_QA.py (Line 58):
 ```bash
-  with open('C:/Users/atown/OneDrive/Documents/ConfliBERT/Local Results/Results.json', 'w') as f:
+  with open('/groups/pbrandt/aee230007/Results/gemma_results.json', 'w') as f:
 ```
 ---
 
