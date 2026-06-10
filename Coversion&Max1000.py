@@ -21,8 +21,7 @@ def convert_jsonl_to_json(input_jsonl_file, output_json_folder):
             try:
                 data.append(json.loads(line + ' "question": "What arms or methods of force are used?"}'))
                 counter = counter + 1
-                # Goes in 500 Intervals. I.E. 500 = 1000, 1000 = 2000, etc...
-                if counter == 500:
+                if counter == 1000:
                     break
                 
             except json.JSONDecodeError as e:
