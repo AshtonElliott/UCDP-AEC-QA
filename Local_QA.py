@@ -27,23 +27,6 @@ for idx, entry in enumerate(dataset):
 				'Identify a word or string of words that answer the question.'
 				'Return only a comma-separated list of specific, concrete answers found in the article.'
 				)},
-                
-				# Positive Example From train.json, ID# 215280
-				{'role': 'user', 'content': 'Article: Shelling targets the countryside of Deir Ezzor, and airstrikes carried out on al- Qaryatain, while IS targets YPG in al- Raqqa\nHoms Province:\nThe warplanes carried out 3 raids at least on the IS-held city of al- Qaryatian in the southeast of Homs, no information about casualties.\nAl- Raqqa Province:\nIS targeted a YPG vehicle in the east of the town of Sluk in the eastern countryside of al- Raqqa, information reported casualties.\nDeir Ezzor Province:\nThe regime forces shelled places in the village of al- Husayniyya in the west of Deir Ezzor.'},
-				{'role': 'assistant', 'content': 'Shelling, airstrikes, shelled'},
-        
-				# Negative Example from train.json, ID# 269371
-				{'role': 'user', 'content': 'Article: Taliban Militants Killed in Faryab Conflict\nTuesday, October 30, 2018\nMaimana (BNA) Three armed militants were killed by security forces in Faryab province the other day.\nHead of Faryab security commandment told BNA, the clash occurred in Qoriash village, Doulatabad District, Faryab province, in which three armed Taliban including a local commander of them were killed and five others were injured.\nThe source added, no harm and casualties sustained to security forces in the conflict.\nT. Yarzada'},
-				{'role': 'assistant', 'content': ''},
-        
-				# Example to Reinenforce not to count "Clashes" from train.json, ID# 213506
-				{'role': 'user', 'content': 'Article: Al-Hasakah Province:\nThe warplanes carried out some raids on places in IS-held area of al- Shaddadi and its vicinity in the south of al- Hasakah, no information about victims.\nAleppo Province: The rebel factions launched some shells on places in the regime-held neighborhood of al- A\u2019zamiyyah this morning, no information about casualties.\nIS shelled by mortar shells places in the city of Marea in the north of Aleppo leading to wound some people.\nClashes took place after midnight between IS against the regime forces and allied militiamen around the two villages of Tal Riman and al- Salhiyyah in the eastern countryside of Aleppo, information reported casualties on both sides.'},
-				{'role': 'assistant', 'content': 'shells, shelled by mortar shells'},
-        
-				# Longer Example from train.json, ID# 204613
-				{'role': 'user', 'content': 'Article: Al-Hasakah Province:\nThe warplanes carried out some raids on places in IS-held area of al- Shaddadi and its vicinity in the south of al- Hasakah, no information about victims.\nAleppo Province: The rebel factions launched some shells on places in the regime-held neighborhood of al- A\u2019zamiyyah this morning, no information about casualties.\nIS shelled by mortar shells places in the city of Marea in the north of Aleppo leading to wound some people.\nClashes took place after midnight between IS against the regime forces and allied militiamen around the two villages of Tal Riman and al- Salhiyyah in the eastern countryside of Aleppo, information reported casualties on both sides.'},
-				{'role': 'assistant', 'content': 'shells, shelled by mortar shells'},
-				
 				{'role': 'user', 'content': f"Context: {retrieved_context}\n\nQuestion: {question}"}   
             ]
         )
