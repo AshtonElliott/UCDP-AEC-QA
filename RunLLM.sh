@@ -20,6 +20,9 @@ unset https_proxy
 export OLLAMA_MODELS=/groups/pbrandt/aee230007/Ollama_Models
 export APPTAINERENV_OLLAMA_MODELS=/groups/pbrandt/aee230007/Ollama_Models
 
+# Set Ollama Host
+export OLLAMA_HOST=127.0.0.1:11434
+
 # Start Ollama
 apptainer run --nv -B /groups/pbrandt/aee230007:/groups/pbrandt/aee230007 ollama.sif serve &
 
