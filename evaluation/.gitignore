@@ -1,0 +1,15 @@
+# python compile cache
+__pycache__/
+*.pyc
+
+# mac system clutter
+.DS_Store
+
+# local environment history
+.uv/
+
+# testing scripts and outputs
+test_run.py
+outputs/
+mock_ground_truth.json
+mock_train_dataset.jsonl
