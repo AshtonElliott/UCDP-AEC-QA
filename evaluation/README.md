@@ -51,3 +51,13 @@ To solve this, our evaluation script utilizes **Optimal Bipartite Matching**.
 * **`evaluate.py`**: The core evaluation engine (Hungarian Algorithm + IoU).
 * **`pyproject.toml` & `uv.lock`**: Top-level dependencies and cryptographically locked sub-dependencies.
 * **`.python-version`**: Forces the environment to use the exact correct Python execution engine.
+
+---
+
+## 4. Potential Future Improvements
+
+* **Exact Match (EM) Tracking:** Currently, the pipeline grants partial credit for spans that meet the 0.5 IoU threshold. Adding an "Exact Match" metric (IoU = 1.0) alongside the F1 score will provide a stricter, binary view of how often the LLM perfectly duplicates human annotations.
+* **Standardized SQuAD Evaluation:** Implementing the Hugging Face `evaluate` library (specifically the SQuAD metric). This evaluates at the token/word level rather than the character level and is widely recognized in academic NLP publishing. 
+* **Semantic Evaluation:** Syntax matching fails if the AI predicts "airstrikes" but the human highlighted "air raids" (0.0 IoU). We may upgrade to evaluating *meaning* by implementing either:
+  * **BERTScore:** Converts phrases into mathematical vectors to check for contextual similarity.
+  * **LLM-as-a-Judge:** Routing unmatched False Positives to a stronger model (e.g., GPT-4) to ask if the AI's prediction is a functionally accurate synonym of the human's ground truth.
