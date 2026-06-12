@@ -24,7 +24,8 @@ for idx, entry in enumerate(dataset):
         chunks = [context[i:i+1500] for i in range(0, len(context), 1500)]
         retrieved_context = "\n".join(chunks[:5])
         # Add timeout handling
-        response = ollama.chat(
+        client = ollama.Client(timeout=300)
+        response = client.chat(
             model='gemma4:31b',
             messages=[
                 {'role': 'system', 'content': 'Identify the words that answer the question. Return only a comma-separated list of words found in the article. There can be more than one answer to the question in the text.'},
