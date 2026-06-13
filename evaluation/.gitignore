@@ -8,8 +8,5 @@ __pycache__/
 # local environment history
 .uv/
 
-# testing scripts and outputs
-test_run.py
-outputs/
-mock_ground_truth.json
-mock_train_dataset.jsonl
+# temp dataset
+label_studio_export.json
