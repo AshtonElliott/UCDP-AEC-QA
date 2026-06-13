@@ -1,6 +1,6 @@
-# Temporary Evaluation Sandbox & Evaluation Pipeline
+# Evaluation Pipeline
 
-**Context & Sandbox Rationale:** 
+**Context:** 
 
 This folder serves as a temporary, isolated testing environment to develop and test a new evaluation metric (using Optimal Bipartite Matching). To safely test this math without disrupting the team's current workflow or risking data loss in the main project files, this directory temporarily duplicates the logic found in `Local_QA.py`. Once the final dataset is completed and the evaluation logic is locked in, these scripts will be consolidated back into the main project pipeline.
 
