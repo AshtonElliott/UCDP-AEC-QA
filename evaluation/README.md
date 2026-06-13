@@ -37,13 +37,13 @@ To run a full test of the pipeline from raw data to final F1 score, execute the 
 
 **Step 1: Clean the Human Data**
 ```bash
-uv run parse_export.py
+uv run label_studio_export.py
 ```
 *(Outputs: `train.json`)*
 
 **Step 2: Generate AI Predictions**
 ```bash
-uv run generate_predictions.py
+uv run llm_inference.py
 ```
 *(Outputs: `mistral_Results.json`)*
 
@@ -76,8 +76,8 @@ To solve this, our evaluation script utilizes **Optimal Bipartite Matching**.
 
 ## 4. Folder Structure
 
-* **`parse_export.py`**: Cleans the raw JSON export from Label Studio and isolates user annotations.
-* **`generate_predictions.py`**: Contains the core LLM inference loop (duplicated from the original Local_QA script) to safely append AI guesses.
+* **`label_studio_export.py`**: Cleans the raw JSON export from Label Studio and isolates user annotations.
+* **`llm_inference.py`**: Contains the core LLM inference loop (duplicated from the original Local_QA script) to safely append AI guesses.
 * **`evaluate.py`**: The core evaluation engine (Hungarian Algorithm + IoU).
 * **`train.json`**: The cleaned, isolated human ground-truth dataset.
 * **`mistral_Results.json`**: The final dataset containing both human `answer_labels` and AI `model_spans` side-by-side.
