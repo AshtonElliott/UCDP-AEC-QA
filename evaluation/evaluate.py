@@ -3,10 +3,7 @@ import os
 import numpy as np
 from scipy.optimize import linear_sum_assignment
 
-GROUND_TRUTH_FILE = 'mock_ground_truth.json'
-AI_RESULTS_FILE = 'outputs/mistral_Results.json'
-
-# temporary threshold
+EVAL_FILE = 'mistral_Results.json' 
 IOU_THRESHOLD = 0.5 
 
 # converts a list of span dictionaries into a set of unique character positions
@@ -31,33 +28,14 @@ def calculate_iou(gold_set, pred_set):
     return intersection / union
 
 def main():
-    # verify files exist before running
-    if not os.path.exists(AI_RESULTS_FILE):
-        print(f"Error: Missing AI results file at {AI_RESULTS_FILE}")
-        return
-    if not os.path.exists(GROUND_TRUTH_FILE):
-        print(f"Error: Missing ground truth file at {GROUND_TRUTH_FILE}")
+    # verify file exists before running
+    if not os.path.exists(EVAL_FILE):
+        print(f"Error: Missing evaluation file at {EVAL_FILE}")
         return
 
-    # load human annotations
-    print("Loading human ground truth...")
-    ground_truth_map = {}
-    with open(GROUND_TRUTH_FILE, 'r') as f:
-        ground_truth_keys = json.load(f)
-    
-    # map human annotations by ID 
-    ground_truth_map = {entry.get('id'): entry.get('answer_labels', []) for entry in ground_truth_keys}
-
-    # load AI predictions
-    print("Loading AI predictions...")
-    with open(AI_RESULTS_FILE, 'r') as f:
-        ai_predictions = json.load(f)
-    
-    # map AI results by ID
-    ai_map = {entry.get('id'): entry.get('answer_labels', []) for entry in ai_predictions}
-
-    # gather all unique IDs from both 
-    all_ids = set(ground_truth_map.keys()).union(set(ai_map.keys()))
+    print(f"Loading dataset from {EVAL_FILE}...")
+    with open(EVAL_FILE, 'r', encoding='utf-8') as f:
+        dataset = json.load(f)
 
     # global counts
     global_tp = 0
@@ -66,39 +44,38 @@ def main():
     global_character_iou = 0.0
     evaluated_count = 0
 
-
     print(f"STARTING EVALUATION RUN (IoU Threshold: {IOU_THRESHOLD})")
 
-
-    for entry_id in sorted(all_ids):
-        gold_spans = ground_truth_map.get(entry_id, [])
-        pred_spans = ai_map.get(entry_id, [])
-
-        if entry_id not in ground_truth_map:
-            print(f"Anomaly [ID: {entry_id}]: Present in AI predictions but missing from Ground Truth")
-            global_fp += len(pred_spans)
-            continue
-
-        if entry_id not in ai_map:
-            print(f"Anomaly [ID: {entry_id}]: Present in Ground Truth but completely skipped by AI")
-            global_fn += len(gold_spans)
-            evaluated_count += 1
-            continue
+    for entry in dataset:
+        entry_id = entry.get('id', 'unknown')
+        
+        # pull human annotations vs AI predictions directly from the same row object
+        gold_spans = entry.get('answer_labels', [])
+        pred_spans = entry.get('model_spans', []) 
 
         entry_tp = 0
         num_gold = len(gold_spans)
         num_pred = len(pred_spans)
 
-        # optial bibarte matching using hungarian algorithm
+        # optimal bipartite matching using Hungarian algorithm
         if num_gold > 0 and num_pred > 0:
             # build IoU matrix
             iou_matrix = np.zeros((num_gold, num_pred))
             for g_idx, g_span in enumerate(gold_spans):
+                g_text = g_span.get('text', '').strip().lower()
                 g_indices = get_character_indices([g_span])
+                
                 for p_idx, p_span in enumerate(pred_spans):
+                    p_text = p_span.get('text', '').strip().lower()
                     p_indices = get_character_indices([p_span])
-                    iou_matrix[g_idx, p_idx] = calculate_iou(g_indices, p_indices)
+                    
+                    # exact string match safety valve for repetitions
+                    if g_text == p_text:
+                        iou_matrix[g_idx, p_idx] = 1.0
+                    else:
+                        iou_matrix[g_idx, p_idx] = calculate_iou(g_indices, p_indices)
             
+            # maximize assignment optimization matrix
             gold_ind, pred_ind = linear_sum_assignment(-iou_matrix)
             
             for g_idx, p_idx in zip(gold_ind, pred_ind):
@@ -113,7 +90,7 @@ def main():
         whole_pred = get_character_indices(pred_spans)
         doc_iou = calculate_iou(whole_gold, whole_pred)
         
-        # Accumulate metrics
+        # accumulate metrics
         global_tp += entry_tp
         global_fp += entry_fp
         global_fn += entry_fn
