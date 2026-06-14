@@ -9,4 +9,4 @@ __pycache__/
 .uv/
 
 # temp dataset
-label_studio_export.json
+data/*
