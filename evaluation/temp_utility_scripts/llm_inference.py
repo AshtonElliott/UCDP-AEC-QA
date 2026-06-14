@@ -1,9 +1,18 @@
 import json
+import os
 import ollama
 import re
 import sys
 
-with open('train.json', 'r') as f:
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+INPUT_TRAIN_FILE = os.path.join(BASE_DIR, 'data', 'train.json')
+OUTPUT_RESULTS_FILE = os.path.join(BASE_DIR, 'data', 'mistral_Results.json')
+
+if not os.path.exists(INPUT_TRAIN_FILE):
+    print(f"Error: Target data array missing at {INPUT_TRAIN_FILE}")
+    sys.exit(1)
+
+with open(INPUT_TRAIN_FILE, 'r', encoding='utf-8') as f:
     dataset = json.load(f)
 
 run_slice = dataset 

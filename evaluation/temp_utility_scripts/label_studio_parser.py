@@ -1,8 +1,9 @@
 import json
 import os
 
-LABEL_STUDIO_EXPORT = "label_studio_export.json"
-OUTPUT_TRAIN_FILE = "./train.json"
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+LABEL_STUDIO_EXPORT = os.path.join(BASE_DIR, "data", "label_studio_export.json")
+OUTPUT_TRAIN_FILE = os.path.join(BASE_DIR, "data", "train.json")
 
 TARGET_EMAIL = "ashton.elliott@utdallas.edu" 
 
