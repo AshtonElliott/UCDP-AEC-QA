@@ -48,20 +48,21 @@ For the package, use pip to install it in your local terminal:
 ```
 
 Within the script, you can change the source JSON file location, the LLM model, and the name newly created JSON file. It can be found at the following lines:
-- Source JSON file location (Line 7):
+- Source JSON file location (Line 8):
 ```bash
-  with open('C:/Users/atown/OneDrive/Documents/ConfliBERT/AEC Dataset/JSON_Files/sample.json', 'r') as f:
+  input_path = os.path.join(script_dir, 'train.json')
 ```
 
-- LLM Model (Line 24):
+- New JSON file name (Line 10):
+```bash
+  output_path = os.path.join(script_dir, 'mistral_results.json')
+```
+
+- LLM Model (Line 28):
 ```bash
   model='mistral',
 ```
 
-- New JSON file name and Filepath (Line 73):
-```bash
-  with open('C:/Users/atown/OneDrive/Documents/ConfliBERT/Local Results/Results.json', 'w') as f:
-```
 ---
 
 To run the script, locate the folder the script is located in and use the cd command in the Command Prompt:
