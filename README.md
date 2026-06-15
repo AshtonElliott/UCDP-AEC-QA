@@ -78,59 +78,85 @@ Then, you run the script with the following command:
 ---
 ## HPC LLM Annotation
 
-For the more larger or resource-heavy models, we have concocted a series of scripts that run the local script above in an HPC Environment. It should be noted that this has only been tested and fixed on the UTDallas Juno HPC and may not translate perfectly to every other HPC.
+For those that have HPC access, we have a script and instructions as to how deploy and run our tools. Before running, ensure your HPC has GPU allocation and can allow multiple terminals at once.
 
-For the HPC, we have three scripts:
-  - a Bash script for setup.
-  - a Bash script that performs that preps and runs the python script.
-  - the Python script.
+## Ollama CLI Installation and serving on Terminal 1
 
-Within each script, the path locations can be changed to your needs. It can be found in the following lines:
-- Conda Environment Filepath Location in PrepEnvironment.sh (Lines 4 & 7):
 ```bash
-  conda create -p $PWD/Python_Env python=3.12
-```
-```bash
-  conda activate $PWD/Python_Env
-```
+# Enter the project folder
+cd <YOUR_PROJECT_DIR>
 
-- Ollama Model Storage Filepath Location in RunLLM.sh (Line 20):
-```bash
-  OLLAMA_MODELS=$PWD/Ollama_Models
-```
+# Download the Ollama Linux archive
+curl -fL https://ollama.com/download/ollama-linux-amd64.tar.zst -o ollama.tar.zst
 
-- Conda Environment Filepath Location in RunLLM.sh (Line 24):
-```bash
-  conda activate $PWD/Python_Env
-```
-- Source JSON file location in HPC_QA.py (Line 12):
-```bash
-  with open('/groups/pbrandt/aee230007/JSON_Files/train.json', 'r') as f:
+# Create a user-local install folder and extract Ollama there
+mkdir -p ~/.local
+tar -I zstd -xf ollama.tar.zst -C ~/.local
+
+# Load Ollama from your user install and store models in the project folder. 
+# MAKE SURE THE MODEL WEIGHTS FILES ARE STORED IN A FOLDER THAT DOES NOT HAVE TOO MUCH LIMITS ON THE SIZE.
+export PATH="$HOME/.local/bin:$PATH"
+export OLLAMA_MODELS="<YOUR_PROJECT_DIR>/ollama_models"
+
+# allocate for resources (This is dependent on your HPC).
+srun -p h100 --mem=32GB --time=01:00:00 --pty /bin/bash
+
+# Check Ollama and start the server
+ollama --version
+ollama serve
 ```
 
-- LLM Model in HPC_QA.py (Line 28):
+## Running the script on Terminal 2
+
 ```bash
-  model='gemma4:31b',
+# Connect to previously allocated resource
+ssh <Node_Name>*
+
+# Enter the project folder
+cd <YOUR_PROJECT_DIR>
+
+# Load Ollama from your user install and store models in the project folder
+export PATH="$HOME/.local/bin:$PATH"
+export OLLAMA_MODELS="<YOUR_PROJECT_DIR>/ollama_models"
+
+# Create and activate a project Python environment. I am using venv here for testing but you can use other if you like.
+# python3 -m venv .venv
+source .venv/bin/activate
+
+# Install the Python packages used by the scripts
+# python -m pip install --upgrade pip
+# python -m pip install ollama tqdm
+
+# Pull the model from the running Ollama server, using the smaller model for testing
+ollama pull gemma3:4b
+ollama pull gemma4:12b
+ollama pull gemma4:31b
+
+# Run the sync script or the async script
+python HPC_QA.py
+python HPC_QA_async.py
 ```
 
-- New JSON file name and Filepath in HPC_QA.py (Line 58):
-```bash
-  with open('/groups/pbrandt/aee230007/Results/gemma_results.json', 'w') as f:
-```
----
+## Checking status in terminal 3
 
-When first running the on a HPC, run the PrepEnvironment.sh script to create the needed python environment and its dependencies. This will only need to be done once as long as the data in your files are kept.
 ```bash
-  PrepEnvironment.sh
+nvidia-smi
+ps aux | grep ollama
+ps aux | grep python
+watch -n 2 nvidia-smi
+```
+OR:
+
+```bash
+ml jobstats
+jobstats <JOB_ID>
 ```
 
-After Setup, run the RunLLM.sh script to load Ollama, start a local Ollama Server, and run the python script. It is important to note that this version uses modules instead of a container, so this script will only work on your HPC provided:\
-\
-a) Your HPC uses modules.\
-\
-b) Your HPC provides a module of Ollama.
+* <Node_Name> is the Node that is being used. For example, if I used squeue --me and got the following:
 ```bash
-  RunLLM.sh
+               JOBID PARTITION     NAME     USER ST       TIME  NODES NODELIST(REASON)
+            218313      h100     bash aee23000  R       9:18      1 g-04-02
 ```
+The <Node_Name> would be g-04-02.
 
 ---
