@@ -41,6 +41,12 @@ The manual Annoation can be done any way you prefer. For us, it was using Label 
 
 For LLMs, we have a script that can be ran locally (using Ollama) to output to a new JSON file that holds the LLM's response in a similiar structure to the one found in the exported Label Studio Json Format. The new JSON File can be found where the script is located.
 
+The Script will require a version of Python and the Ollama Python Package. We recommend Python 3.12 as this is what it's built on.
+For the package, use pip to install it in your local terminal:
+```bash
+  pip install ollama
+```
+
 Within the script, you can change the source JSON file location, the LLM model, and the name newly created JSON file. It can be found at the following lines:
 - Source JSON file location (Line 7):
 ```bash
