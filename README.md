@@ -96,6 +96,8 @@ Within either script, you can change the source JSON file location, the LLM mode
   model='mistral',
 ```
 
+---
+
 To utilize either script, you will need at least two running HPC terminals.
 
 ### Ollama CLI Installation and serving on Terminal 1
