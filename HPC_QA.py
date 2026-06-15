@@ -29,7 +29,7 @@ for idx, entry in enumerate(dataset):
         retrieved_context = "\n".join(chunks[:5])
         response = ollama.chat(
          # Change Model Here
-            model='gemma3:4b',
+            model='mistral',
             messages=[
                 {'role': 'system', 'content': 'Identify the words that answer the question. Return only a comma-separated list of words found in the article. There can be more than one answer to the question in the text.'},
                 {'role': 'user', 'content': f"Context: {retrieved_context}\n\nQuestion: {question}"}   
