@@ -78,9 +78,27 @@ Then, you run the script with the following command:
 ---
 ## HPC LLM Annotation
 
-For those that have HPC access, we have a script and instructions as to how deploy and run our tools. Before running, ensure your HPC has GPU allocation and can allow multiple terminals at once.
+For those that have HPC access, we have two scripts, a synchronous and asynchronous, that can be ran on HPCs.
 
-## Ollama CLI Installation and serving on Terminal 1
+Within either script, you can change the source JSON file location, the LLM model, and the name newly created JSON file. It can be found at the following lines:
+- Source JSON file location (Line 12 for Sync or Line 14 for Async):
+```bash
+  input_path = os.path.join(script_dir, 'train.json')
+```
+
+- New JSON file name (Line 13 for Sync or Line 15 for Async):
+```bash
+  output_path = os.path.join(script_dir, 'mistral_results.json')
+```
+
+- LLM Model (Line 30 for Sync or Line 38 for Async):
+```bash
+  model='mistral',
+```
+
+To utilize either script, you will need at least two running HPC terminals.
+
+### Ollama CLI Installation and serving on Terminal 1
 
 ```bash
 # Enter the project folder
@@ -106,7 +124,7 @@ ollama --version
 ollama serve
 ```
 
-## Running the script on Terminal 2
+### Running the script on Terminal 2
 
 ```bash
 # Connect to previously allocated resource
@@ -135,7 +153,7 @@ python HPC_QA.py
 python HPC_QA_Async.py
 ```
 
-## Checking status in terminal 3
+### Checking status in terminal 3 (Optional)
 
 ```bash
 nvidia-smi
@@ -149,6 +167,8 @@ watch -n 2 nvidia-smi
 ml jobstats
 jobstats <JOB_ID>
 ```
+
+---
 
 ## Notes
 *<Node_Name> is the Node that is being used. For example, if I used squeue --me and got the following below, the <Node_Name> would be g-04-02:
