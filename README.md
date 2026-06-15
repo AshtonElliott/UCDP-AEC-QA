@@ -119,7 +119,7 @@ export PATH="$HOME/.local/bin:$PATH"
 export OLLAMA_MODELS="<YOUR_PROJECT_DIR>/ollama_models"
 
 # allocate for resources (This is dependent on your HPC).
-srun -p h100 --mem=32GB --time=01:00:00 --pty /bin/bash
+srun -p h100 --mem=32GB --time=01:00:00 --gres=gpu:1 --pty /bin/bash
 
 # Check Ollama and start the server
 ollama --version
