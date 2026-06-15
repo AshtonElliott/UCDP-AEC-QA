@@ -110,31 +110,29 @@ ollama serve
 
 ```bash
 # Connect to previously allocated resource
-ssh <Node_Name>***
+ssh <Node_Name>*
 
 # Enter the project folder
 cd <YOUR_PROJECT_DIR>
 
 # Load Ollama from your user install and store models in the project folder
 export PATH="$HOME/.local/bin:$PATH"
-export OLLAMA_MODELS="<YOUR_PROJECT_DIR>/ollama_models"
+export OLLAMA_MODELS="<YOUR_PROJECT_DIR>/Ollama_Models"
 
-# Create and activate a project Python environment. I am using venv here for testing but you can use other if you like.
-# python3 -m venv .venv
-source .venv/bin/activate
+# Create and activate a project Conda environment. This can also be done with Python, but Conda is recommended for ease of use.
+conda create -p <YOUR_PROJECT_DIR>/Python_Env python=3.12
+conda activate $PWD/Python_Env
 
 # Install the Python packages used by the scripts
-# python -m pip install --upgrade pip
-# python -m pip install ollama tqdm
+pip install --upgrade pip
+pip install ollama tqdm
 
 # Pull the model from the running Ollama server, using the smaller model for testing
-ollama pull gemma3:4b
-ollama pull gemma4:12b
-ollama pull gemma4:31b
+ollama pull mistral**
 
 # Run the sync script or the async script
 python HPC_QA.py
-python HPC_QA_async.py
+python HPC_QA_Async.py
 ```
 
 ## Checking status in terminal 3
@@ -152,12 +150,13 @@ ml jobstats
 jobstats <JOB_ID>
 ```
 
-
-***<Node_Name> is the Node that is being used. For example, if I used squeue --me and got the following:
+## Notes
+*<Node_Name> is the Node that is being used. For example, if I used squeue --me and got the following:
 ```bash
                JOBID PARTITION     NAME     USER ST       TIME  NODES NODELIST(REASON)
             218313      h100     bash aee23000  R       9:18      1 g-04-02
 ```
 The <Node_Name> would be g-04-02.
 
+**mistral is the model examplified here, but you can swap this out with any model on Ollama.
 ---
