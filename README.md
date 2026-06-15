@@ -151,12 +151,11 @@ jobstats <JOB_ID>
 ```
 
 ## Notes
-*<Node_Name> is the Node that is being used. For example, if I used squeue --me and got the following:
+*<Node_Name> is the Node that is being used. For example, if I used squeue --me and got the following below, the <Node_Name> would be g-04-02:
 ```bash
                JOBID PARTITION     NAME     USER ST       TIME  NODES NODELIST(REASON)
             218313      h100     bash aee23000  R       9:18      1 g-04-02
 ```
-The <Node_Name> would be g-04-02.
+**mistral is the model examplified here, but any model on Ollama will work here.
 
-mistral is the model examplified here, but you can swap this out with any model on Ollama.
 ---
