@@ -34,7 +34,8 @@ async def process_entry(idx, entry):
             chunks = [context[i:i+1500] for i in range(0, len(context), 1500)]
             retrieved_context = "\n".join(chunks[:5])
             response = await client.chat(
-                model='gemma4:31b', # ollama pull gemma3:4b, gemma4:12b, gemma4:31b
+                # Change Model Here
+                model='gemma4:31b',
                 messages=[
                     {'role': 'system', 'content': 'Identify the words that answer the question. Return only a comma-separated list of words found in the article. There can be more than one answer to the question in the text.'},
                     {'role': 'user', 'content': f"Context: {retrieved_context}\n\nQuestion: {question}"}
