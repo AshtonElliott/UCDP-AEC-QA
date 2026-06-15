@@ -110,7 +110,7 @@ ollama serve
 
 ```bash
 # Connect to previously allocated resource
-ssh <Node_Name>*
+ssh <Node_Name>***
 
 # Enter the project folder
 cd <YOUR_PROJECT_DIR>
@@ -152,7 +152,8 @@ ml jobstats
 jobstats <JOB_ID>
 ```
 
-*<Node_Name> is the Node that is being used. For example, if I used squeue --me and got the following:
+
+***<Node_Name> is the Node that is being used. For example, if I used squeue --me and got the following:
 ```bash
                JOBID PARTITION     NAME     USER ST       TIME  NODES NODELIST(REASON)
             218313      h100     bash aee23000  R       9:18      1 g-04-02
