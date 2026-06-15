@@ -143,7 +143,7 @@ ps aux | grep ollama
 ps aux | grep python
 watch -n 2 nvidia-smi
 ```
-OR:
+**OR:**
 
 ```bash
 ml jobstats
