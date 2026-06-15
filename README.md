@@ -158,5 +158,5 @@ jobstats <JOB_ID>
 ```
 The <Node_Name> would be g-04-02.
 
-**mistral is the model examplified here, but you can swap this out with any model on Ollama.
+** mistral is the model examplified here, but you can swap this out with any model on Ollama.
 ---
