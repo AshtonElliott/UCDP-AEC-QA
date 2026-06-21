@@ -26,11 +26,11 @@ https://labelstud.io/
 The manual Annoation can be done any way you prefer. For us, it was using Label Studio. Should you also choose to use Label Studio, it is worth noting that the JSON exported will be condensed to one line. To ease the viewing process, we will provide a script here that creates a new json that holds the exported json's data in the non-one line format. Here's how to use it:
 - Change the source directory to your exported JSON file (Line 4):
 ```bash
-  with open('C:/Users/atown/OneDrive/Documents/ConfliBERT/APSA_Temp.json', 'r', encoding='utf-8') as f:
+  unformatted_file = os.path.join(script_dir, 'Temp_APSA.json')
 ```
 - Provide the result directory and name to your new formatted JSON file (Line 8):
 ```bash
-  with open('C:/Users/atown/OneDrive/Documents/ConfliBERT/Annotated_APSA.json', 'w') as f:
+  formatted_file = os.path.join(script_dir, 'Annotated_APSA.json')
 ```
 
 ---
