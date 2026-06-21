@@ -30,8 +30,10 @@ def convert_jsonl_to_json(input_jsonl_file, output_json_folder):
     
     print(f"Converted {input_jsonl_file} to {output_json_file}")
 
-# Example usage
-input_jsonl_file = 'C:/Users/atown/OneDrive/Documents/ConfliBERT/AEC Dataset/JSONL Files/train.jsonl'  # Change this to your actual input file path
-output_json_folder = 'C:/Users/atown/OneDrive/Documents/ConfliBERT/AEC Dataset'  # Change this to your desired output folder path
+script_dir = os.path.dirname(os.path.abspath(__file__))
+# Change JSON source file here
+input_jsonl_file = os.path.join(script_dir, 'train.jsonl')
+#change Output JSON File Name here
+output_json_folder = script_dir
 
 convert_jsonl_to_json(input_jsonl_file, output_json_folder)
