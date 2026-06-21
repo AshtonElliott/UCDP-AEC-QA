@@ -33,11 +33,12 @@ def convert_jsonl_to_json(input_jsonl_file, output_json_folder):
         json.dump(data, json_file, indent=4)
     
     print(f"Converted {input_jsonl_file} to {output_json_file}")
-
+    
+# Change JSONL source file here if needed
 script_dir = os.path.dirname(os.path.abspath(__file__))
-# Change JSONL source file here
+# JSONL source file
 input_jsonl_file = os.path.join(script_dir, 'train.jsonl')
-#change Output JSON here
-output_json_folder = os.path.join(script_dir, 'train.json')
+# JSON folder
+output_json_folder = script_dir
 
 convert_jsonl_to_json(input_jsonl_file, output_json_folder)
