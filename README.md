@@ -11,14 +11,11 @@ We have two versions of the conversion script:
 
 The only difference is the number of converted articles (there are roughly 10000 articles in total).
 
-When using the JSON Convertor, you must change the filepath to where the jsonl file is currently located. The same ruling applies to the output path as well.
+When using the JSON Convertor, you must change the filepath to where the jsonl file is currently located.
 
 Ex:
 ```bash
-input_jsonl_file = 'C:/Users/ashto/Documents/UCDP-AEC Dataset/train.jsonl'  # Change this to your actual input file path
-```
-```bash
-output_json_folder = 'C:/Users/ashto/Documents/UCDP-AEC Dataset/JSON_Files'  # Change this to your desired output folder path
+  script_dir = os.path.dirname(os.path.abspath(__file__))
 ```
 
 Once in JSON format, you can annotate them however you please manually. For us, we utilized Label Studio:
