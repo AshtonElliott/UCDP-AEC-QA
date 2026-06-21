@@ -1,9 +1,13 @@
 import json
+import os
 
-# Load results from exported JSON here
-with open('C:/Users/atown/OneDrive/Documents/ConfliBERT/APSA_Temp.json', 'r', encoding='utf-8') as f:
+script_dir = os.path.dirname(os.path.abspath(__file__))
+unformatted_file = os.path.join(script_dir, 'Temp_APSA.json')
+formatted_file = os.path.join(script_dir, 'Annotated_APSA.json')
+
+with open(unformatted_file, 'r', encoding='utf-8') as f:
     Annotated_data = json.load(f)
 
 # Save the results to a new JSON
-with open('C:/Users/atown/OneDrive/Documents/ConfliBERT/Annotated_APSA.json', 'w') as f:
+with open(formatted_file, 'w') as f:
     json.dump(Annotated_data, f, indent=4)
