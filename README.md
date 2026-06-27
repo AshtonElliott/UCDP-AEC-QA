@@ -45,17 +45,17 @@ For the package, use pip to install it in your local terminal:
 ```
 
 Within the script, you can change the source JSON file location, the LLM model, and the name newly created JSON file. It can be found at the following lines:
-- Source JSON file location (Line 8):
+- Source JSON file location:
 ```bash
   input_path = os.path.join(script_dir, 'train.json')
 ```
 
-- New JSON file name (Line 10):
+- New JSON file name:
 ```bash
   output_path = os.path.join(script_dir, 'mistral_results.json')
 ```
 
-- LLM Model (Line 28):
+- LLM Model:
 ```bash
   model='mistral',
 ```
@@ -78,17 +78,17 @@ Then, you run the script with the following command:
 For those that have HPC access, we have two scripts, a synchronous and asynchronous, that can be ran on HPCs.
 
 Within either script, you can change the source JSON file location, the LLM model, and the name newly created JSON file. It can be found at the following lines:
-- Source JSON file location (Line 12 for Sync or Line 14 for Async):
+- Source JSON file location:
 ```bash
   input_path = os.path.join(script_dir, 'train.json')
 ```
 
-- New JSON file name (Line 13 for Sync or Line 15 for Async):
+- New JSON file name:
 ```bash
   output_path = os.path.join(script_dir, 'mistral_results.json')
 ```
 
-- LLM Model (Line 30 for Sync or Line 38 for Async):
+- LLM Model:
 ```bash
   model='mistral',
 ```
