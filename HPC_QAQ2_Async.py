@@ -11,7 +11,7 @@ os.environ.pop("http_proxy", None)
 os.environ.pop("https_proxy", None)
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
-input_path = os.path.join(script_dir, 'train.json')
+input_path = os.path.join(script_dir, 'train2.json')
 output_path = os.path.join(script_dir, 'retromae-small_results.json')
 
 # Load dataset
