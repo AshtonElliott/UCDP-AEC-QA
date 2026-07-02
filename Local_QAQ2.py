@@ -6,7 +6,7 @@ import sys
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
 # Change JSON source file here
-input_path = os.path.join(script_dir, 'train.json')
+input_path = os.path.join(script_dir, 'train2.json')
 #change Output JSON File Name here
 output_path = os.path.join(script_dir, 'llama3.1_resultsQ2.json')
 
