@@ -22,6 +22,22 @@ class EvaluationEngine:
         return white_space_fix(remove_articles(remove_punc(s.lower())))
 
     @classmethod
+    def deduplicate_texts(cls, texts):
+        """Helper method to remove duplicates while preserving original casing for BERT."""
+        seen = set()
+        deduped = []
+        for t in texts:
+            norm = cls.normalize_answer(t)
+            if norm and norm not in seen:
+                seen.add(norm)
+                deduped.append(t)
+        return deduped
+
+    # ==========================================
+    # STRICT METRICS (Original Baseline)
+    # ==========================================
+
+    @classmethod
     def evaluate_exact_match(cls, g_texts, p_texts):
         if not g_texts and not p_texts: return 1.0
         if not g_texts or not p_texts: return 0.0
@@ -70,3 +86,51 @@ class EvaluationEngine:
             return float(np.clip(round(mean_p, 4), 0.0, 1.0)), float(np.clip(round(mean_r, 4), 0.0, 1.0)), float(np.clip(round(final_f1, 4), 0.0, 1.0))
         except Exception as e:
             return 0.0, 0.0, 0.0
+
+    # ==========================================
+    # RELAXED METRICS (Deduplication + Partial)
+    # ==========================================
+
+    @classmethod
+    def evaluate_dedup_bertscore(cls, g_texts, p_texts):
+        """Relaxed Semantic: Deduplicates lists to remove hallucination repetition penalties before BERTScore."""
+        g_dedup = cls.deduplicate_texts(g_texts)
+        p_dedup = cls.deduplicate_texts(p_texts)
+        return cls.evaluate_bipartite_bertscore(g_dedup, p_dedup)
+
+    @classmethod
+    def evaluate_iou_match(cls, g_texts, p_texts):
+        """Relaxed Lexical: Uses Token Intersection-over-Union to give partial credit for overlapping words."""
+        g_dedup = cls.deduplicate_texts(g_texts)
+        p_dedup = cls.deduplicate_texts(p_texts)
+        
+        if not g_dedup and not p_dedup: return 1.0
+        if not g_dedup or not p_dedup: return 0.0
+
+        norm_p = [cls.normalize_answer(p) for p in p_dedup]
+        norm_g = [cls.normalize_answer(g) for g in g_dedup]
+
+        matrix = np.zeros((len(norm_p), len(norm_g)))
+        
+        for i, p in enumerate(norm_p):
+            p_tokens = set(p.split())
+            for j, g in enumerate(norm_g):
+                g_tokens = set(g.split())
+                
+                if not p_tokens and not g_tokens:
+                    matrix[i, j] = 1.0
+                elif not p_tokens or not g_tokens:
+                    matrix[i, j] = 0.0
+                else:
+                    intersection = len(p_tokens.intersection(g_tokens))
+                    union = len(p_tokens.union(g_tokens))
+                    matrix[i, j] = intersection / union
+
+        row_ind, col_ind = linear_sum_assignment(-matrix)
+        matched_score_sum = sum([matrix[r][c] for r, c in zip(row_ind, col_ind)])
+        
+        mean_p = matched_score_sum / len(norm_p)
+        mean_r = matched_score_sum / len(norm_g)
+        final_iou_f1 = 2 * (mean_p * mean_r) / (mean_p + mean_r) if (mean_p + mean_r) > 0 else 0.0
+        
+        return float(np.clip(round(final_iou_f1, 4), 0.0, 1.0))
