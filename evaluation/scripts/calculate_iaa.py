@@ -1,4 +1,5 @@
 import os
+import sys
 import glob
 import pandas as pd
 import pingouin as pg
@@ -8,14 +9,14 @@ from nltk.metrics.agreement import AnnotationTask
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__))) if '__file__' in locals() else os.getcwd()
 COMPLETED_DIR = os.path.join(BASE_DIR, 'data', 'completed_grading')
 
-def calculate_advanced_iaa():
+def calculate_iaa():
     csv_files = glob.glob(os.path.join(COMPLETED_DIR, "*.csv"))
     
     if not csv_files:
-        print(f"error: no completed grading sheets found in {COMPLETED_DIR}")
+        print(f"error: no completed grading sheets found in {COMPLETED_DIR}", file=sys.stderr)
         return
 
-    print(f"found {len(csv_files)} grading sheets. Merging...")
+    print(f"found {len(csv_files)} grading sheets. Merging...", file=sys.stderr)
     
     wide_df = None
     rater_names = []
@@ -62,10 +63,10 @@ def calculate_advanced_iaa():
     nltk_data = [item for item in nltk_data if item[1] in valid_ids]
 
     if len(wide_df) == 0:
-        print("error: no overlapping fully graded articles found.")
+        print("error: no overlapping fully graded articles found.", file=sys.stderr)
         return
 
-    print(f"calculating metrics across {len(wide_df)} graded articles...\n")
+    print(f"calculating metrics across {len(wide_df)} graded articles...\n", file=sys.stderr)
     
     # calculate krippendorff's alpha
     task = AnnotationTask(data=nltk_data, distance=lambda x, y: (x - y)**2)
@@ -73,7 +74,7 @@ def calculate_advanced_iaa():
         k_alpha = task.alpha()
     except Exception as e:
         k_alpha = float('nan')
-        print(f"Alpha calculation error: {e}")
+        print(f"Alpha calculation error: {e}", file=sys.stderr)
     
     # calculate ICC(2,k) absolute agreement 
     icc_results = pg.intraclass_corr(
@@ -97,19 +98,20 @@ def calculate_advanced_iaa():
                     icc2k_score = f"{fallback['ICC'].values[0]:.4f} (Using ICC2 fallback)"
         
     # output report
-    print("="*65)
-    print(f"Total Overlapping Articles: {len(wide_df)}")    
-    print(f"1. Krippendorff's Alpha (Ordinal):   {k_alpha:.4f}")
-    print(f"2. ICC(2,k) (Absolute Agreement):    {icc2k_score}")
-    print("-" * 65)
+    print(f"\n*Based on {len(wide_df)} overlapping articles.*\n")
     
-    # if ICC extraction failed, print the raw table to debug
+    print("| Metric | Score |")
+    print("|---|---|")
+    print(f"| **Krippendorff's Alpha** (Ordinal) | {k_alpha:.4f} |")
+    print(f"| **ICC(2,k)** (Absolute Agreement) | {icc2k_score} |\n")
+    
+    # if ICC extraction failed, print the raw table to debug as a code block
     if "ERROR" in icc2k_score:
-        print("raw output:")
+        print("\n**Raw Output Error:**")
+        print("```text")
         print(icc_results)
-        
-    print("="*65)
+        print("```\n")
 
 if __name__ == "__main__":
-    calculate_advanced_iaa()
+    calculate_iaa()
 

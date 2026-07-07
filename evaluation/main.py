@@ -2,7 +2,7 @@ import argparse
 import sys
 
 from scripts.calculate_correlation import run_correlation_pipeline
-from scripts.calculate_iaa import calculate_advanced_iaa
+from scripts.calculate_iaa import calculate_iaa
 from scripts.semantic_diagnostic import run_comprehensive_evaluation
 from scripts.run_eval import run_comparative_pipeline
 
@@ -11,19 +11,14 @@ class MarkdownLogger:
         self.terminal = sys.stdout
         self.log_file = filename
         
-        # start a markdown code block 
-        with open(self.log_file, "a", encoding="utf-8") as f:
-            f.write("\n\n```text\n")
+        with open(self.log_file, "w", encoding="utf-8") as f:
+            f.write("\n\n# LLM Evaluation Report\n")
 
     def write(self, message):
-        # write to the terminal for live progress
+        # write to the terminal
         self.terminal.write(message)
-        
-        noise_markers = ["\r", "Processing article", "processing", "✅"]
-        if any(marker in message for marker in noise_markers):
-            return
             
-        # write everything else to the file
+        # write to the markdown file
         with open(self.log_file, "a", encoding="utf-8") as f:
             f.write(message)
 
@@ -48,29 +43,25 @@ def main():
     # turn on the logger 
     sys.stdout = MarkdownLogger("evaluation_report.md")
 
-    if args.correlation or args.all:
-        print("\n--- Starting Correlation Pipeline ---")
-        run_correlation_pipeline()
-
     if args.iaa or args.all:
-        print("\n--- Starting IAA Analysis ---")
-        calculate_advanced_iaa()
-        
-    if args.semantic or args.all:
-        print("\n--- Starting Comprehensive Evaluation ---")
-        run_comprehensive_evaluation()
+        print("\n## 1. Inter-Annotator Agreement (Data Quality)\n")
+        calculate_iaa()
 
-    if args.pipeline or args.all:
-        print("\n--- Starting Comparative Pipeline ---")
-        run_comparative_pipeline()
+    if args.correlation or args.all:
+        print("\n## 2. Metric-to-Human Correlation\n")
+        run_correlation_pipeline()
         
-    # close the md block
-    with open("evaluation_report.md", "a", encoding="utf-8") as f:
-        f.write("\n```\n")
-    
+    if args.pipeline or args.all:
+        print("\n## 3. LLM Performance Leaderboard\n")
+        run_comparative_pipeline()
+
+    if args.semantic or args.all:
+        print("\n## 4. Error Analysis & Top Disagreements\n")
+        run_comprehensive_evaluation()
+        
     # restore standard output
     sys.stdout = sys.stdout.terminal
-    print(f"\n[✅ Run complete. Output appended to evaluation_report.md]")
+    print(f"\n[Run complete. Output appended to evaluation_report.md]")
 
 if __name__ == "__main__":
     main()

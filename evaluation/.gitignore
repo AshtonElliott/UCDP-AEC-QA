@@ -8,5 +8,5 @@ __pycache__/
 # local environment history
 .uv/
 
-# temp dataset
-# data/*
+# png files
+assets/*.png

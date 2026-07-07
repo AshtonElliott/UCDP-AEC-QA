@@ -1,6 +1,9 @@
 import os
+import sys
 import json
 import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
 import warnings
 
 from scripts.core import EvaluationEngine 
@@ -70,7 +73,7 @@ def evaluate_single_model(model_name, filepath, gt_map):
     }
 
 def run_comparative_pipeline():
-    print("loading GT...")
+    print("loading GT...", file=sys.stderr)
     gt_map = load_ground_truth_map(GT_FILE)
     if not gt_map: 
         return
@@ -78,21 +81,37 @@ def run_comparative_pipeline():
     results = []
     
     for model_name, file_path in LLM_FILES.items():
-        print(f"processing {model_name}...", end="\r")
+        print(f"processing {model_name}...", end="\r", file=sys.stderr)
         metrics = evaluate_single_model(model_name, file_path, gt_map)
         if metrics: 
             results.append(metrics)
             
-    print("Model processing complete!")
+    print("Model processing complete!", file=sys.stderr)
     
     df = pd.DataFrame(results).sort_values(by="DeBERTa-MNLI (Span F1)", ascending=False).reset_index(drop=True)
     df.index += 1 
 
-    print("\n" + "="*80)
-    print("LLM metrics report:")
-    print("="*80)
-    print(df.to_string())
-    print("="*80 + "\n")
+    os.makedirs("assets", exist_ok=True)
+
+    # melt the dataframe to plot F1 and EM side-by-side
+    df_melted = df.melt(id_vars=["Model"], value_vars=["DeBERTa-MNLI (Span F1)", "SQuAD Exact Match"], 
+                        var_name="Metric", value_name="Score")
+
+    plt.figure(figsize=(10, 6))
+    sns.barplot(data=df_melted, y="Model", x="Score", hue="Metric", palette="viridis")
+    plt.title("LLM Performance Comparison")
+    plt.xlabel("Score (0.0 to 1.0)")
+    plt.ylabel("")
+    plt.xlim(0, 1.0)
+    plt.tight_layout()
+    plt.savefig("assets/leaderboard.png", dpi=300)
+    plt.close()
+
+    print("\n*LLM metrics report:*\n")
+    print(df.to_markdown(index=False))
+    print("\n")
+    print("\n![Leaderboard Bar Chart](assets/leaderboard.png)\n")
+
 
 if __name__ == "__main__":
     run_comparative_pipeline()

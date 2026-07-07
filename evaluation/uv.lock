@@ -348,13 +348,16 @@ version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
     { name = "bert-score" },
+    { name = "matplotlib" },
     { name = "nltk" },
     { name = "numpy" },
     { name = "pandas" },
     { name = "pingouin" },
     { name = "protobuf" },
     { name = "scipy" },
+    { name = "seaborn" },
     { name = "sentencepiece" },
+    { name = "tabulate" },
     { name = "torch" },
     { name = "transformers" },
 ]
@@ -367,13 +370,16 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "bert-score", specifier = ">=0.3.13" },
+    { name = "matplotlib", specifier = ">=3.11.0" },
     { name = "nltk", specifier = ">=3.9.4" },
     { name = "numpy", specifier = ">=2.4.6" },
     { name = "pandas", specifier = ">=3.0.3" },
     { name = "pingouin", specifier = ">=0.6.1" },
     { name = "protobuf", specifier = ">=7.35.1" },
     { name = "scipy", specifier = ">=1.17.1" },
+    { name = "seaborn", specifier = ">=0.13.2" },
     { name = "sentencepiece", specifier = ">=0.2.1" },
+    { name = "tabulate", specifier = ">=0.10.0" },
     { name = "torch", specifier = ">=2.12.1" },
     { name = "transformers", specifier = "==4.39.3" },
 ]
