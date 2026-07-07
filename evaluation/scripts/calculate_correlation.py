@@ -1,10 +1,12 @@
 import os
+import sys
 import glob
 import pandas as pd
 import warnings
 from scipy.stats import spearmanr
 
 from scripts.core import EvaluationEngine
+from scripts.visualization import generate_rank_distribution_plot, generate_leaderboard_bar, generate_performance_quadrant
 
 os.environ["TOKENIZERS_PARALLELISM"] = "false" 
 warnings.filterwarnings("ignore")
@@ -16,10 +18,10 @@ MASTER_TEMPLATE = os.path.join(DATA_DIR, "grading_templates", "master_grading_te
 KEY_FILE = os.path.join(DATA_DIR, "evaluation_results", "secret_decryption_key.csv")
 
 def get_evaluation_data():
-    print("loading human rater sheets...")
+    print("loading human rater sheets...", file=sys.stderr)
     csv_files = glob.glob(os.path.join(COMPLETED_DIR, "*.csv"))
     if not csv_files:
-        print(f"Error: No completed grading sheets found in {COMPLETED_DIR}")
+        print(f"Error: No completed grading sheets found in {COMPLETED_DIR}", file=sys.stderr)
         return None
 
     # average all human scores
@@ -34,7 +36,7 @@ def get_evaluation_data():
             all_scores.append(clean)
     
     if not all_scores:
-        print("error: could not find valid 'Human_Score_1_to_5' columns in the rater sheets")
+        print("error: could not find valid 'Human_Score_1_to_5' columns in the rater sheets", file=sys.stderr)
         return None
 
     df_all_raters = pd.concat(all_scores)
@@ -44,7 +46,7 @@ def get_evaluation_data():
     
     # merge with the original template to get the model identity and predictions
     if not os.path.exists(MASTER_TEMPLATE) or not os.path.exists(KEY_FILE):
-        print("error: missing master_grading_template.csv or secret_decryption_key.csv")
+        print("error: missing master_grading_template.csv or secret_decryption_key.csv", file=sys.stderr)
         return None
         
     df_template = pd.read_csv(MASTER_TEMPLATE)
@@ -62,7 +64,7 @@ def get_evaluation_data():
     squad_em_scores = []
     
     for idx, row in df_master.iterrows():
-        print(f"Processing article {idx + 1}/{len(df_master)}...", end="\r")
+        print(f"Processing article {idx + 1}/{len(df_master)}...", end="\r", file=sys.stderr)
         
         human_str = str(row.get("Human_Ground_Truth", "")).strip()
         llm_str = str(row.get("LLM_Prediction", "")).strip()
@@ -80,8 +82,8 @@ def get_evaluation_data():
         recalls.append(r)
         f1_scores.append(f1)
 
-    # Clear the processing line
-    print("✅ Model processing complete!                             ")
+    # clear the processing line
+    print("Model processing complete!", file=sys.stderr)
 
     df_master["BS_Precision"] = precisions
     df_master["BS_Recall"] = recalls
@@ -128,28 +130,60 @@ def run_correlation_pipeline():
         })
     df_ranking_matrix = pd.DataFrame(side_by_side_ranking)
 
+    # generate the rank distribution plot
+    generate_rank_distribution_plot(
+        df=df_master,
+        x_col="Normalized_Human_Score",
+        y_col="BS_F1",
+        title="Human Scores vs. DeBERTa F1 (Rank Distribution)",
+        x_label="Normalized_Human_Ratings",
+        y_label="DeBERTa F1 Score",
+        filename="pilot_rank_distribution.png"
+    )
+    
+    # generate the pilot leaderboard
+    generate_leaderboard_bar(
+        df=model_summary.reset_index(),
+        model_col="True_Model_Identity",
+        metrics=["Avg_BS_F1", "Avg_SQuAD_EM"],
+        filename="pilot_leaderboard.png"
+    )
+    
+    # generate the performance quadrant
+    generate_performance_quadrant(
+        df=model_summary.reset_index(),
+        model_col="True_Model_Identity",
+        x_col="Avg_SQuAD_EM",
+        y_col="Avg_BS_F1",
+        filename="pilot_quadrant.png"
+    )
+    
     # display the results
-    print("="*95)
-    print(f"Total Framework Samples: {len(df_master)}")        
-    print("Comparison Table (Spearman Rank Matrix):")
-    print("-" * 95)
-    print(f"  Evaluation Dimension | Spearman rho (ρ) | p-value")
-    print("-" * 95)
-    print(f"  SQuAD Exact Match    | {rho_squad:16.4f} | {p_val_squad:.5e}")
-    print(f"  DeBERTa Precision    | {rho_p:16.4f} | {p_val_p:.5e}")
-    print(f"  DeBERTa Recall       | {rho_r:16.4f} | {p_val_r:.5e}")
-    print(f"  DeBERTa F1-Score     | {rho_f:16.4f} | {p_val_f:.5e}")
-    print("-" * 95)
+    print(f"\n*Total Framework Samples: {len(df_master)}*\n")
     
-    print("\nLLM Comparison Summary (Sorted by Avg_BS_F1):")
-    print("-" * 95)
-    print(model_summary_sorted.to_string(index=True))
-    print("-" * 95)
+    print("### Comparison Table (Spearman Rank Matrix)\n")
+    print("| Evaluation Dimension | Spearman rho (ρ) | p-value |")
+    print("|---|---|---|")
+    print(f"| SQuAD Exact Match | {rho_squad:.4f} | {p_val_squad:.5e} |")
+    print(f"| DeBERTa Precision | {rho_p:.4f} | {p_val_p:.5e} |")
+    print(f"| DeBERTa Recall | {rho_r:.4f} | {p_val_r:.5e} |")
+    print(f"| DeBERTa F1-Score | {rho_f:.4f} | {p_val_f:.5e} |\n")
     
-    print("\nSide-by-Side Ranking Comparison:")
-    print("-" * 95)
-    print(df_ranking_matrix.to_string(index=False))
-    print("="*95)
+    # embed correlation graph
+    print("\n![Correlation Rank Distribution Plot](assets/pilot_rank_distribution.png)\n")
+    
+    print("### LLM Comparison Summary (Sorted by Avg_BS_F1)\n")
+    print(model_summary_sorted.to_markdown(index=True))
+    
+    # embed leaderboard graph
+    print("\n![Pilot Leaderboard](assets/pilot_leaderboard.png)\n")
+    
+    print("\n### Side-by-Side Ranking Comparison\n")
+    print(df_ranking_matrix.to_markdown(index=False))
+    
+    # embed quadrant graph
+    print("\n![Pilot Performance Quadrant](assets/pilot_quadrant.png)\n")
+
 
 if __name__ == "__main__":
     run_correlation_pipeline()
