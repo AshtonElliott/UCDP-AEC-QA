@@ -8,5 +8,3 @@ __pycache__/
 # local environment history
 .uv/
 
-# png files
-assets/*.png
