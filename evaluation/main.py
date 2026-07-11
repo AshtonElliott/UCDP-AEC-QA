@@ -10,15 +10,11 @@ class MarkdownLogger:
     def __init__(self, filename="evaluation_report.md"):
         self.terminal = sys.stdout
         self.log_file = filename
-        
         with open(self.log_file, "w", encoding="utf-8") as f:
             f.write("\n\n# LLM Evaluation Report\n")
 
     def write(self, message):
-        # write to the terminal
         self.terminal.write(message)
-            
-        # write to the markdown file
         with open(self.log_file, "a", encoding="utf-8") as f:
             f.write(message)
 
@@ -33,14 +29,14 @@ def main():
     parser.add_argument('--semantic', action='store_true', help='Run semantic_diagnostic.py')
     parser.add_argument('--pipeline', action='store_true', help='Run run_eval.py')
     parser.add_argument('--all', action='store_true', help='Run all pipelines')
+    parser.add_argument('--q', type=int, default=None, help='Filter pipeline to a specific question (e.g. 1 or 2)')
 
     args = parser.parse_args()
 
-    if not any(vars(args).values()):
+    if not any([args.correlation, args.iaa, args.semantic, args.pipeline, args.all]):
         parser.print_help()
         return
 
-    # turn on the logger 
     sys.stdout = MarkdownLogger("evaluation_report.md")
 
     if args.iaa or args.all:
@@ -53,13 +49,12 @@ def main():
         
     if args.pipeline or args.all:
         print("\n## 3. LLM Performance Leaderboard\n")
-        run_comparative_pipeline()
+        run_comparative_pipeline(question_filter=args.q)
 
     if args.semantic or args.all:
         print("\n## 4. Error Analysis & Top Disagreements\n")
         run_comprehensive_evaluation()
         
-    # restore standard output
     sys.stdout = sys.stdout.terminal
     print(f"\n[Run complete. Output appended to evaluation_report.md]")
 

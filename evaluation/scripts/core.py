@@ -3,6 +3,7 @@ import string
 import numpy as np
 from scipy.optimize import linear_sum_assignment
 from bert_score import score
+from collections import Counter
 import warnings
 
 warnings.filterwarnings("ignore")
@@ -10,12 +11,9 @@ warnings.filterwarnings("ignore")
 class EvaluationEngine:    
     @staticmethod
     def normalize_answer(s):
-        if not s:
-            return ""
-        def remove_articles(text):
-            return re.sub(r'\b(a|an|the)\b', ' ', text)
-        def white_space_fix(text):
-            return ' '.join(text.split())
+        if not s: return ""
+        def remove_articles(text): return re.sub(r'\b(a|an|the)\b', ' ', text)
+        def white_space_fix(text): return ' '.join(text.split())
         def remove_punc(text):
             exclude = set(string.punctuation)
             return ''.join(ch for ch in text if ch not in exclude)
@@ -23,7 +21,6 @@ class EvaluationEngine:
 
     @classmethod
     def deduplicate_texts(cls, texts):
-        """Helper method to remove duplicates while preserving original casing for BERT."""
         seen = set()
         deduped = []
         for t in texts:
@@ -34,9 +31,36 @@ class EvaluationEngine:
         return deduped
 
     # ==========================================
-    # STRICT METRICS (Original Baseline)
+    # STRICT ENTITY METRICS (Text + Label)
     # ==========================================
+    @classmethod
+    def evaluate_strict_entity_match(cls, gold_spans, pred_spans):
+        """Standard Information Extraction Tuple Matcher: (text, label)"""
+        def get_tuples(spans):
+            tuples = []
+            for s in spans:
+                text = s.get('text', '').strip().lower() 
+                if not text: continue
+                labels = s.get('labels', [])
+                lbl = labels[0] if isinstance(labels, list) and len(labels) > 0 else "NO_LABEL"
+                tuples.append((text, lbl))
+            return tuples
 
+        g_tuples = get_tuples(gold_spans)
+        p_tuples = get_tuples(pred_spans)
+        
+        g_counts = Counter(g_tuples)
+        p_counts = Counter(p_tuples)
+        
+        tp = sum((g_counts & p_counts).values())
+        fp = sum((p_counts - g_counts).values())
+        fn = sum((g_counts - p_counts).values())
+        
+        return tp, fp, fn
+
+    # ==========================================
+    # STRICT TEXT METRICS (Span Only)
+    # ==========================================
     @classmethod
     def evaluate_exact_match(cls, g_texts, p_texts):
         if not g_texts and not p_texts: return 1.0
@@ -61,7 +85,6 @@ class EvaluationEngine:
         if not g_texts and not p_texts: return 1.0, 1.0, 1.0
         if not g_texts or not p_texts: return 0.0, 0.0, 0.0
 
-        # text normalization
         norm_p_texts = [cls.normalize_answer(p) for p in p_texts]
         norm_g_texts = [cls.normalize_answer(g) for g in g_texts]
         
@@ -69,13 +92,11 @@ class EvaluationEngine:
         refs = [g for p in norm_p_texts for g in norm_g_texts]
                 
         try:
-            # BERTScore calculation
             _, _, F1_tensor = score(cands, refs, model_type="microsoft/deberta-large-mnli", lang="en", rescale_with_baseline=True, device="cpu", batch_size=4, verbose=False)
             flat_f1_scores = F1_tensor.tolist()
             num_p, num_g = len(norm_p_texts), len(norm_g_texts)
             matrix = [flat_f1_scores[i * num_g:(i + 1) * num_g] for i in range(num_p)]
             
-            # 1-to-1 bipartite locking
             row_ind, col_ind = linear_sum_assignment(-np.array(matrix))
             matched_score_sum = sum([matrix[r][c] for r, c in zip(row_ind, col_ind)])
             
@@ -84,23 +105,20 @@ class EvaluationEngine:
             final_f1 = 2 * (mean_p * mean_r) / (mean_p + mean_r) if (mean_p + mean_r) > 0 else 0.0
             
             return float(np.clip(round(mean_p, 4), 0.0, 1.0)), float(np.clip(round(mean_r, 4), 0.0, 1.0)), float(np.clip(round(final_f1, 4), 0.0, 1.0))
-        except Exception as e:
+        except Exception:
             return 0.0, 0.0, 0.0
 
     # ==========================================
     # RELAXED METRICS (Deduplication + Partial)
     # ==========================================
-
     @classmethod
     def evaluate_dedup_bertscore(cls, g_texts, p_texts):
-        """Relaxed Semantic: Deduplicates lists to remove hallucination repetition penalties before BERTScore."""
         g_dedup = cls.deduplicate_texts(g_texts)
         p_dedup = cls.deduplicate_texts(p_texts)
         return cls.evaluate_bipartite_bertscore(g_dedup, p_dedup)
 
     @classmethod
     def evaluate_iou_match(cls, g_texts, p_texts):
-        """Relaxed Lexical: Uses Token Intersection-over-Union to give partial credit for overlapping words."""
         g_dedup = cls.deduplicate_texts(g_texts)
         p_dedup = cls.deduplicate_texts(p_texts)
         
