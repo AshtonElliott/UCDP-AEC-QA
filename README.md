@@ -75,7 +75,7 @@ Then, you run the script with the following command:
 ---
 ## HPC LLM Annotation
 
-For those that have HPC access, we have two scripts, a synchronous and asynchronous, that can be ran on HPCs.
+For those that have HPC access, we have two scripts, one for each question, that can be ran on HPCs.
 
 Within either script, you can change the source JSON file location, the LLM model, and the name newly created JSON file. It can be found at the following lines:
 - Source JSON file location:
@@ -147,9 +147,9 @@ pip install ollama tqdm
 # Pull the model from the running Ollama server, using the smaller model for testing
 ollama pull mistral**
 
-# Run the sync script or the async script
+# Run the script for Question 1 and Question 2
 python HPC_QA.py
-python HPC_QA_Async.py
+python HPC_QAQ2.py
 ```
 
 ### Checking status in terminal 3 (Optional)
