@@ -63,32 +63,70 @@ async def process_entry(idx, entry):
                 ]
             )
             prediction = response['message']['content']
-            
-            # Read in JSON Produced by Llama3.1
-            data = json.loads(prediction)
-            entry['extractions'] = data.get('extractions', [])
-            
+            labels = prediction.split(',')
             spans = []
-            for label in entry['extractions']:
-                text = label['word']
-                QALabel = label['category']
-                
-                # Apply Text & Label
-                for match in re.finditer(re.escape(text), context, re.IGNORECASE):
-                    spans.append({
-                        "end": match.end(),
-                        "text": context[match.start():match.end()],
-                        "start": match.start(),
-                        "labels": [QALabel]
-                    })
-            if len(spans) == 0 or data.get('extractions', []) == "None found":
+            BlankCounter = 0
+            for label in labels:
+                clean_label = label.strip(' ".\' ')
+                if '|' in clean_label:
+                    # Separate Text and Label
+                    parts = clean_label.split('|', 1)
+                    text = parts[0]
+                    
+                    # Filter Out for Label
+                    QAlabel = parts[1]
+                        
+                    if "Energy" in QAlabel:
+                        QAlabel = "Energy"
+                    elif "Water" in QAlabel:
+                        QAlabel = "Water"
+                    elif "Transportation/Marketing" in QAlabel:
+                        QAlabel = "Transportation/Marketing"
+                    elif "Energy/Water" in QAlabel:
+                        QAlabel = "Energy/Water"
+                    elif "Health" in QAlabel:
+                        QAlabel = "Health"
+                    elif "Agriculture/Fishing" in QAlabel:
+                        QAlabel = "Agriculture/Fishing"
+                    elif "Government/Rebel" in QAlabel:
+                        QAlabel = "Government/Rebel"
+                    else:
+                        QAlabel = "Other"
+                    
+                    if text == "":
+                        BlankCounter += 1
+                    
+                    # Apply Text & Label
+                    for match in re.finditer(re.escape(text), context, re.IGNORECASE):
+                        spans.append({
+                            "end": match.end(),
+                            "text": context[match.start():match.end()],
+                            "start": match.start(),
+                            "labels": [QAlabel]
+                        })
+            if len(spans) == 0 or BlankCounter > 0:
                 entry['no_answer'] = "No Damage Detected"
             else:
                 entry['answer_labels'] = spans
-            entry.pop('extractions', None)
         except Exception as e:
             print(f"Error processing entry {idx}: {e}", file=sys.stderr)
             entry['error'] = str(e)
+
+# Main function to use async later on. 
+# Use await instead of for loop for asyncio.
+async def main():
+    await tqdm.gather(*[
+        process_entry(idx, entry)
+        for idx, entry in enumerate(dataset)
+    ])
+    # Write ONCE after all entries processed
+    print("Writing results...")
+    with open(output_path, 'w') as f:
+        json.dump(dataset, f, indent=4)
+    print("Process complete. Results saved.")
+
+# run main function async
+asyncio.run(main())
 
 # Main function to use async later on. 
 # Use await instead of for loop for asyncio.
