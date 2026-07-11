@@ -12,7 +12,7 @@ os.environ.pop("https_proxy", None)
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
 input_path = os.path.join(script_dir, 'train2.json')
-output_path = os.path.join(script_dir, 'gemma3.4b_results2.json')
+output_path = os.path.join(script_dir, 'mistral_results2.json')
 
 # Load dataset
 with open(input_path, 'r') as f:
@@ -34,7 +34,7 @@ async def process_entry(idx, entry):
             chunks = [context[i:i+1500] for i in range(0, len(context), 1500)]
             retrieved_context = "\n".join(chunks[:5])
             response = await client.chat(
-                model='gemma3:4b',
+                model='mistral:latest',
                 messages=[
                     {'role': 'system', 'content': (
                     'Identify the words that answer the question. Return only a comma-separated list of words found in the article.'
@@ -66,6 +66,7 @@ async def process_entry(idx, entry):
             prediction = response['message']['content']
             labels = prediction.split(',')
             spans = []
+            BlankCounter = 0
             for label in labels:
                 clean_label = label.strip(' ".\' ')
                 if '|' in clean_label:
@@ -93,6 +94,9 @@ async def process_entry(idx, entry):
                     else:
                         QAlabel = "Other"
                     
+                    if text == ""
+                        BlankCounter += 1
+                    
                     # Apply Text & Label
                     for match in re.finditer(re.escape(text), context, re.IGNORECASE):
                         spans.append({
@@ -101,7 +105,7 @@ async def process_entry(idx, entry):
                             "start": match.start(),
                             "labels": [QAlabel]
                         })
-            if len(spans) == 0:
+            if len(spans) == 0 or BlankCounter > 0:
                 entry['no_answer'] = "No Damage Detected"
             else:
                 entry['answer_labels'] = spans
