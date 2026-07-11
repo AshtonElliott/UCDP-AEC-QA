@@ -110,13 +110,15 @@ curl -fL https://ollama.com/download/ollama-linux-amd64.tar.zst -o ollama.tar.zs
 mkdir -p ~/.local
 tar -I zstd -xf ollama.tar.zst -C ~/.local
 
+# Everything above is only needed to be done the first time. For repeats, start at the srun command below.
+
+# allocate for resources (This is dependent on your HPC).
+srun -p h100 --mem=32GB --time=01:00:00 --gres=gpu:1 --pty /bin/bash
+
 # Load Ollama from your user install and store models in the project folder. 
 # MAKE SURE THE MODEL WEIGHTS FILES ARE STORED IN A FOLDER THAT DOES NOT HAVE TOO MUCH LIMITS ON THE SIZE.
 export PATH="$HOME/.local/bin:$PATH"
 export OLLAMA_MODELS="<YOUR_PROJECT_DIR>/ollama_models"
-
-# allocate for resources (This is dependent on your HPC).
-srun -p h100 --mem=32GB --time=01:00:00 --gres=gpu:1 --pty /bin/bash
 
 # Check Ollama and start the server
 ollama --version
@@ -137,6 +139,7 @@ export PATH="$HOME/.local/bin:$PATH"
 export OLLAMA_MODELS="<YOUR_PROJECT_DIR>/Ollama_Models"
 
 # Create and activate a project Conda environment. This can also be done with Python, but Conda is recommended for ease of use.
+# Conda creation is only needed the 1st time. For repeats, skip the conda create.
 conda create -p <YOUR_PROJECT_DIR>/Python_Env python=3.12
 conda activate $PWD/Python_Env
 
