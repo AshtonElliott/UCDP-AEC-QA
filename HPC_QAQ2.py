@@ -94,7 +94,7 @@ async def process_entry(idx, entry):
                     else:
                         QAlabel = "Other"
                     
-                    if text == ""
+                    if text == "":
                         BlankCounter += 1
                     
                     # Apply Text & Label
