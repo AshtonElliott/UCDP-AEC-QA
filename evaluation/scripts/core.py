@@ -105,7 +105,7 @@ class EvaluationEngine:
 
     @classmethod
     def evaluate_iou_match(cls, g_texts, p_texts):
-        """optimized greedy token IoU match avoiding NumPy init overhead for strings."""
+        """optimized greedy token IoU match avoiding NumPy init overhead for strings"""
         g_dedup = cls.deduplicate_texts(g_texts)
         p_dedup = cls.deduplicate_texts(p_texts)
         
