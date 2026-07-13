@@ -13,7 +13,7 @@ def _ensure_assets_dir():
     os.makedirs("assets", exist_ok=True)
 
 def clear_assets_dir():
-    """Wipes all existing PNG files in the assets folder to prevent clutter."""
+    """wipes all existing PNG files in the assets folder to prevent clutter"""
     _ensure_assets_dir()
     old_files = glob.glob(os.path.join("assets", "*.png"))
     for file in old_files:
@@ -34,15 +34,15 @@ def generate_performance_quadrant(df, model_col, filename="master_quadrant.png")
         model = row[model_col]
         color = color_map[model]
         
-        # Plot Strict (Circle)
+        # plot strict (circle)
         plt.scatter(row['Lexical (EM)'], row['Contextual F1'], 
                     color=color, marker='o', s=250, alpha=0.8)
         
-        # Plot Relaxed (Triangle)
+        # plot relaxed (triangle)
         plt.scatter(row['Token IoU'], row['Deduped F1'], 
                     color=color, marker='^', s=250, alpha=0.8)
         
-        # Draw dotted line connecting them
+        # draw dotted line connecting them
         plt.plot([row['Lexical (EM)'], row['Token IoU']], 
                  [row['Contextual F1'], row['Deduped F1']], 
                  color=color, linestyle=':', alpha=0.6)
@@ -55,14 +55,14 @@ def generate_performance_quadrant(df, model_col, filename="master_quadrant.png")
     plt.ylabel("Semantic Match (DeBERTa F1  ➔  Deduped F1)")
     plt.grid(True, alpha=0.3)
     
-    # 1. Models Legend (Colors)
+    # models legend (colors)
     model_handles = [mlines.Line2D([], [], color=color_map[m], marker='s', 
                                    linestyle='None', markersize=10, label=m.replace('*', '')) for m in models]
     first_legend = plt.legend(handles=model_handles, title="Models", 
                               bbox_to_anchor=(1.05, 1), loc='upper left')
     plt.gca().add_artist(first_legend) 
 
-    # 2. Metric Type Legend (Shapes)
+    # metric type legend (shapes)
     strict_marker = mlines.Line2D([], [], color='gray', marker='o', linestyle='None', markersize=10, label='Strict (EM / F1)')
     relaxed_marker = mlines.Line2D([], [], color='gray', marker='^', linestyle='None', markersize=10, label='Relaxed (IoU / Dedup F1)')
     
@@ -86,7 +86,7 @@ def generate_verbosity_scatter(df, model_col, filename="verbosity_vs_accuracy.pn
         model = row[model_col]
         color = color_map[model]
         
-        # X = Avg Spans, Y = Deduped F1
+        # X = avg spans, Y = deduped F1
         plt.scatter(row['Avg Spans'], row['Deduped F1'], 
                     color=color, marker='o', s=300, alpha=0.9, edgecolor='white')
 
@@ -95,7 +95,7 @@ def generate_verbosity_scatter(df, model_col, filename="verbosity_vs_accuracy.pn
     plt.ylabel("Relaxed Semantic Score (Deduped F1)", fontsize=12)
     plt.grid(True, linestyle=':', alpha=0.6)
     
-    # Clean external legend for the models
+    # clean external legend for the models
     model_handles = [mlines.Line2D([], [], color=color_map[m], marker='o', 
                                    linestyle='None', markersize=10, label=m.replace('*', '')) for m in models]
     
@@ -124,10 +124,9 @@ def generate_task_heatmap(df, filename="task_complexity_heatmap.png"):
     _ensure_assets_dir()
     plt.figure(figsize=(10, 6))
     
-    # Pivot the data so Models are rows and Questions are columns
     heatmap_data = df.pivot(index="Model Target", columns="Question Track", values="Dedup F1")
     
-    # 🚀 FIX: Sort the heatmap descending based on Question 1 performance
+    # sort the heatmap descending based on Question 1 performance
     if "Question 1" in heatmap_data.columns:
         heatmap_data = heatmap_data.sort_values(by="Question 1", ascending=False)
     
