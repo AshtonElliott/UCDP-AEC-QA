@@ -33,7 +33,7 @@ class EvaluationEngine:
 
     @classmethod
     def evaluate_strict_entity_match(cls, gold_spans, pred_spans):
-        """Standard Information Extraction Tuple Matcher: (text, label)"""
+        """standard information extraction tuple: (text, label)"""
         def get_tuples(spans):
             tuples = []
             for s in spans:
@@ -54,7 +54,7 @@ class EvaluationEngine:
 
     @classmethod
     def evaluate_exact_match(cls, g_texts, p_texts):
-        """O(N) Exact Match using Counter intersection."""
+        """O(n) EM using counter intersection"""
         if not g_texts and not p_texts: return 1.0
         if not g_texts or not p_texts: return 0.0
 
@@ -66,7 +66,7 @@ class EvaluationEngine:
 
     @classmethod
     def run_global_bertscore_backend(cls, cands, refs):
-        """Processes the entire dataset's sentences in highly parallelized global chunks."""
+        """processes the entire dataset's sentences in highly parallelized global chunks"""
         num_pairs = len(cands)
         if num_pairs == 0: return []
         
@@ -105,7 +105,7 @@ class EvaluationEngine:
 
     @classmethod
     def evaluate_iou_match(cls, g_texts, p_texts):
-        """Optimized Greedy Token IoU Match avoiding NumPy init overhead for strings."""
+        """optimized greedy token IoU match avoiding NumPy init overhead for strings."""
         g_dedup = cls.deduplicate_texts(g_texts)
         p_dedup = cls.deduplicate_texts(p_texts)
         
