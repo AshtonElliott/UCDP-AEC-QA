@@ -9,4 +9,4 @@ __pycache__/
 .uv/
 
 # data folder
-data/*
+data/
