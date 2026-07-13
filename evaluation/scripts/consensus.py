@@ -28,11 +28,11 @@ def build_scalable_consensus_dataset(input_path, output_path, conflicts_path):
         
         raw_annotations = entry.get("annotations", [])
         
-        # Filter out cancelled annotations (e.g. if an annotator skipped it)
+        # filter out cancelled annotations (e.g. if an annotator skipped it)
         valid_annotations = [a for a in raw_annotations if not a.get("was_cancelled", False)]
         num_annotators = len(valid_annotations)
         
-        # Skip if nobody annotated it yet
+        # skip if nobody annotated it yet
         if num_annotators == 0:
             skipped_count += 1
             continue
@@ -40,27 +40,27 @@ def build_scalable_consensus_dataset(input_path, output_path, conflicts_path):
         annotator_freqs = []
         no_answer_votes = 0
         
-        # Gather spans and labels for each annotator
+        # gather spans and labels for each annotator
         for anno in valid_annotations:
             results = anno.get("result", [])
             spans = []
             voted_no_answer = False
             
             for res in results:
-                # Check if they explicitly clicked the "No Damage Detected" choice
+                # check if they explicitly clicked the "No Damage Detected" choice
                 if res.get("type") == "choices" and res.get("from_name") == "no_answer":
                     voted_no_answer = True
                     
-                # Check if they highlighted a specific span
+                # check if they highlighted a specific span
                 elif res.get("type") == "labels":
                     val = res.get("value", {})
-                    text = val.get("text", "").strip() # Original casing preserved
+                    text = val.get("text", "").strip() # original casing preserved
                     labels = tuple(val.get("labels", []))
                     
                     if text:
                         spans.append((text, labels))
             
-            # If they explicitly voted No Answer OR highlighted 0 words
+            # if they explicitly voted No Answer OR highlighted 0 words
             if voted_no_answer or len(spans) == 0:
                 no_answer_votes += 1
                 
@@ -72,13 +72,13 @@ def build_scalable_consensus_dataset(input_path, output_path, conflicts_path):
         flattened_entry = {"id": task_id}
         flattened_entry.update(data_block)
         
-        # Handle majority "No Answer" consensus
+        # handle majority "No Answer" consensus
         if no_answer_votes >= required_votes:
             flattened_entry["no_answer"] = "No Damage Detected"
             consensus_dataset.append(flattened_entry)
             continue
             
-        # Calculate text + label frequency consensus
+        # calculate text + label frequency consensus
         all_unique_spans = set()
         for freq_dict in annotator_freqs:
             all_unique_spans.update(freq_dict.keys())
@@ -133,12 +133,12 @@ if __name__ == "__main__":
     args = parser.parse_args()
     
     if args.q is not None:
-        # Dynamically route the files based on the question number
+        # dynamically route the files based on the question number
         input_file = os.path.join(RAW_DIR, f"label_studio_q{args.q}.json")
         output_file = os.path.join(RAW_DIR, f"ground_truth_q{args.q}.json")
         conflicts_file = os.path.join(RAW_DIR, f"annotator_conflicts_q{args.q}.json")
     else:
-        # Fallback to standard names if no --q is passed
+        # fallback to standard names if no --q is passed
         input_file = os.path.join(RAW_DIR, "label_studio.json")
         output_file = os.path.join(RAW_DIR, "ground_truth.json")
         conflicts_file = os.path.join(RAW_DIR, "annotator_conflicts.json")
