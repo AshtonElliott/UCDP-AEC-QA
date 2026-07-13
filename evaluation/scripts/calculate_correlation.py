@@ -6,7 +6,7 @@ import warnings
 from scipy.stats import spearmanr
 
 from scripts.core import EvaluationEngine
-from scripts.visualization import clear_assets_dir, generate_leaderboard_bar, generate_performance_quadrant
+from scripts.visualization import clear_assets_dir, generate_performance_quadrant
 
 os.environ["TOKENIZERS_PARALLELISM"] = "false" 
 warnings.filterwarnings("ignore")
@@ -120,11 +120,6 @@ def run_correlation_pipeline():
     clear_assets_dir()
 
     # Generate charts
-    generate_leaderboard_bar(
-        df=model_summary.reset_index(),
-        model_col="True_Model_Identity",
-        filename="pilot_leaderboard.png"
-    )
     
     generate_performance_quadrant(
         df=model_summary.reset_index(),
@@ -140,9 +135,6 @@ def run_correlation_pipeline():
     print("|---|---|---|---|---|")
     print(f"| **Lexical Match** | SQuAD EM | Token IoU | {rho_squad:.4f} | **{rho_iou:.4f}** |")
     print(f"| **Semantic Match** | DeBERTa F1 | Deduped DeBERTa F1 | {rho_f:.4f} | **{rho_f_dedup:.4f}** |\n")
-    
-    print("\n![Pilot Leaderboard](assets/pilot_leaderboard.png)\n")
-
     print("\n### Side-by-Side Ranking Comparison\n")
     print(df_ranking_matrix.to_markdown(index=False))
     

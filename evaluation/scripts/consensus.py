@@ -1,16 +1,19 @@
 import json
 import os
+import argparse
 from collections import Counter
 
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-LABEL_STUDIO_EXPORT = os.path.join(BASE_DIR, "data", "raw_inputs", "label_studio.json")
-OUTPUT_FILE = os.path.join(BASE_DIR, "data", "raw_inputs", "ground_truth.json")
-CONFLICTS_FILE = os.path.join(BASE_DIR, "data", "raw_inputs", "annotator_conflicts.json")
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__))) if '__file__' in locals() else os.getcwd()
+RAW_DIR = os.path.join(BASE_DIR, "data", "raw_inputs")
 
 TEXT_FIELD = "source_article"
-QUESTION_FIELD = "question"
 
 def build_scalable_consensus_dataset(input_path, output_path, conflicts_path):
+    if not os.path.exists(input_path):
+        print(f"Error: Could not find input file at {input_path}")
+        print("Please ensure your Label Studio export is named correctly.")
+        return
+        
     with open(input_path, 'r', encoding='utf-8') as f:
         raw_data = json.load(f)
         
@@ -23,10 +26,13 @@ def build_scalable_consensus_dataset(input_path, output_path, conflicts_path):
         data_block = entry.get("data", {})
         task_id = entry.get("id")
         
-        annotations = entry.get("annotations", [])
-        num_annotators = len(annotations)
+        raw_annotations = entry.get("annotations", [])
         
-        # skip if nobody annotated it
+        # Filter out cancelled annotations (e.g. if an annotator skipped it)
+        valid_annotations = [a for a in raw_annotations if not a.get("was_cancelled", False)]
+        num_annotators = len(valid_annotations)
+        
+        # Skip if nobody annotated it yet
         if num_annotators == 0:
             skipped_count += 1
             continue
@@ -34,24 +40,28 @@ def build_scalable_consensus_dataset(input_path, output_path, conflicts_path):
         annotator_freqs = []
         no_answer_votes = 0
         
-        # gather spans and labels for each annotator
-        for anno in annotations:
+        # Gather spans and labels for each annotator
+        for anno in valid_annotations:
             results = anno.get("result", [])
             spans = []
+            voted_no_answer = False
             
             for res in results:
-                val = res.get("value", {})
-                text = val.get("text", "").strip().lower()
-                
-                # grab the labels
-                labels = tuple(val.get("labels", []))
-                
-                # only add if it's an actual highlighted text span
-                if text:
-                    spans.append((text, labels))
+                # Check if they explicitly clicked the "No Damage Detected" choice
+                if res.get("type") == "choices" and res.get("from_name") == "no_answer":
+                    voted_no_answer = True
+                    
+                # Check if they highlighted a specific span
+                elif res.get("type") == "labels":
+                    val = res.get("value", {})
+                    text = val.get("text", "").strip() # Original casing preserved
+                    labels = tuple(val.get("labels", []))
+                    
+                    if text:
+                        spans.append((text, labels))
             
-            # if they highlighted 0 words, they voted "No Answer"
-            if len(spans) == 0:
+            # If they explicitly voted No Answer OR highlighted 0 words
+            if voted_no_answer or len(spans) == 0:
                 no_answer_votes += 1
                 
             annotator_freqs.append(Counter(spans))
@@ -59,17 +69,16 @@ def build_scalable_consensus_dataset(input_path, output_path, conflicts_path):
         required_votes = (num_annotators // 2) + 1
         final_answer_labels = []
         
-        # recreate a flattened entry with the task ID and data block
         flattened_entry = {"id": task_id}
         flattened_entry.update(data_block)
         
-        # handle "No Answer"
+        # Handle majority "No Answer" consensus
         if no_answer_votes >= required_votes:
-            flattened_entry["no_answer"] = True
+            flattened_entry["no_answer"] = "No Damage Detected"
             consensus_dataset.append(flattened_entry)
             continue
             
-        # calculate text + label frequency consensus
+        # Calculate text + label frequency consensus
         all_unique_spans = set()
         for freq_dict in annotator_freqs:
             all_unique_spans.update(freq_dict.keys())
@@ -77,11 +86,8 @@ def build_scalable_consensus_dataset(input_path, output_path, conflicts_path):
         for span_key in all_unique_spans:
             text, labels = span_key
             
-            # count how many annotators found this exact string + label 
             counts = [freq_dict.get(span_key, 0) for freq_dict in annotator_freqs]
             counts.sort(reverse=True)
-            
-            # get the count that meets the majority threshold
             consensus_count = counts[required_votes - 1]
             
             for _ in range(consensus_count):
@@ -90,62 +96,51 @@ def build_scalable_consensus_dataset(input_path, output_path, conflicts_path):
                     "labels": list(labels)
                 })
                 
-        # finalize the entry
         if len(final_answer_labels) > 0:
             flattened_entry["answer_labels"] = final_answer_labels
-            # route agreed articles to the consensus list
             consensus_dataset.append(flattened_entry) 
         else:
-            # 'No Answer' if there was total disagreement
-            flattened_entry["no_answer"] = True
+            flattened_entry["no_answer"] = "Conflict / No Agreement"
             flattened_entry["conflict_flag"] = True
             conflict_count += 1
             
-            # add exactly what people voted for directly into the conflict JSON
             flattened_entry["annotator_claims"] = [
                 {f"annotator_{i+1}": [f"'{t}' {list(l)} ({c}x)" for (t, l), c in fd.items()] if fd else "Voted No Answer"}
                 for i, fd in enumerate(annotator_freqs)
             ]
             
-            # route the disagreed articles to the conflict list
             conflicts_dataset.append(flattened_entry) 
             
-            # print disagreement details for debugging
-            print("\n" + "!" * 80)
-            print(f"CONFLICT DETECTED: Task ID {task_id}")
-            print("-" * 80)
-            
-            # grab the text 
-            article_text = data_block.get(TEXT_FIELD, data_block.get("text", str(data_block)))
-            print(f"SOURCE TEXT:\n{article_text}\n")
-            
-            print("ANNOTATOR SPANS:")
-            for i, freq_dict in enumerate(annotator_freqs):
-                if not freq_dict:
-                    print(f"  Annotator {i+1}: Voted 'No Answer'")
-                else:
-                    print(f"  Annotator {i+1}:")
-                    for (span_text, span_labels), count in freq_dict.items():
-                        print(f"    - '{span_text}' {list(span_labels)} (Found {count}x)")
-            print("!" * 80 + "\n")
-            
-    # export both files
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     
-    # save clean dataset
     with open(output_path, 'w', encoding='utf-8') as f:
         json.dump(consensus_dataset, f, indent=4, ensure_ascii=False)
         
-    # save the conflicts
     with open(conflicts_path, 'w', encoding='utf-8') as f:
         json.dump(conflicts_dataset, f, indent=4, ensure_ascii=False)
         
     print("=" * 60)
-    print("Consensus Generation Complete!")
-    print(f"Total clean articles in ground_truth.json: {len(consensus_dataset)}")
-    print(f"Articles skipped (unannotated): {skipped_count}")
-    print(f"Articles exported to annotator_conflicts.json: {conflict_count}")
+    print(f"Consensus Generation Complete for: {os.path.basename(output_path)}")
+    print(f"Total clean articles: {len(consensus_dataset)}")
+    print(f"Articles skipped (unannotated or cancelled): {skipped_count}")
+    print(f"Articles exported to conflicts file: {conflict_count}")
     print("=" * 60)
 
 if __name__ == "__main__":
-    build_scalable_consensus_dataset(LABEL_STUDIO_EXPORT, OUTPUT_FILE, CONFLICTS_FILE)
+    parser = argparse.ArgumentParser(description="Generate Consensus Ground Truth from Label Studio")
+    parser.add_argument('--q', type=int, default=None, help="Question number to process (e.g., 1, 2)")
+    
+    args = parser.parse_args()
+    
+    if args.q is not None:
+        # Dynamically route the files based on the question number
+        input_file = os.path.join(RAW_DIR, f"label_studio_q{args.q}.json")
+        output_file = os.path.join(RAW_DIR, f"ground_truth_q{args.q}.json")
+        conflicts_file = os.path.join(RAW_DIR, f"annotator_conflicts_q{args.q}.json")
+    else:
+        # Fallback to standard names if no --q is passed
+        input_file = os.path.join(RAW_DIR, "label_studio.json")
+        output_file = os.path.join(RAW_DIR, "ground_truth.json")
+        conflicts_file = os.path.join(RAW_DIR, "annotator_conflicts.json")
+        
+    build_scalable_consensus_dataset(input_file, output_file, conflicts_file)

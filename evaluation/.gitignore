@@ -8,3 +8,5 @@ __pycache__/
 # local environment history
 .uv/
 
+# data folder
+data/
