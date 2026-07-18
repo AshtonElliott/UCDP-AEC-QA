@@ -37,7 +37,11 @@ async def process_entry(idx, entry):
                 model='llama2:13b',
                 format = 'json',
                 messages=[
-                    {'role': 'system', 'content': 'Extract the words that answer the question. Respond in JSON format with a list called "extractions".'},
+                    {'role': 'system', 'content': (
+                    'Extract the words that answer the question. '
+                    'Respond in JSON format with a list called "extractions" containing objects with the key "word".'
+                    )},
+                    
                     {'role': 'user', 'content': f"Context: {retrieved_context}\n\nQuestion: {question}"}
                 ]
             )
@@ -45,12 +49,17 @@ async def process_entry(idx, entry):
             
             # Read in JSON Produced by Llama3.1
             data = json.loads(prediction)
-            entry['extractions'] = data.get('extractions', [])
+            
+            if isinstance(data, dict):
+                extractions = data.get('extractions', [])
+            elif isinstance(data, list):
+                extractions = data
+            else
+                extractions = []
             
             spans = []
-            for label in entry['extractions']:
-                text = label['word']
-                QALabel = label['category']
+            for label in extractions:
+                text = label.get('word', '')
                 
                 # Apply Text & Label
                 for match in re.finditer(re.escape(text), context, re.IGNORECASE):
@@ -58,7 +67,7 @@ async def process_entry(idx, entry):
                         "end": match.end(),
                         "text": context[match.start():match.end()],
                         "start": match.start(),
-                        "labels": [QALabel]
+                        "labels": ["Answer"]
                     })
             if len(spans) == 0 or data.get('extractions', []) == "None found":
                 entry['no_answer'] = "No Damage Detected"
