@@ -71,13 +71,16 @@ async def process_entry(idx, entry):
                 extractions = data.get('extractions', [])
             elif isinstance(data, list):
                 extractions = data
-            else
+            else:
                 extractions = []
             
             spans = []
             for label in extractions:
-                text = label.get('word', '')
-                QALabel = label.get('category', 'Other')
+                text = ""
+                QALabel = ""
+                if isinstance(label, dict):
+                    text = label.get('word', '')
+                    QALabel = label.get('category', 'Other')
                 
                 # Apply Text & Label
                 for match in re.finditer(re.escape(text), context, re.IGNORECASE):
@@ -87,7 +90,7 @@ async def process_entry(idx, entry):
                         "start": match.start(),
                         "labels": [QALabel]
                     })
-            if len(spans) == 0 or data.get('extractions', []) == "None found":
+            if len(spans) == 0 or QALabel == "":
                 entry['no_answer'] = "No Damage Detected"
             else:
                 entry['answer_labels'] = spans
