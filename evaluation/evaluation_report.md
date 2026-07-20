@@ -1,5 +1,5 @@
 # LLM Evaluation Report
-**Pipeline Execution Time:** 531.38 seconds
+**Pipeline Execution Time:** 499.4 seconds
 **Total Models Evaluated:** 9
 **Total Documents Processed:** 1574
 
@@ -94,20 +94,20 @@
 ---
 
 #### B. Over-Extraction (High Verbosity, Low Precision)
-**Edge Case #1 (Qwen3.8B)**
+**Edge Case #1 (Gemma3.4B)**
 * **Ground Truth:** `[NO TARGET SPANS EXIST]`
-* **Model Prediction:** `military equipment | offensive | offensive | fighting | fighting | fighting | fighting | troops | troops | separatist forces | Separatist forces`
-* **Scores:** Spans Generated = 11 | Semantic F1 = 0.0000
+* **Model Prediction:** `troops | troops | fighters | fighters | equipment | military | military | military | military | military | coalition | rebels`
+* **Scores:** Spans Generated = 12 | Semantic F1 = 0.0000
 ---
-**Edge Case #2 (Qwen3.8B)**
+**Edge Case #2 (Gemma3.4B)**
 * **Ground Truth:** `air raids | bombed`
-* **Model Prediction:** `air raids | air raids | clashes | clashes | clashes | coalition jets | Armoured vehicles | troop carriers`
-* **Scores:** Spans Generated = 8 | Semantic F1 = 0.3932
+* **Model Prediction:** `soldiers | soldiers | soldiers | soldiers | air raids | air raids | jets | Armoured vehicles | troop carriers`
+* **Scores:** Spans Generated = 9 | Semantic F1 = 0.3695
 ---
-**Edge Case #3 (Qwen3.8B)**
-* **Ground Truth:** `artillery fire`
-* **Model Prediction:** `rockets | IED | IED | ied | mortars | mortars | mortars | artillery | artillery | small arms | small arms | ambushes | ambushes | special forces | Special Forces | special forces`
-* **Scores:** Spans Generated = 16 | Semantic F1 = 0.0528
+**Edge Case #3 (Gemma3.4B)**
+* **Ground Truth:** `bomb blast`
+* **Model Prediction:** `bomb | attack | attack | attack | security forces | security forces | terrorist`
+* **Scores:** Spans Generated = 7 | Semantic F1 = 0.2869
 ---
 
 ### 🔍 Analysis: Question 2

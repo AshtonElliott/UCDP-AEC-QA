@@ -54,7 +54,7 @@ def generate_performance_quadrant(df, model_col, filename="master_quadrant.png")
     plt.xlabel("Lexical Match (SQuAD EM  ➔  Token IoU)")
     plt.ylabel("Semantic Match (DeBERTa F1  ➔  Deduped F1)")
     plt.grid(True, alpha=0.3)
-    
+   
     # models legend (colors)
     model_handles = [mlines.Line2D([], [], color=color_map[m], marker='s', 
                                    linestyle='None', markersize=10, label=m.replace('*', '')) for m in models]
@@ -103,11 +103,12 @@ def generate_verbosity_scatter(df, model_col, filename="verbosity_vs_accuracy.pn
     
     if len(df) > 1 and df['Avg Spans'].nunique() > 1:
         try:
-            z = np.polyfit(df['Avg Spans'], df['Deduped F1'], 1)
+            z = np.polyfit(df['Avg Spans'], df['Deduped F1'], 2)
             p = np.poly1d(z)
             x_seq = np.linspace(df['Avg Spans'].min() * 0.9, df['Avg Spans'].max() * 1.1, 100)
             plt.plot(x_seq, p(x_seq), color='red', linestyle='--', alpha=0.4)
-            trend_line = mlines.Line2D([], [], color='red', linestyle='--', alpha=0.4, label='Linear Trendline')
+            
+            trend_line = mlines.Line2D([], [], color='red', linestyle='--', alpha=0.4, label='Polynomial Trendline')
             handles_to_plot.append(trend_line)
         except Exception:
             pass
@@ -124,6 +125,7 @@ def generate_task_heatmap(df, filename="task_complexity_heatmap.png"):
     _ensure_assets_dir()
     plt.figure(figsize=(10, 6))
     
+    # pivot the data so models are rows and questions are columns
     heatmap_data = df.pivot(index="Model Target", columns="Question Track", values="Dedup F1")
     
     # sort the heatmap descending based on Question 1 performance
