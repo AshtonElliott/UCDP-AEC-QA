@@ -102,7 +102,7 @@ def run_correlation_pipeline():
         Avg_BS_F1_Dedup=("BS_F1_Dedup", "mean")
     ).round(3)
 
-    # Sorting variables needed for the Side-by-Side Matrix
+    # sorting variables needed for the side-by-side Matrix
     human_sorted = model_summary.sort_values(by="Avg_Norm_Human_Score", ascending=False).reset_index()
     strict_machine_sorted = model_summary.sort_values(by="Avg_BS_F1", ascending=False).reset_index()
     relaxed_machine_sorted = model_summary.sort_values(by="Avg_BS_F1_Dedup", ascending=False).reset_index()
@@ -119,15 +119,14 @@ def run_correlation_pipeline():
 
     clear_assets_dir()
 
-    # Generate charts
-    
+    # generate charts
     generate_performance_quadrant(
         df=model_summary.reset_index(),
         model_col="True_Model_Identity",
         filename="pilot_quadrant.png"
     )
     
-    # Print Markdown Report
+    # print markdown report
     print(f"\n*Total Framework Samples: {len(df_master)}*\n")
     
     print("### Correlation Comparison: Strict vs. Relaxed Metrics\n")

@@ -20,7 +20,6 @@ from scripts.visualization import (
 
 warnings.filterwarnings("ignore")
 
-# 🚀 FOOLPROOF PATHING
 BASE_DIR = str(Path(__file__).resolve().parent.parent)
 DATA_DIR = os.path.join(BASE_DIR, 'data')
 RAW_DIR = os.path.join(DATA_DIR, 'raw_inputs')
@@ -31,7 +30,7 @@ def discover_llm_files(raw_dir):
     for filepath in glob.glob(os.path.join(raw_dir, "*_results*.json")):
         match = re.search(r"^(.*?)_results(\d*)\.json$", os.path.basename(filepath), re.IGNORECASE)
         if match:
-            # 🚀 FIX: Aggressive normalization to prevent duplicate model profiles
+            # normalization to prevent duplicate model profiles
             raw_model_name = match.group(1).replace("_", " ").replace("-", " ").title() 
             q_num = int(match.group(2)) if match.group(2) else 1 
             llm_files_by_question[q_num][raw_model_name] = filepath
@@ -181,7 +180,7 @@ def run_evaluation_pipeline(question_filter=None):
 
     display_cols = ["Model System", "Total_N", "Label EM", "Lexical (EM)", "Token IoU", "Contextual F1", "Deduped F1", "Avg Spans"]
 
-    # 🚀 LAYER 1: GLOBAL AGGREGATION (Restored)
+    # LAYER 1: GLOBAL AGGREGATION (Restored)
     g_agg = df.groupby('model').agg(
         Total_N=('article', 'count'),
         em_sum=('em', 'sum'), iou_sum=('iou', 'sum'), f1_sum=('f1', 'sum'), dedup_sum=('dedup_f1', 'sum'),
@@ -201,7 +200,6 @@ def run_evaluation_pipeline(question_filter=None):
 
     total_time = round(time.time() - pipeline_start_time, 2)
 
-    # 🚀 THE NEW SMOOTH REPORT FLOW (Engineering Tone)
     print(f"**Pipeline Execution Time:** {total_time} seconds")
     print(f"**Total Models Evaluated:** {len(g_agg)}")
     print(f"**Total Documents Processed:** {g_agg['Total_N'].max()}\n")
@@ -219,7 +217,7 @@ def run_evaluation_pipeline(question_filter=None):
     print("> *Tracking whether models artificially inflate their semantic coverage by over-generating spans.*")
     print("![Verbosity vs Semantic Accuracy](assets/verbosity_vs_accuracy.png)\n")
 
-    # 🚀 LAYER 2: PER-QUESTION AGGREGATION
+    # LAYER 2: PER-QUESTION AGGREGATION
     q_agg = df.groupby(['model', 'question']).agg(
         Total_N=('article', 'count'),
         em_sum=('em', 'sum'), iou_sum=('iou', 'sum'), f1_sum=('f1', 'sum'), dedup_sum=('dedup_f1', 'sum'),
@@ -256,7 +254,6 @@ def run_evaluation_pipeline(question_filter=None):
             print("\n")
 
     print("\n---\n")
-    # Part 4 prints directly from the error_analysis script
     run_error_analysis(records=all_records)
 
 if __name__ == "__main__":

@@ -1,0 +1,2 @@
+This section holds scripts that have been modified from the base version to fit the cookbook specifications of each LLM.
+To use one of these, just replace the python script used in the 2nd terminal with one of the scripts found here.

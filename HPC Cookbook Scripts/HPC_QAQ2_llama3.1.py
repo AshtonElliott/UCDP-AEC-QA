@@ -12,7 +12,7 @@ os.environ.pop("https_proxy", None)
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
 input_path = os.path.join(script_dir, 'train2.json')
-output_path = os.path.join(script_dir, 'mistral_results2.json')
+output_path = os.path.join(script_dir, 'llama3.1_results2_cb.json')
 
 # Load dataset
 with open(input_path, 'r') as f:
@@ -34,13 +34,12 @@ async def process_entry(idx, entry):
             chunks = [context[i:i+1500] for i in range(0, len(context), 1500)]
             retrieved_context = "\n".join(chunks[:5])
             response = await client.chat(
-                model='mistral:latest',
+                model='llama3.1:latest',
+                format='json',
                 messages=[
                     {'role': 'system', 'content': (
-                    'Identify the words that answer the question. Return only a comma-separated list of words found in the article.'
-                    'With every word, associate one of the 8 categories below in the format: "Word | Category"'
-                    'There can be more than one answer to the question in the text.'
-                    'The 8 Categories are: Energy, Water, Transportation/Marketing, Energy/Water, Health, Agriculture/Fishing, Government/Rebel, Other.'
+                    'Extract words answering the question and classify them into these 8 categories: '
+                    'Energy, Water, Transportation/Marketing, Energy/Water, Health, Agriculture/Fishing, Government/Rebel, Other.'
                     'The category should be Energy when the infrastructure is related to energy exploration, production, and distribution.'
                     'The category should be Water when the infrastructure is related to drinking water, purification, irrigation, wastewatertreatment, and sanitation'
                     'The category should be Transportation/Marketing when the infrastructure is related to the transportation marketing, andexchange of commodities'
@@ -49,7 +48,7 @@ async def process_entry(idx, entry):
                     'The category should be Agriculture/Fishing when the infrastructure is related to crop cultivation and harvesting, and infrastructure related to fisheries'
                     'The category should be Government/Rebel when the infrastructure is related to Government or Public Based Buildings such as Schools, Admin Buildings, and Military Bases'
                     'The category should be Other when the infrastructure is not related to any of the previous categories.'
-                    'For every identified item, return only: "Text | Category". '
+                    'Respond in JSON format with a list called "extractions" containing objects with keys "word" and "category".'
                     )},
                 
                     # Example 1: Standard infrastructure
@@ -64,51 +63,38 @@ async def process_entry(idx, entry):
                 ]
             )
             prediction = response['message']['content']
-            labels = prediction.split(',')
+            
+            # Read in JSON Produced by Llama3.1
+            data = json.loads(prediction)
+            
+            if isinstance(data, dict):
+                extractions = data.get('extractions', [])
+            elif isinstance(data, list):
+                extractions = data
+            else:
+                extractions = []
+            
             spans = []
-            BlankCounter = 0
-            for label in labels:
-                clean_label = label.strip(' ".\' ')
-                if '|' in clean_label:
-                    # Separate Text and Label
-                    parts = clean_label.split('|', 1)
-                    text = parts[0]
-                    
-                    # Filter Out for Label
-                    QAlabel = parts[1]
-                        
-                    if "Energy" in QAlabel:
-                        QAlabel = "Energy"
-                    elif "Water" in QAlabel:
-                        QAlabel = "Water"
-                    elif "Transportation/Marketing" in QAlabel:
-                        QAlabel = "Transportation/Marketing"
-                    elif "Energy/Water" in QAlabel:
-                        QAlabel = "Energy/Water"
-                    elif "Health" in QAlabel:
-                        QAlabel = "Health"
-                    elif "Agriculture/Fishing" in QAlabel:
-                        QAlabel = "Agriculture/Fishing"
-                    elif "Government/Rebel" in QAlabel:
-                        QAlabel = "Government/Rebel"
-                    else:
-                        QAlabel = "Other"
-                    
-                    if text == "":
-                        BlankCounter += 1
-                    
-                    # Apply Text & Label
-                    for match in re.finditer(re.escape(text), context, re.IGNORECASE):
-                        spans.append({
-                            "end": match.end(),
-                            "text": context[match.start():match.end()],
-                            "start": match.start(),
-                            "labels": [QAlabel]
-                        })
-            if len(spans) == 0 or BlankCounter > 0:
+            for label in extractions:
+                text = ""
+                QALabel = ""
+                if isinstance(label, dict):
+                    text = label.get('word', '')
+                    QALabel = label.get('category', 'Other')
+                
+                # Apply Text & Label
+                for match in re.finditer(re.escape(text), context, re.IGNORECASE):
+                    spans.append({
+                        "end": match.end(),
+                        "text": context[match.start():match.end()],
+                        "start": match.start(),
+                        "labels": [QALabel]
+                    })
+            if len(spans) == 0 or QALabel == "":
                 entry['no_answer'] = "No Damage Detected"
             else:
                 entry['answer_labels'] = spans
+            entry.pop('extractions', None)
         except Exception as e:
             print(f"Error processing entry {idx}: {e}", file=sys.stderr)
             entry['error'] = str(e)

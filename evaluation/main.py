@@ -8,7 +8,6 @@ from scripts.calculate_iaa import calculate_iaa
 from scripts.semantic_diagnostic import run_comprehensive_evaluation
 from scripts.run_eval import run_evaluation_pipeline
 
-# 🚀 FOOLPROOF PATHING: Hard-locks to the evaluation root
 BASE_DIR = str(Path(__file__).resolve().parent)
 RESULTS_DIR = os.path.join(BASE_DIR, 'data', 'evaluation_results')
 

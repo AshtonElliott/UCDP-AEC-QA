@@ -13,7 +13,7 @@ def _ensure_assets_dir():
     os.makedirs("assets", exist_ok=True)
 
 def clear_assets_dir():
-    """Wipes all existing PNG files in the assets folder to prevent clutter."""
+    """wipes all existing PNG files in the assets folder to prevent clutter"""
     _ensure_assets_dir()
     old_files = glob.glob(os.path.join("assets", "*.png"))
     for file in old_files:
@@ -38,7 +38,7 @@ def generate_performance_quadrant(df, model_col, filename="master_quadrant.png")
         plt.scatter(row['Lexical (EM)'], row['Contextual F1'], 
                     color=color, marker='o', s=250, alpha=0.8)
         
-        # plot eelaxed (triangle)
+        # plot relaxed (triangle)
         plt.scatter(row['Token IoU'], row['Deduped F1'], 
                     color=color, marker='^', s=250, alpha=0.8)
         
@@ -54,13 +54,15 @@ def generate_performance_quadrant(df, model_col, filename="master_quadrant.png")
     plt.xlabel("Lexical Match (SQuAD EM  ➔  Token IoU)")
     plt.ylabel("Semantic Match (DeBERTa F1  ➔  Deduped F1)")
     plt.grid(True, alpha=0.3)
-    
+   
+    # models legend (colors)
     model_handles = [mlines.Line2D([], [], color=color_map[m], marker='s', 
                                    linestyle='None', markersize=10, label=m.replace('*', '')) for m in models]
     first_legend = plt.legend(handles=model_handles, title="Models", 
                               bbox_to_anchor=(1.05, 1), loc='upper left')
     plt.gca().add_artist(first_legend) 
 
+    # metric type legend (shapes)
     strict_marker = mlines.Line2D([], [], color='gray', marker='o', linestyle='None', markersize=10, label='Strict (EM / F1)')
     relaxed_marker = mlines.Line2D([], [], color='gray', marker='^', linestyle='None', markersize=10, label='Relaxed (IoU / Dedup F1)')
     
@@ -84,7 +86,7 @@ def generate_verbosity_scatter(df, model_col, filename="verbosity_vs_accuracy.pn
         model = row[model_col]
         color = color_map[model]
         
-        # X = Avg Spans, Y = Deduped F1
+        # X = avg spans, Y = deduped F1
         plt.scatter(row['Avg Spans'], row['Deduped F1'], 
                     color=color, marker='o', s=300, alpha=0.9, edgecolor='white')
 

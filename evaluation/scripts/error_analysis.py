@@ -4,7 +4,6 @@ import json
 from pathlib import Path
 from collections import defaultdict
 
-# 🚀 FOOLPROOF PATHING
 BASE_DIR = str(Path(__file__).resolve().parent.parent)
 RESULTS_DIR = os.path.join(BASE_DIR, 'data', 'evaluation_results')
 ARTIFACT_PATH = os.path.join(RESULTS_DIR, "master_evaluation_artifact.json")
@@ -19,7 +18,7 @@ def run_error_analysis(records=None):
         with open(ARTIFACT_PATH, 'r', encoding='utf-8') as f:
             records = json.load(f)
             
-    # Structure: diagnostics[question_id]["error_type"] = [list of cases]
+    # structure: diagnostics[question_id]["error_type"] = [list of cases]
     diagnostics = defaultdict(lambda: {"paraphrase": [], "hallucination": [], "label_crash": []})
 
     for rec in records:
