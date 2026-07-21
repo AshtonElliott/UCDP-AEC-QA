@@ -42,10 +42,10 @@ async def process_entry(idx, entry):
                         f"Context: {retrieved_context}\n\n"
                         f"Question: {question}\n\n"
                     
-                        'Identify the words that answer the question. Return only a comma-separated list of words found in the article.'
+                        'Identify the words that answer the question.'
                         'With every word, associate one of the 8 categories: Energy, Water, Transportation/Marketing, Energy/Water, Health, Agriculture/Fishing, Government/Rebel, Other. \n'
                     
-                        'For every identified item, return only: "Text | Category". '
+                        'For every identified item, return the following: "Word | Category". '
                     )},
                 
                     # Example 1: Standard infrastructure
