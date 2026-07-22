@@ -34,7 +34,7 @@ async def process_entry(idx, entry):
             chunks = [context[i:i+1500] for i in range(0, len(context), 1500)]
             retrieved_context = "\n".join(chunks[:5])
             response = await client.chat(
-                model='llama2:13b',
+                model='mistral:7b',
                 messages=[
                     {'role': 'system', 'content': (
                         ' f"""" '
