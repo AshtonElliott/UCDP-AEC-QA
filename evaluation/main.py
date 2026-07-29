@@ -1,6 +1,5 @@
 import argparse
 import sys
-import os
 from pathlib import Path
 
 from scripts.calculate_correlation import run_correlation_pipeline
@@ -8,20 +7,22 @@ from scripts.calculate_iaa import calculate_iaa
 from scripts.semantic_diagnostic import run_comprehensive_evaluation
 from scripts.run_eval import run_evaluation_pipeline
 
-BASE_DIR = str(Path(__file__).resolve().parent)
-RESULTS_DIR = os.path.join(BASE_DIR, 'data', 'evaluation_results')
+BASE_DIR = Path(__file__).resolve().parent
+RESULTS_DIR = BASE_DIR / 'data' / 'evaluation_results'
 
 class MarkdownLogger:
     def __init__(self, filename):
         self.terminal = sys.stdout
-        self.log_file = filename
-        os.makedirs(os.path.dirname(self.log_file) or ".", exist_ok=True)
-        with open(self.log_file, "w", encoding="utf-8") as f:
+        self.log_file = Path(filename)
+        
+        self.log_file.parent.mkdir(parents=True, exist_ok=True)
+        
+        with self.log_file.open("w", encoding="utf-8") as f:
             f.write("# LLM Evaluation Report\n")
 
     def write(self, message):
         self.terminal.write(message)
-        with open(self.log_file, "a", encoding="utf-8") as f:
+        with self.log_file.open("a", encoding="utf-8") as f:
             f.write(message)
 
     def flush(self):
@@ -43,8 +44,9 @@ def main():
         parser.print_help()
         return
 
-    os.makedirs(RESULTS_DIR, exist_ok=True)
-    report_path = os.path.join(BASE_DIR, "evaluation_report.md")
+    RESULTS_DIR.mkdir(parents=True, exist_ok=True)
+    report_path = BASE_DIR / "evaluation_report.md"
+    
     sys.stdout = MarkdownLogger(report_path)
 
     if args.iaa or args.all:
