@@ -93,12 +93,17 @@ class EvaluationEngine:
         """
         Calculates Strict Set-EM (via Counter) and Set-F1 (via Max-Mean) for IE tasks.
         """
+        # 1. Fast-fail on empty lists
         if not g_texts and not p_texts: return 1.0, 1.0
         if not g_texts or not p_texts: return 0.0, 0.0
 
-        # 1. Strict SQuAD EM 
+        # 2. Normalize and filter out strings that normalize to ""
         g_norm = [cls.normalize_answer(g) for g in g_texts if cls.normalize_answer(g)]
         p_norm = [cls.normalize_answer(p) for p in p_texts if cls.normalize_answer(p)]
+
+        # 3. Guard against lists that became empty after normalization
+        if not g_norm and not p_norm: return 1.0, 1.0
+        if not g_norm or not p_norm: return 0.0, 0.0
         
         g_counts = Counter(g_norm)
         p_counts = Counter(p_norm)
@@ -114,9 +119,12 @@ class EvaluationEngine:
             rec = tp / (tp + fn)
             set_em = (2 * prec * rec) / (prec + rec)
 
-        # 2. SQuAD Token F1 / IoU (Retains max-mean logic because token overlap is partial)
-        p_f1 = float(np.mean([max(cls.compute_squad_f1(g, p) for g in g_texts) for p in p_texts]))
-        r_f1 = float(np.mean([max(cls.compute_squad_f1(g, p) for p in p_texts) for g in g_texts]))
+        # 2. SQuAD Token F1 / IoU (Evaluated strictly on valid normalized strings)
+        p_f1_scores = [max(cls.compute_squad_f1(g, p) for g in g_norm) for p in p_norm]
+        r_f1_scores = [max(cls.compute_squad_f1(g, p) for p in p_norm) for g in g_norm]
+
+        p_f1 = float(np.mean(p_f1_scores)) if p_f1_scores else 0.0
+        r_f1 = float(np.mean(r_f1_scores)) if r_f1_scores else 0.0
         set_f1 = 2 * (p_f1 * r_f1) / (p_f1 + r_f1) if (p_f1 + r_f1) > 0 else 0.0
 
         return round(set_em, 4), round(set_f1, 4)

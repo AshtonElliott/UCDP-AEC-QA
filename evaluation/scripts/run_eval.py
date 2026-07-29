@@ -66,7 +66,7 @@ def evaluate_models_globally(model_files, gt_map, q_num):
             with filepath.open('r', encoding='utf-8') as f: 
                 predictions = json.load(f)
         except (json.JSONDecodeError, ValueError) as e:
-            print(f"\n[CRITICAL WARNING] Skipping malformed file {filepath}: {str(e)}", file=sys.stderr)
+            print(f"\n[CRITICAL WARNING] Skipping malformed file {str(filepath)}: {str(e)}", file=sys.stderr)
             continue
             
         for pred_entry in predictions:
@@ -271,6 +271,7 @@ def run_evaluation_pipeline(question_filter=None):
     # Define exact columns to display 
     display_cols = [
         "Model System", 
+        "Total_N",
         "Abstention (NoAns)", 
         "SQuAD EM (Overall / HasAns)", 
         "Label EM (Overall / HasAns)", 
