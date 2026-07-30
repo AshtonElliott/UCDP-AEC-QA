@@ -12,7 +12,7 @@ os.environ.pop("https_proxy", None)
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
 input_path = os.path.join(script_dir, 'train2.json')
-output_path = os.path.join(script_dir, 'OroborosLabs_claude_mythos_6_results2_cb.json')
+output_path = os.path.join(script_dir, 'vicuna_results2_cb.json')
 
 # Load dataset
 with open(input_path, 'r') as f:
@@ -34,45 +34,23 @@ async def process_entry(idx, entry):
             chunks = [context[i:i+1500] for i in range(0, len(context), 1500)]
             retrieved_context = "\n".join(chunks[:5])
             response = await client.chat(
-                model='oroboroslabs/claude-mythos-6:latest',
+                model='vicuna:13b',
                 messages=[
                     {'role': 'system', 'content': (
-                    'You are a Political Scientist trying to find what infrastructure was damaged.'
-                    'Your task is to extract specific infrastructure-related words from the provided text and classify them.'
-                    '\n\n'
-                    '<categories>'
-                    '1. Energy: infrastructure related to energy exploration, production, and distribution.'
-                    '2. Water: infrastructure related to drinking water, purification, irrigation, wastewatertreatment, and sanitation'
-                    '3. Transportation/Marketing: infrastructure related to the transportation marketing, andexchange of commodities'
-                    '4. Energy/Water: infrastructure related to both producing energy and water (e.g. a dam where hydropower and irrigation functions cannot be separated)'
-                    '5. Health: infrastructure related to public health, including but not limited to hospitals, clinics, ambulances'
-                    '6. Agriculture/Fishing: infrastructure  related to crop cultivation and harvesting, and infrastructure related to fisheries'
-                    '7. Government/Rebel: infrastructure related to Government or Public Based Buildings such as Schools, Admin Buildings, and Military Bases'
-                    '8. Other: infrastructure not related to any of the previous categories.'
-                    '<categories>'
-                    '\n\n'
+                        'A chat between a curious user and an artificial intelligence assistant. '
+                        'The assistant gives helpful, detailed, and polite answers to the user\'s questions.'
+                    )},
                     
-                    "<rules>\n"
-                    "1. Use a <thinking> tag to reason through findings first.\n"
-                    "2. Return answers only as a comma-separated list in the format: 'Word | Category'.\n"
-                    "</rules>\n\n"
-                    
-                    '<example>\n'
-                    'Input: "The local clinic was damaged while the hydroelectric dam and nearby school were bombed. The airport was used to launch the attacks." \n'
-                    'Response: \n'
-                    '{\n'
-                        "\"thinking\": \"The text mentions a 'clinic' (health), a 'hydroelectric dam' (dual purpose energy/water), and a 'school' (government/public) that were damaged. It also mentions an airport, but it was not damaged so it is not included.\",\n"
-                        "\"extractions\": [\n"
-                          "{\"word\": \"clinic\", \"category\": \"Health\"},\n"
-                          "{\"word\": \"hydroelectric dam\", \"category\": \"Energy/Water\"},\n"
-                          "{\"word\": \"school\", \"category\": \"Government/Rebel\"}\n"
-                        "]\n"
-                    '}\n'
-                    '<example>\n\n'
-                    
+                    {'role': 'user', 'content': (
+                        f'Identify the words that answer the question. Return only a comma-separated list '
+                        f'of words found in the article. With every word, associate one of the 8 categories '
+                        f'below in the format: "Word | Category". \n'
+                        f'Categories: Energy, Water, Transportation/Marketing, Energy/Water, Health, Agriculture/Fishing, Government/Rebel, and Other'
+                        f'Question: {question} \n'
+                        f'Context: {retrieved_context} \n'
+                        f'For every identified item, return only: "Text | Category".'
                     )}
                 ]
-                
             )
             prediction = response['message']['content']
             labels = prediction.split(',')

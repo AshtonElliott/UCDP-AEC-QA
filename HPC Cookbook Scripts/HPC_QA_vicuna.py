@@ -12,7 +12,7 @@ os.environ.pop("https_proxy", None)
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
 input_path = os.path.join(script_dir, 'train.json')
-output_path = os.path.join(script_dir, 'OroborosLabs_claude_mythos_6_results_cb.json')
+output_path = os.path.join(script_dir, 'vicuna_results_cb.json')
 
 # Load dataset
 with open(input_path, 'r') as f:
@@ -30,38 +30,24 @@ async def process_entry(idx, entry):
         try:
             print(f"Processing entry {idx+1}/{len(dataset)}...")
             context = entry.get('source_article', '')
-            question = entry.get('question2', '')
+            question = entry.get('question', '')
             chunks = [context[i:i+1500] for i in range(0, len(context), 1500)]
             retrieved_context = "\n".join(chunks[:5])
             response = await client.chat(
-                model='oroboroslabs/claude-mythos-6:latest',
+                model='vicuna:13b',
                 messages=[
                     {'role': 'system', 'content': (
-                    'You are a Political Scientist trying to find what weapons/arms were used.'
-                    'Your task is to extract words from the provided text.'
-
-                    "<rules>\n"
-                    "1. Use a <thinking> tag to reason through findings first.\n"
-                    "2. Return answers only as a comma-separated list in the format: 'Word | Category'.\n"
-                    "</rules>\n\n"
+                        'A chat between a curious user and an artificial intelligence assistant. '
+                        'The assistant gives helpful, detailed, and polite answers to the user\'s questions.'
+                    )},
                     
-                    # Example
-                    '<example>\n'
-                    'Input: "The local port was hit by Drone Strikes from the military. Many firearms and bombs were destroyed." \n'
-                    'Response: \n'
-                    '{\n'
-                        "\"thinking\": \"The text mentions 'Drone Strikes' which were used. The text mentions firearms and bombs that were destroyed; since they were not used, they are not included.\",\n"
-                        "\"extractions\": [\n"
-                          "{\"word\": \"Drone Strikes\" \n"
-                        "]\n"
-                    '}\n'
-                    '<example>\n\n'
-                    
-                    'Please analyze the provided context. First, use a <thinking> tag to reason through your extractions,'
-                    'then provide the final JSON output containing the "extractions" list with the "word" key.'
+                    {'role': 'user', 'content': (
+                        f'Identify the words that answer the question. Return only a comma-separated list of words found in the article. There can be more than one answer to the question in the text.'
+                        f'Question: {question} \n'
+                        f'Context: {retrieved_context} \n'
+                        f'For every identified item, return only: "Text | Category".'
                     )}
                 ]
-                
             )
             prediction = response['message']['content']
             labels = prediction.split(',')
