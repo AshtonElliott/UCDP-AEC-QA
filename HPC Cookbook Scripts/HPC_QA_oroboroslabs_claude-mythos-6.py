@@ -35,6 +35,7 @@ async def process_entry(idx, entry):
             retrieved_context = "\n".join(chunks[:5])
             response = await client.chat(
                 model='oroboroslabs/claude-mythos-6:latest',
+                format='json',
                 messages=[
                     {'role': 'system', 'content': (
                     'You are a Political Scientist trying to find what weapons/arms were used.'
@@ -42,7 +43,7 @@ async def process_entry(idx, entry):
 
                     "<rules>\n"
                     "1. Use a <thinking> tag to reason through findings first.\n"
-                    "2. Return answers only as a comma-separated list in the format: 'Word | Category'.\n"
+                    "2. Respond in JSON format with a list called 'extractions' containing objects with the key 'word'.\n"
                     "</rules>\n\n"
                     
                     # Example
