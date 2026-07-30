@@ -74,7 +74,7 @@ async def process_entry(idx, entry):
                 extractions = data.get('extractions', [])
             elif isinstance(data, list):
                 extractions = data
-            else
+            else:
                 extractions = []
             
             spans = []
