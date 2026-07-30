@@ -11,7 +11,7 @@ os.environ.pop("http_proxy", None)
 os.environ.pop("https_proxy", None)
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
-input_path = os.path.join(script_dir, 'train2.json')
+input_path = os.path.join(script_dir, 'train2sample.json')
 output_path = os.path.join(script_dir, 'OroborosLabs_claude_mythos_6_results2_cb.json')
 
 # Load dataset
@@ -69,53 +69,48 @@ async def process_entry(idx, entry):
                         "]\n"
                     '}\n'
                     '<example>\n\n'
+                    )},
                     
+                    {'role': 'user', 'content': (
+                        f"<article>\n{retrieved_context}\n</article>\n\n"
+                        f"<question>\n{question}\n</question>"
                     )}
                 ]
                 
             )
             prediction = response['message']['content']
-            labels = prediction.split(',')
+            
+            # Read in JSON Produced by OroborosLabs's Claude
+            data = json.loads(prediction)
+            
+            if isinstance(data, dict):
+                extractions = data.get('extractions', [])
+            elif isinstance(data, list):
+                extractions = data
+            else:
+                extractions = []
+            
             spans = []
-            for label in labels:
-                clean_label = label.strip(' ".\' ')
-                if '|' in clean_label:
-                    # Separate Text and Label
-                    parts = clean_label.split('|', 1)
-                    text = parts[0]
-                    
-                    # Filter Out for Label
-                    QAlabel = parts[1]
-                        
-                    if "Energy" in QAlabel:
-                        QAlabel = "Energy"
-                    elif "Water" in QAlabel:
-                        QAlabel = "Water"
-                    elif "Transportation/Marketing" in QAlabel:
-                        QAlabel = "Transportation/Marketing"
-                    elif "Energy/Water" in QAlabel:
-                        QAlabel = "Energy/Water"
-                    elif "Health" in QAlabel:
-                        QAlabel = "Health"
-                    elif "Agriculture/Fishing" in QAlabel:
-                        QAlabel = "Agriculture/Fishing"
-                    elif "Government/Rebel" in QAlabel:
-                        QAlabel = "Government/Rebel"
-                    else:
-                        QAlabel = "Other"
-                    
-                    # Apply Text & Label
-                    for match in re.finditer(re.escape(text), context, re.IGNORECASE):
-                        spans.append({
-                            "end": match.end(),
-                            "text": context[match.start():match.end()],
-                            "start": match.start(),
-                            "labels": [QAlabel]
-                        })
-            if len(spans) == 0:
+            for label in extractions:
+                text = ""
+                QALabel = ""
+                if isinstance(label, dict):
+                    text = label.get('word', '')
+                    QALabel = label.get('category', 'Other')
+                
+                # Apply Text & Label
+                for match in re.finditer(re.escape(text), context, re.IGNORECASE):
+                    spans.append({
+                        "end": match.end(),
+                        "text": context[match.start():match.end()],
+                        "start": match.start(),
+                        "labels": [QALabel]
+                    })
+            if len(spans) == 0 or QALabel == "":
                 entry['no_answer'] = "No Damage Detected"
             else:
                 entry['answer_labels'] = spans
+            entry.pop('extractions', None)
         except Exception as e:
             print(f"Error processing entry {idx}: {e}", file=sys.stderr)
             entry['error'] = str(e)
