@@ -56,31 +56,44 @@ async def process_entry(idx, entry):
                         "]\n"
                     '}\n'
                     '<example>\n\n'
+                    )},
                     
-                    'Please analyze the provided context. First, use a <thinking> tag to reason through your extractions,'
-                    'then provide the final JSON output containing the "extractions" list with the "word" key.'
+                    {'role': 'user', 'content': (
+                        f"<article>\n{retrieved_context}\n</article>\n\n"
+                        f"<question>\n{question}\n</question>"
                     )}
                 ]
                 
             )
             prediction = response['message']['content']
-            labels = prediction.split(',')
+            
+            # Read in JSON Produced by OroborosLabs's Claude
+            data = json.loads(prediction)
+            
+            if isinstance(data, dict):
+                extractions = data.get('extractions', [])
+            elif isinstance(data, list):
+                extractions = data
+            else
+                extractions = []
+            
             spans = []
-            for label in labels:
-                clean_label = re.sub(r'[^\w\s]', '', label.strip())
-                if clean_label:
-                    for match in re.finditer(re.escape(clean_label), context, re.IGNORECASE):
-                        spans.append({
-                            "end": match.end(),
-                            "text": context[match.start():match.end()],
-                            "start": match.start(),
-                            "labels": ["Answer"]
-                        })
-            # Check AFTER processing all labels
-            if len(spans) == 0:
-                entry['no_answer'] = "No arms or methods mentioned"
+            for label in extractions:
+                text = label.get('word', '')
+                
+                # Apply Text & Label
+                for match in re.finditer(re.escape(text), context, re.IGNORECASE):
+                    spans.append({
+                        "end": match.end(),
+                        "text": context[match.start():match.end()],
+                        "start": match.start(),
+                        "labels": ["Answer"]
+                    })
+            if len(spans) == 0 or data.get('extractions', []) == "None found":
+                entry['no_answer'] = "No Damage Detected"
             else:
                 entry['answer_labels'] = spans
+            entry.pop('extractions', None)
         except Exception as e:
             print(f"Error processing entry {idx}: {e}", file=sys.stderr)
             entry['error'] = str(e)
