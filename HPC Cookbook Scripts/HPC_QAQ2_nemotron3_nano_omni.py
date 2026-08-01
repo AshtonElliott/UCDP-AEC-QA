@@ -12,7 +12,7 @@ os.environ.pop("https_proxy", None)
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
 input_path = os.path.join(script_dir, 'train2.json')
-output_path = os.path.join(script_dir, 'nemotron3_results2_cb.json')
+output_path = os.path.join(script_dir, 'nemotron3_nano_omni_results2_cb.json')
 
 # Load dataset
 with open(input_path, 'r') as f:
@@ -49,7 +49,7 @@ async def process_entry(idx, entry):
                     'The category should be Agriculture/Fishing when the infrastructure is related to crop cultivation and harvesting, and infrastructure related to fisheries'
                     'The category should be Government/Rebel when the infrastructure is related to Government or Public Based Buildings such as Schools, Admin Buildings, and Military Bases'
                     'The category should be Other when the infrastructure is not related to any of the previous categories.'
-                    'For every identified item, return only: "Text | Category"'.
+                    'For every identified item, return only: "Text | Category".'
                     )},
                 
                     # Example 1: Standard infrastructure
@@ -60,7 +60,7 @@ async def process_entry(idx, entry):
                     {'role': 'user', 'content': f"Context: The hydroelectric dam was targeted in the raid.\n\nQuestion: {question}"},
                     {'role': 'assistant', 'content': 'hydroelectric dam | Energy/Water'},
                     
-                    {'role': 'user', 'content': f"Context: {retrieved_context}\n\nQuestion: {question}"},
+                    {'role': 'user', 'content': f"Context: {retrieved_context}\n\nQuestion: {question}"}
                 ],
                 
                 options = {
@@ -99,14 +99,18 @@ async def process_entry(idx, entry):
                     else:
                         QAlabel = "Other"
                     
-                    # Apply Text & Label
-                    for match in re.finditer(re.escape(text), context, re.IGNORECASE):
-                        spans.append({
-                            "end": match.end(),
-                            "text": context[match.start():match.end()],
-                            "start": match.start(),
-                            "labels": [QAlabel]
-                        })
+                    if "" in text:
+                        # Filter out blanks-positives
+                        continue
+                    else:
+                        # Apply Text & Label
+                        for match in re.finditer(re.escape(text), context, re.IGNORECASE):
+                            spans.append({
+                                "end": match.end(),
+                                "text": context[match.start():match.end()],
+                                "start": match.start(),
+                                "labels": [QAlabel]
+                            })
             if len(spans) == 0:
                 entry['no_answer'] = "No Damage Detected"
             else:

@@ -83,7 +83,7 @@ async def process_entry(idx, entry):
                         QAlabel = "Other"
                     
                     if "" in text:
-                        # Vicuna seems to have numerous blanks-positives for Q2; this is to filter those out
+                        # Filter out blanks-positives
                         continue
                     else:
                         # Apply Text & Label
