@@ -82,14 +82,18 @@ async def process_entry(idx, entry):
                     else:
                         QAlabel = "Other"
                     
-                    # Apply Text & Label
-                    for match in re.finditer(re.escape(text), context, re.IGNORECASE):
-                        spans.append({
-                            "end": match.end(),
-                            "text": context[match.start():match.end()],
-                            "start": match.start(),
-                            "labels": [QAlabel]
-                        })
+                    if "" in text:
+                        # Vicuna seems to have numerous blanks-positives for Q2; this is to filter those out
+                        continue
+                    else:
+                        # Apply Text & Label
+                        for match in re.finditer(re.escape(text), context, re.IGNORECASE):
+                            spans.append({
+                                "end": match.end(),
+                                "text": context[match.start():match.end()],
+                                "start": match.start(),
+                                "labels": [QAlabel]
+                            })
             if len(spans) == 0:
                 entry['no_answer'] = "No Damage Detected"
             else:
