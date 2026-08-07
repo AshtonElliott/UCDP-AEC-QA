@@ -134,6 +134,44 @@ class EvaluationEngine:
         return round(set_text_f1, 4), round(token_f1, 4)
 
     @classmethod
+    def _bipartite_bert_f1(cls, g_texts, p_texts):
+        """Max-mean BERTScore F1 over pred×gold pairs. Returns a single F1."""
+        if not g_texts and not p_texts:
+            return 1.0
+        if not g_texts or not p_texts:
+            return 0.0
+
+        norm_p = [cls.normalize_answer(p) for p in p_texts]
+        norm_g = [cls.normalize_answer(g) for g in g_texts]
+        norm_p = [p for p in norm_p if p]
+        norm_g = [g for g in norm_g if g]
+        if not norm_p and not norm_g:
+            return 1.0
+        if not norm_p or not norm_g:
+            return 0.0
+
+        cands = [p for p in norm_p for _ in norm_g]
+        refs = [g for _ in norm_p for g in norm_g]
+        flat = cls.run_global_bertscore_backend(cands, refs)
+        num_p, num_g = len(norm_p), len(norm_g)
+        mat = np.array([flat[r * num_g:(r + 1) * num_g] for r in range(num_p)])
+        mp = float(np.clip(mat.max(axis=1).mean(), 0.0, 1.0))
+        mr = float(np.clip(mat.max(axis=0).mean(), 0.0, 1.0))
+        return float(np.clip(round(2 * (mp * mr) / (mp + mr) if (mp + mr) > 0 else 0.0, 4), 0.0, 1.0))
+
+    @classmethod
+    def evaluate_bipartite_bertscore(cls, g_texts, p_texts):
+        """Per-doc standard BERTScore. Returns (unused, unused, f1) for older callers."""
+        f1 = cls._bipartite_bert_f1(g_texts, p_texts)
+        return 0.0, 0.0, f1
+
+    @classmethod
+    def evaluate_dedup_bertscore(cls, g_texts, p_texts):
+        """Per-doc deduped BERTScore. Returns (unused, unused, f1) for older callers."""
+        f1 = cls._bipartite_bert_f1(cls.deduplicate_texts(g_texts), cls.deduplicate_texts(p_texts))
+        return 0.0, 0.0, f1
+
+    @classmethod
     def run_global_bertscore_backend(cls, cands, refs):
         """
         Processes global candidate-reference sentence pairs on GPU using 
