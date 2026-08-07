@@ -90,23 +90,22 @@ def evaluate_models_globally(model_files, gt_map, q_num):
                 "g_labels": [str(g.get('labels', [])) for g in gold_spans],
                 "p_labels": [str(p.get('labels', [])) for p in pred_spans],
                 "spans_generated": len(p_texts),
-                "em": 0.0, "iou": 0.0, "f1": 0.0, "dedup_f1": 0.0, "label_f1": 0.0
+                "set_text_f1": 0.0, "token_f1": 0.0, "f1": 0.0, "dedup_f1": 0.0, "label_f1": 0.0
             }
 
             # SQuAD 2.0 Logic Routing
             if not has_ans and not has_pred:
-                record["em"], record["iou"], record["f1"], record["dedup_f1"], record["label_f1"] = 1.0, 1.0, 1.0, 1.0, 1.0
+                record["set_text_f1"], record["token_f1"], record["f1"], record["dedup_f1"], record["label_f1"] = 1.0, 1.0, 1.0, 1.0, 1.0
             elif not has_ans and has_pred:
-                record["em"], record["iou"], record["f1"], record["dedup_f1"], record["label_f1"] = 0.0, 0.0, 0.0, 0.0, 0.0
+                record["set_text_f1"], record["token_f1"], record["f1"], record["dedup_f1"], record["label_f1"] = 0.0, 0.0, 0.0, 0.0, 0.0
             elif has_ans and not has_pred:
-                record["em"], record["iou"], record["f1"], record["dedup_f1"], record["label_f1"] = 0.0, 0.0, 0.0, 0.0, 0.0
+                record["set_text_f1"], record["token_f1"], record["f1"], record["dedup_f1"], record["label_f1"] = 0.0, 0.0, 0.0, 0.0, 0.0
             else:
-                # Set-EM and Set-F1 via official SQuAD token normalization & math
-                set_em, set_f1 = EvaluationEngine.evaluate_ie_squad_metrics(g_texts, p_texts)
-                record["em"] = set_em
-                record["iou"] = set_f1
+                set_text_f1, token_f1 = EvaluationEngine.evaluate_ie_squad_metrics(g_texts, p_texts)
+                record["set_text_f1"] = set_text_f1
+                record["token_f1"] = token_f1
 
-                # Macro Label F1
+                # Label F1 (text + category tuples)
                 record["label_f1"] = EvaluationEngine.evaluate_strict_tuple_match(gold_spans, pred_spans)
 
                 # Queue Pairs for BERTScore
@@ -174,20 +173,20 @@ def aggregate_squad2_metrics(df, group_cols):
         has_ans_n = len(has_ans_group)
         no_ans_n = len(no_ans_group)
 
-        # 1. Abstention
-        no_ans_acc = round(no_ans_group['em'].mean(), 4) if no_ans_n > 0 else 0.0
+        # 1. Abstention (set_text_f1 is 1.0 on correct empty, else 0.0)
+        no_ans_acc = round(no_ans_group['set_text_f1'].mean(), 4) if no_ans_n > 0 else 0.0
 
-        # 2. SQuAD EM
-        overall_em = round(group['em'].mean(), 4)
-        has_ans_em = round(has_ans_group['em'].mean(), 4) if has_ans_n > 0 else 0.0
+        # 2. Set Text F1
+        overall_set_text_f1 = round(group['set_text_f1'].mean(), 4)
+        has_ans_set_text_f1 = round(has_ans_group['set_text_f1'].mean(), 4) if has_ans_n > 0 else 0.0
 
-        # 3. Macro Label EM 
+        # 3. Label F1
         overall_label_f1 = round(group['label_f1'].mean(), 4)
         has_ans_label_f1 = round(has_ans_group['label_f1'].mean(), 4) if has_ans_n > 0 else 0.0
 
-        # 4. Token F1 / IoU
-        overall_iou = round(group['iou'].mean(), 4)
-        has_ans_iou = round(has_ans_group['iou'].mean(), 4) if has_ans_n > 0 else 0.0
+        # 4. Token F1
+        overall_token_f1 = round(group['token_f1'].mean(), 4)
+        has_ans_token_f1 = round(has_ans_group['token_f1'].mean(), 4) if has_ans_n > 0 else 0.0
 
         # 5. Std BERT
         overall_std_bert = round(group['f1'].mean(), 4)
@@ -208,16 +207,16 @@ def aggregate_squad2_metrics(df, group_cols):
             "NoAns Acc": no_ans_acc,
             "Overall Dedup BERT": overall_dd_bert,
             "HasAns Dedup BERT": has_ans_dd_bert, 
-            "HasAns SQuAD EM": has_ans_em,
-            "HasAns Token F1": has_ans_iou,
+            "HasAns Set Text F1": has_ans_set_text_f1,
+            "HasAns Token F1": has_ans_token_f1,
             "HasAns Std BERT": has_ans_std_bert,
             "HasAns Label F1": has_ans_label_f1,
             
             # Formatted columns used for the final Markdown table printout
             "Abstention (NoAns)": f"{no_ans_acc:.2f}",
-            "SQuAD EM (Overall / HasAns)": f"{overall_em:.2f} / {has_ans_em:.2f}",
-            "Label EM (Overall / HasAns)": f"{overall_label_f1:.2f} / {has_ans_label_f1:.2f}",
-            "SQuAD Token F1 (Overall / HasAns)": f"{overall_iou:.2f} / {has_ans_iou:.2f}",
+            "Set Text F1 (Overall / HasAns)": f"{overall_set_text_f1:.2f} / {has_ans_set_text_f1:.2f}",
+            "Label F1 (Overall / HasAns)": f"{overall_label_f1:.2f} / {has_ans_label_f1:.2f}",
+            "SQuAD Token F1 (Overall / HasAns)": f"{overall_token_f1:.2f} / {has_ans_token_f1:.2f}",
             "Standard BERTScore (Overall / HasAns)": f"{overall_std_bert:.2f} / {has_ans_std_bert:.2f}",
             "Deduped BERTScore (Overall / HasAns)": f"{overall_dd_bert:.2f} / {has_ans_dd_bert:.2f}"
         }
@@ -273,8 +272,8 @@ def run_evaluation_pipeline(question_filter=None):
         "Model System", 
         "Total_N",
         "Abstention (NoAns)", 
-        "SQuAD EM (Overall / HasAns)", 
-        "Label EM (Overall / HasAns)", 
+        "Set Text F1 (Overall / HasAns)", 
+        "Label F1 (Overall / HasAns)", 
         "SQuAD Token F1 (Overall / HasAns)",
         "Standard BERTScore (Overall / HasAns)",
         "Deduped BERTScore (Overall / HasAns)"
@@ -304,7 +303,7 @@ def run_evaluation_pipeline(question_filter=None):
     print("![Master Performance Quadrant](assets/master_quadrant.png)\n")
     
     print("### 2. Strict vs. Relaxed Evaluation Shift")
-    print("> *Visualizing the performance penalty models take when evaluated strictly (Exact Match) vs. relaxed (Token/Semantic).*")
+    print("> *Visualizing the performance penalty models take when evaluated strictly (Set Text F1) vs. relaxed (Token/Semantic).*")
     print("![Strict vs Relaxed](assets/strict_vs_relaxed.png)\n")
     
     print("### 3. Verbosity vs. Semantic Accuracy")

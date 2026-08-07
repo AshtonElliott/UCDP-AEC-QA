@@ -52,8 +52,8 @@ def get_evaluation_data():
     df_master["Normalized_Human_Score"] = (df_master["Consolidated_Human_Score"] - 1) / 4
 
     f1_scores = []
-    squad_em_scores = []
-    iou_scores = []
+    set_text_f1_scores = []
+    token_f1_scores = []
     f1_dedup_scores = []
     
     for idx, row in df_master.iterrows():
@@ -65,21 +65,20 @@ def get_evaluation_data():
         g_texts = [] if human_str in ["", "nan", "NO ANSWER"] else [s.strip() for s in human_str.split(" | ") if s.strip()]
         p_texts = [] if llm_str in ["", "nan", "NO ANSWER"] else [s.strip() for s in llm_str.split(" | ") if s.strip()]
 
-        squad_em = EvaluationEngine.evaluate_exact_match(g_texts, p_texts)
-        squad_em_scores.append(squad_em)
+        set_text_f1, token_f1 = EvaluationEngine.evaluate_ie_squad_metrics(g_texts, p_texts)
+        set_text_f1_scores.append(set_text_f1)
         _, _, f1 = EvaluationEngine.evaluate_bipartite_bertscore(g_texts, p_texts)
         f1_scores.append(f1)
 
-        iou = EvaluationEngine.evaluate_iou_match(g_texts, p_texts)
-        iou_scores.append(iou)
+        token_f1_scores.append(token_f1)
         _, _, f1_dedup = EvaluationEngine.evaluate_dedup_bertscore(g_texts, p_texts)
         f1_dedup_scores.append(f1_dedup)
 
     print("Model processing complete!        ", file=sys.stderr)
 
-    df_master["SQuAD_EM"] = squad_em_scores
+    df_master["Set_Text_F1"] = set_text_f1_scores
     df_master["BS_F1"] = f1_scores
-    df_master["IoU_Match"] = iou_scores
+    df_master["Token_F1"] = token_f1_scores
     df_master["BS_F1_Dedup"] = f1_dedup_scores
 
     return df_master 
@@ -88,17 +87,17 @@ def run_correlation_pipeline():
     df_master = get_evaluation_data()
     if df_master is None: return
 
-    rho_squad, _ = spearmanr(df_master["Normalized_Human_Score"], df_master["SQuAD_EM"])
+    rho_set_text_f1, _ = spearmanr(df_master["Normalized_Human_Score"], df_master["Set_Text_F1"])
     rho_f, _ = spearmanr(df_master["Normalized_Human_Score"], df_master["BS_F1"])
-    rho_iou, _ = spearmanr(df_master["Normalized_Human_Score"], df_master["IoU_Match"])
+    rho_token_f1, _ = spearmanr(df_master["Normalized_Human_Score"], df_master["Token_F1"])
     rho_f_dedup, _ = spearmanr(df_master["Normalized_Human_Score"], df_master["BS_F1_Dedup"])
 
     model_summary = df_master.groupby("True_Model_Identity").agg(
         Samples_Evaluated=("Normalized_Human_Score", "count"),
         Avg_Norm_Human_Score=("Normalized_Human_Score", "mean"),
-        Avg_SQuAD_EM=("SQuAD_EM", "mean"),
+        Avg_Set_Text_F1=("Set_Text_F1", "mean"),
         Avg_BS_F1=("BS_F1", "mean"),
-        Avg_IoU=("IoU_Match", "mean"),
+        Avg_Token_F1=("Token_F1", "mean"),
         Avg_BS_F1_Dedup=("BS_F1_Dedup", "mean")
     ).round(3)
 
@@ -132,7 +131,7 @@ def run_correlation_pipeline():
     print("### Correlation Comparison: Strict vs. Relaxed Metrics\n")
     print("| Evaluation Dimension | Strict Metric | Relaxed Metric | Strict Spearman (ρ) | Relaxed Spearman (ρ) |")
     print("|---|---|---|---|---|")
-    print(f"| **Lexical Match** | SQuAD EM | Token IoU | {rho_squad:.4f} | **{rho_iou:.4f}** |")
+    print(f"| **Lexical Match** | Set Text F1 | SQuAD Token F1 | {rho_set_text_f1:.4f} | **{rho_token_f1:.4f}** |")
     print(f"| **Semantic Match** | DeBERTa F1 | Deduped DeBERTa F1 | {rho_f:.4f} | **{rho_f_dedup:.4f}** |\n")
     print("\n### Side-by-Side Ranking Comparison\n")
     print(df_ranking_matrix.to_markdown(index=False))

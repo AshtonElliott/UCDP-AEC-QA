@@ -78,7 +78,7 @@ def generate_performance_quadrant(df, model_col="Model System", filename="master
 
 def generate_strict_vs_relaxed_quadrant(df, model_col="Model System", filename="strict_vs_relaxed.png"):
     """
-    Plots the performance shift from Strict (EM/Std BERT) to Relaxed (Token F1/Dedup BERT).
+    Plots the performance shift from Strict (Set Text F1 / Std BERT) to Relaxed (Token F1 / Dedup BERT).
     Uses HasAns metrics to isolate pure text extraction mechanics.
     """
     _ensure_assets_dir()
@@ -93,7 +93,7 @@ def generate_strict_vs_relaxed_quadrant(df, model_col="Model System", filename="
         color = color_map[model]
         
         # Plot Strict (Circle)
-        ax.scatter(row['HasAns SQuAD EM'], row['HasAns Std BERT'], 
+        ax.scatter(row['HasAns Set Text F1'], row['HasAns Std BERT'], 
                    color=color, marker='o', s=250, alpha=0.8)
         
         # Plot Relaxed (Triangle)
@@ -101,17 +101,17 @@ def generate_strict_vs_relaxed_quadrant(df, model_col="Model System", filename="
                    color=color, marker='^', s=250, alpha=0.8)
         
         # Draw dotted line connecting them
-        ax.plot([row['HasAns SQuAD EM'], row['HasAns Token F1']], 
+        ax.plot([row['HasAns Set Text F1'], row['HasAns Token F1']], 
                 [row['HasAns Std BERT'], row['HasAns Dedup BERT']], 
                 color=color, linestyle=':', alpha=0.6)
 
     # Calculate medians for safe crosshairs
     if len(df) > 0:
-        ax.axvline(x=df['HasAns SQuAD EM'].mean(), color='gray', linestyle='--', alpha=0.3)
+        ax.axvline(x=df['HasAns Set Text F1'].mean(), color='gray', linestyle='--', alpha=0.3)
         ax.axhline(y=df['HasAns Std BERT'].mean(), color='gray', linestyle='--', alpha=0.3)
 
     ax.set_title("Model Performance Shift: Strict vs. Relaxed Evaluation (HasAns)", fontsize=14, pad=15)
-    ax.set_xlabel("Text Match (SQuAD EM  ➔  SQuAD Token F1)", fontsize=12)
+    ax.set_xlabel("Text Match (Set Text F1  ➔  SQuAD Token F1)", fontsize=12)
     ax.set_ylabel("Semantic Match (Standard BERTScore  ➔  Deduped BERTScore)", fontsize=12)
     ax.grid(True, alpha=0.3)
    
@@ -123,7 +123,7 @@ def generate_strict_vs_relaxed_quadrant(df, model_col="Model System", filename="
     ax.add_artist(first_legend) 
 
     # Metric Type Legend (Shapes)
-    strict_marker = mlines.Line2D([], [], color='gray', marker='o', linestyle='None', markersize=10, label='Strict (EM / Std BERT)')
+    strict_marker = mlines.Line2D([], [], color='gray', marker='o', linestyle='None', markersize=10, label='Strict (Set Text F1 / Std BERT)')
     relaxed_marker = mlines.Line2D([], [], color='gray', marker='^', linestyle='None', markersize=10, label='Relaxed (Token F1 / Dedup BERT)')
     
     ax.legend(handles=[strict_marker, relaxed_marker], title="Metric Type", 
@@ -222,7 +222,7 @@ def generate_task_heatmap_hasans(df, filename="task_complexity_heatmap_hasans.pn
 def generate_classification_dropoff(df, filename="classification_dropoff_q2.png"):
     """
     Creates a grouped bar chart for Question 2 showing the drop-off 
-    between finding the text (SQuAD EM) and classifying it correctly (Label F1).
+    between finding the text (Set Text F1) and classifying it correctly (Label F1).
     """
     _ensure_assets_dir()
     
@@ -231,10 +231,10 @@ def generate_classification_dropoff(df, filename="classification_dropoff_q2.png"
     df_q2 = df[df['Question'] == 2].copy()
     if df_q2.empty: return
     
-    df_q2 = df_q2.sort_values(by='HasAns SQuAD EM', ascending=False)
+    df_q2 = df_q2.sort_values(by='HasAns Set Text F1', ascending=False)
     
     models = df_q2['Model System'].tolist()
-    text_scores = df_q2['HasAns SQuAD EM'].tolist()
+    text_scores = df_q2['HasAns Set Text F1'].tolist()
     label_scores = df_q2['HasAns Label F1'].tolist()
 
     x = np.arange(len(models))
@@ -243,7 +243,7 @@ def generate_classification_dropoff(df, filename="classification_dropoff_q2.png"
     fig, ax = plt.subplots(figsize=(10, 6))
     
     # Draw the bars
-    rects1 = ax.bar(x - width/2, text_scores, width, label='Extracted Correct Text (SQuAD EM)', color='#4c72b0')
+    rects1 = ax.bar(x - width/2, text_scores, width, label='Extracted Correct Text (Set Text F1)', color='#4c72b0')
     rects2 = ax.bar(x + width/2, label_scores, width, label='Assigned Correct 8-Class Label (Label F1)', color='#dd8452')
 
     ax.set_ylabel('Score (HasAns)', fontsize=12)

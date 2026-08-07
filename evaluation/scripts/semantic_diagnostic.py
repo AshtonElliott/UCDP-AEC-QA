@@ -98,9 +98,9 @@ def run_comprehensive_evaluation():
 
     print("running evaluation metrics...", file=sys.stderr)
     
-    squad_em_scores = []
+    set_text_f1_scores = []
     f1_scores = []
-    iou_scores = []
+    token_f1_scores = []
     f1_dedup_scores = []
     
     for idx, row in df_complex.iterrows():
@@ -112,29 +112,28 @@ def run_comprehensive_evaluation():
         g_texts = [] if human_str in null_identifiers else [s.strip() for s in human_str.split(" | ") if s.strip()]
         p_texts = [] if llm_str in null_identifiers else [s.strip() for s in llm_str.split(" | ") if s.strip()]
 
-        squad_em = EvaluationEngine.evaluate_exact_match(g_texts, p_texts)
-        squad_em_scores.append(squad_em)
+        set_text_f1, token_f1 = EvaluationEngine.evaluate_ie_squad_metrics(g_texts, p_texts)
+        set_text_f1_scores.append(set_text_f1)
         _, _, f1 = EvaluationEngine.evaluate_bipartite_bertscore(g_texts, p_texts)
         f1_scores.append(f1)
         
-        iou = EvaluationEngine.evaluate_iou_match(g_texts, p_texts)
-        iou_scores.append(iou)
+        token_f1_scores.append(token_f1)
         _, _, f1_dedup = EvaluationEngine.evaluate_dedup_bertscore(g_texts, p_texts)
         f1_dedup_scores.append(f1_dedup)
         
     print("Model processing complete!        ", file=sys.stderr)
 
-    df_complex["SQuAD_EM"] = squad_em_scores
+    df_complex["Set_Text_F1"] = set_text_f1_scores
     df_complex["BS_F1"] = f1_scores
-    df_complex["IoU_Match"] = iou_scores
+    df_complex["Token_F1"] = token_f1_scores
     df_complex["BS_F1_Dedup"] = f1_dedup_scores
     
     df_complex["Score_Delta"] = abs(df_complex["Normalized_Human_Score"] - df_complex["BS_F1_Dedup"])
     df_disagreements = df_complex.sort_values(by="Score_Delta", ascending=False).head(analysis_num)
 
-    rho_squad, _ = spearmanr(df_complex["Normalized_Human_Score"], df_complex["SQuAD_EM"])
+    rho_set_text_f1, _ = spearmanr(df_complex["Normalized_Human_Score"], df_complex["Set_Text_F1"])
     rho_f, _ = spearmanr(df_complex["Normalized_Human_Score"], df_complex["BS_F1"])
-    rho_iou, _ = spearmanr(df_complex["Normalized_Human_Score"], df_complex["IoU_Match"])
+    rho_token_f1, _ = spearmanr(df_complex["Normalized_Human_Score"], df_complex["Token_F1"])
     rho_f_dedup, _ = spearmanr(df_complex["Normalized_Human_Score"], df_complex["BS_F1_Dedup"])
 
     print(f"\n*Evaluated on {len(df_complex)} complex edge-case rows.*\n")
@@ -148,7 +147,7 @@ def run_comprehensive_evaluation():
     print("### Strict vs. Relaxed Metric Correlation\n")
     print("| Evaluation Dimension | Strict Metric | Relaxed Metric | Strict Spearman (ρ) | Relaxed Spearman (ρ) |")
     print("|---|---|---|---|---|")
-    print(f"| **Lexical Match** | SQuAD EM | Token IoU | {rho_squad:.4f} | **{rho_iou:.4f}** |")
+    print(f"| **Lexical Match** | Set Text F1 | SQuAD Token F1 | {rho_set_text_f1:.4f} | **{rho_token_f1:.4f}** |")
     print(f"| **Semantic Match** | DeBERTa F1 | Deduped DeBERTa F1 | {rho_f:.4f} | **{rho_f_dedup:.4f}** |\n")
     
     print("### Delta Analysis (Top 5 Disagreements after Relaxation)\n")

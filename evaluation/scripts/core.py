@@ -35,8 +35,8 @@ class EvaluationEngine:
     @classmethod
     def evaluate_strict_tuple_match(cls, gold_spans, pred_spans):
         """
-        Evaluates (text, label) pairs as inseparable units for a single document.
-        Returns a Macro F1 score (0.0 to 1.0) for this specific document.
+        Label F1: evaluates (text, label) pairs as inseparable units for one document.
+        Returns document-level F1 (0.0 to 1.0), not binary exact match.
         """
         if not gold_spans and not pred_spans: return 1.0
         if not gold_spans or not pred_spans: return 0.0
@@ -68,12 +68,12 @@ class EvaluationEngine:
 
     @classmethod
     def compute_squad_exact(cls, a_gold, a_pred):
-        """Official SQuAD 2.0 Exact Match."""
+        """Official SQuAD 2.0 Exact Match for a single gold/pred string pair."""
         return int(cls.normalize_answer(a_gold) == cls.normalize_answer(a_pred))
 
     @classmethod
     def compute_squad_f1(cls, a_gold, a_pred):
-        """Official SQuAD 2.0 Token F1."""
+        """Official SQuAD 2.0 Token F1 for a single gold/pred string pair."""
         gold_toks = cls.normalize_answer(a_gold).split()
         pred_toks = cls.normalize_answer(a_pred).split()
         common = Counter(gold_toks) & Counter(pred_toks)
@@ -91,7 +91,11 @@ class EvaluationEngine:
     @classmethod
     def evaluate_ie_squad_metrics(cls, g_texts, p_texts):
         """
-        Calculates Strict Set-EM (via Counter) and Set-F1 (via Max-Mean) for IE tasks.
+        Multi-span IE lexical scores after SQuAD normalization.
+
+        Returns:
+            set_text_f1: F1 over exact normalized phrase multisets (not binary EM).
+            token_f1: max-mean official SQuAD token F1 across span pairs.
         """
         # 1. Fast-fail on empty lists
         if not g_texts and not p_texts: return 1.0, 1.0
@@ -113,21 +117,21 @@ class EvaluationEngine:
         fn = sum((g_counts - p_counts).values())
         
         if tp == 0:
-            set_em = 0.0
+            set_text_f1 = 0.0
         else:
             prec = tp / (tp + fp)
             rec = tp / (tp + fn)
-            set_em = (2 * prec * rec) / (prec + rec)
+            set_text_f1 = (2 * prec * rec) / (prec + rec)
 
-        # 2. SQuAD Token F1 / IoU (Evaluated strictly on valid normalized strings)
+        # Token F1 (official SQuAD bag-of-tokens F1, max-mean over span pairs)
         p_f1_scores = [max(cls.compute_squad_f1(g, p) for g in g_norm) for p in p_norm]
         r_f1_scores = [max(cls.compute_squad_f1(g, p) for p in p_norm) for g in g_norm]
 
         p_f1 = float(np.mean(p_f1_scores)) if p_f1_scores else 0.0
         r_f1 = float(np.mean(r_f1_scores)) if r_f1_scores else 0.0
-        set_f1 = 2 * (p_f1 * r_f1) / (p_f1 + r_f1) if (p_f1 + r_f1) > 0 else 0.0
+        token_f1 = 2 * (p_f1 * r_f1) / (p_f1 + r_f1) if (p_f1 + r_f1) > 0 else 0.0
 
-        return round(set_em, 4), round(set_f1, 4)
+        return round(set_text_f1, 4), round(token_f1, 4)
 
     @classmethod
     def run_global_bertscore_backend(cls, cands, refs):
