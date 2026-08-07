@@ -176,6 +176,9 @@ def aggregate_squad2_metrics(df, group_cols):
         # 1. Abstention (set_text_f1 is 1.0 on correct empty, else 0.0)
         no_ans_acc = round(no_ans_group['set_text_f1'].mean(), 4) if no_ans_n > 0 else 0.0
 
+        # 1b. Missed Answer Rate: pred empty when gold nonempty
+        missed_answer_rate = round((~has_ans_group['has_pred']).mean(), 4) if has_ans_n > 0 else 0.0
+
         # 2. Set Text F1
         overall_set_text_f1 = round(group['set_text_f1'].mean(), 4)
         has_ans_set_text_f1 = round(has_ans_group['set_text_f1'].mean(), 4) if has_ans_n > 0 else 0.0
@@ -205,6 +208,7 @@ def aggregate_squad2_metrics(df, group_cols):
             # Numeric columns used specifically for generating plots
             "Avg Spans": avg_spans,
             "NoAns Acc": no_ans_acc,
+            "Missed Answer Rate Num": missed_answer_rate,
             "Overall Dedup BERT": overall_dd_bert,
             "HasAns Dedup BERT": has_ans_dd_bert, 
             "HasAns Set Text F1": has_ans_set_text_f1,
@@ -214,6 +218,7 @@ def aggregate_squad2_metrics(df, group_cols):
             
             # Formatted columns used for the final Markdown table printout
             "Abstention (NoAns)": f"{no_ans_acc:.2f}",
+            "Missed Answer Rate": f"{missed_answer_rate:.2f}",
             "Set Text F1 (Overall / HasAns)": f"{overall_set_text_f1:.2f} / {has_ans_set_text_f1:.2f}",
             "Label F1 (Overall / HasAns)": f"{overall_label_f1:.2f} / {has_ans_label_f1:.2f}",
             "SQuAD Token F1 (Overall / HasAns)": f"{overall_token_f1:.2f} / {has_ans_token_f1:.2f}",
@@ -272,6 +277,7 @@ def run_evaluation_pipeline(question_filter=None):
         "Model System", 
         "Total_N",
         "Abstention (NoAns)", 
+        "Missed Answer Rate",
         "Set Text F1 (Overall / HasAns)", 
         "Label F1 (Overall / HasAns)", 
         "SQuAD Token F1 (Overall / HasAns)",
