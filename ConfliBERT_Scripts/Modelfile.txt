@@ -1,0 +1,10 @@
+# Specify the path to the GGUF weights (Required)
+FROM ./conflibert-scr-uncased.gguf
+
+# Set the context window size
+# BERT models typically have a maximum context window of 512 tokens
+PARAMETER num_ctx 512
+
+# Set the temperature
+# Lower values are more coherent for the factual extraction tasks ConfliBERT performs
+PARAMETER temperature 0.1
