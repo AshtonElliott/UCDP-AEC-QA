@@ -41,7 +41,7 @@ For LLMs, we have a script that can be ran locally (using Ollama) to output to a
 The Script will require a version of Python and the Ollama Python Package. We recommend Python 3.12 as this is what it's built on.
 For the package, use pip to install it in your local terminal:
 ```bash
-  pip install ollama
+  pip install ollama tqdm
 ```
 
 Within the script, you can change the source JSON file location, the LLM model, and the name newly created JSON file. It can be found at the following lines:
@@ -67,9 +67,10 @@ To run the script, locate the folder the script is located in and use the cd com
   cd C:\Users\atown\OneDrive\Documents\ConfliBERT 
 ```
 
-Then, you run the script with the following command:
+Then, you run the scripts with the following command:
 ```bash
-  python Local_QA.py
+  python QA.py
+  python QAQ2.py
 ```
 
 ---
@@ -151,8 +152,8 @@ pip install ollama tqdm
 ollama pull mistral**
 
 # Run the script for Question 1 and Question 2
-python HPC_QA.py
-python HPC_QAQ2.py
+python QA.py
+python QAQ2.py
 ```
 
 ### Checking status in terminal 3 (Optional)
