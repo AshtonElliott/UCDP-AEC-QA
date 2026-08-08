@@ -276,6 +276,7 @@ def run_evaluation_pipeline(question_filter=None):
     display_cols = [
         "Model System", 
         "Total_N",
+        "Avg Spans",
         "Abstention (NoAns)", 
         "Missed Answer Rate",
         "Set Text F1 (Overall / HasAns)", 
