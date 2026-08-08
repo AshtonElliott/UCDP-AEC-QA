@@ -16,8 +16,8 @@ You will have the ability to create a token in the top right.
 The conversion was done with a Fine-grained token with the Read-Only preset, so I recommend to do that.
 *Insert image of Token Creation Here*
 
-After creating the token, you will then need to set up the Python Environment*.
-This can be done by doing the following:
+After creating the token, you will then need to set up the Python Environment.
+This can be done by doing the following**:
 ```bash
   python -m venv ConfliBERT_Conversion
 ```
