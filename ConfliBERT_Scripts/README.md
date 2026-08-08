@@ -9,10 +9,12 @@ The ConfliBERT model on HuggingFace does not have a .gguf file, so we will have 
 
 We will also need a HuggingFace Token which will require a HuggingFace Account.
 After logging or creating an account, create a token by clicking on your profile and then click "Access Tokens".
+
 <img width="1552" height="868" alt="HG_Access_Tokens" src="https://github.com/user-attachments/assets/563b6c87-9d5e-407f-a946-85153116fa3a" />
 
 You will have the ability to create a token in the top right.
 The conversion was done with a Fine-grained token with the Read-Only preset, so I recommend to do that.
+
 <img width="1115" height="803" alt="HG_Create_Token" src="https://github.com/user-attachments/assets/df8c7a3d-3bd8-4554-94ab-a7121f2fbad9" />
 
 Once the token is created, copy the token-ID as we will need that later.
