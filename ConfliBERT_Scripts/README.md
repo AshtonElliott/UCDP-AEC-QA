@@ -4,9 +4,8 @@ Since ConfliBERT cannot natively be found on Ollama, we will have to make a manu
 I have already gone through the process to create the .gguf file for ConfliBERT and will provide in this part of the repo. That said, I will also provide instructions as to how acquire the .gguf for replication purposes. If you don't wish to know how the .gguf was made, you can skip down to the "Build Modelfile" section.
 
 ## Create .gguf for ConfliBERT
-The ConfliBERT model on HuggingFace does not have a .gguf file, so we will have to make our own. To do so, we will need to clone two repositories:
-  1. A fork of the llama.cpp* repo that was modified to exclusively convert ConfliBERT. - https://github.com/AshtonElliott/llama.cpp-ConfliBERT-Conversion-
-  2. ConfliBERT HuggingFace Model Card - https://huggingface.co/snowood1/ConfliBERT-scr-uncased
+The ConfliBERT model on HuggingFace does not have a .gguf file, so we will have to make our own. To do so, we will need to clone the following repository:
+  - A fork of the llama.cpp* repo that was modified to exclusively convert ConfliBERT. - https://github.com/AshtonElliott/llama.cpp-ConfliBERT-Conversion-
 
 We will also need a HuggingFace Token which will require a HuggingFace Account.
 After logging or creating an account, create a token by clicking on your profile and then click "Access Tokens".
@@ -15,6 +14,7 @@ After logging or creating an account, create a token by clicking on your profile
 You will have the ability to create a token in the top right.
 The conversion was done with a Fine-grained token with the Read-Only preset, so I recommend to do that.
 *Insert image of Token Creation Here*
+Once the token is created, copy the token-ID as we will need that later.
 
 After creating the token, you will then need to set up the Python Environment.
 This can be done by doing the following**:
@@ -22,7 +22,30 @@ This can be done by doing the following**:
   python -m venv ConfliBERT_Conversion
 ```
 
+After creating and activating the python environment, upgrade pip using the following:
+```bash
+  python -m pip install --upgrade pip setuptools wheel
+```
 
+Then, navigate to the directory of the cloned github page on the command prompt. Then, run the following:
+```bash
+  # Navigate to the requirements directory.
+  cd requirements
+
+  # Install requirements and dependencies.
+  pip install -r requirements-convert_hf_to_gguf.txt
+  pip install -r requirements-convert_hf_to_gguf_update.txt
+
+  # Revert a directory to use the Python Scripts.
+  cd ..
+
+  # Run the conversion scripts.
+  # Use the HuggingFace token from earlier here.
+  python3 convert_hf_to_gguf_update.py <token_id> --full
+  python3 convert_hf_to_gguf.py models/tokenizers/conflibert-scr-uncased/ --outfile models/ggml-conflibert-scr-uncased.gguf
+```
+
+After running all the above, you should have a file of ConfliBERT in .gguf.
 
 ## Create ConfliBERT Modelfile
 W.I.P.
