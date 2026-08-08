@@ -4,18 +4,22 @@ import re
 import sys
 import asyncio
 from tqdm.asyncio import tqdm
+import tensorflow
 import torch
 import transformers
 import numpy
 import sklearn
 import pandas
 from simpletransformers.model import TransformerModel
-from transformers import AutoTokenizer, AutoModelForQuestionAnswering, pipeline
+from transformers import TFBertForQuestionAnswering, BertTokenizer, pipeline
 
 
 # Unset proxies
 os.environ.pop("http_proxy", None)
 os.environ.pop("https_proxy", None)
+
+# Load HuggingFace Token
+os.environ["HF_TOKEN"] = "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"
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
 input_path = os.path.join(script_dir, 'trainsample.json')
@@ -41,17 +45,17 @@ async def process_entry(idx, entry):
             retrieved_context = "\n".join(chunks[:5])
             
             # Change ConfliBERT Model Here
-            model_name = "snowood1/ConfliBERT-scr-uncased"
+            model_name = "salsarra/ConfliBERT-QA"
             
             # Load the model specifically with a Question Answering head
-            model = AutoModelForQuestionAnswering.from_pretrained(model_name)
-            tokenizer = AutoTokenizer.from_pretrained(model_name)
+            model = TFBertForQuestionAnswering.from_pretrained(model_name, from_tf=True)
+            tokenizer = BertTokenizer.from_pretrained(model_name)
             
             # Initialize the pipeline task
-            qa_pipe = pipeline("question-answering", model=model, tokenizer=tokenizer)
+            qa_pipe = pipeline("question-answering", model=model, tokenizer=tokenizer, from_tf=True)
             
             # Acquire Results
-            result = qa_pipe(context=retrieved_context, question=question)
+            result = qa_pipe(context=retrieved_context, question=question, from_tf=True)
             
             spans = []
             for result in results:
