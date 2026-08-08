@@ -2,5 +2,5 @@ Since ConfliBERT cannot natively be found on Ollama, we will have to make a manu
 
 ## Create .gguf for ConfliBERT
 The ConfliBERT model on HuggingFace does not have a .gguf file, so we will have to make our own. To do so, we will need to clone two repositories:
-  1. A fork of the llama.cpp repo that was modified to exclusively convert ConfliBERT. - https://github.com/AshtonElliott/llama.cpp-ConfliBERT-Conversion
+  1. A fork of the llama.cpp repo that was modified to exclusively convert ConfliBERT. - https://github.com/AshtonElliott/llama.cpp-ConfliBERT-Conversion-
   2. ConfliBERT HuggingFace Model Card - https://huggingface.co/snowood1/ConfliBERT-scr-uncased
