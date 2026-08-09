@@ -11,7 +11,7 @@ import numpy
 import sklearn
 import pandas
 from simpletransformers.model import TransformerModel
-from transformers import TFBertForQuestionAnswering, BertTokenizer, pipeline
+from transformers import AutoTokenizer, TFAutoModelForQuestionAnswering, pipeline
 
 
 # Unset proxies
@@ -48,8 +48,8 @@ async def process_entry(idx, entry):
             model_name = "salsarra/ConfliBERT-QA"
             
             # Load the model specifically with a Question Answering head
-            model = TFBertForQuestionAnswering.from_pretrained(model_name, from_tf=True)
-            tokenizer = BertTokenizer.from_pretrained(model_name)
+            model = TFAutoModelForQuestionAnswering.from_pretrained(model_name, from_tf=True)
+            tokenizer = AutoTokenizer.from_pretrained(model_name)
             
             # Initialize the pipeline task
             qa_pipe = pipeline("question-answering", model=model, tokenizer=tokenizer, from_tf=True)
