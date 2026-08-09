@@ -147,7 +147,7 @@ def run_comprehensive_evaluation():
     print("### Strict vs. Relaxed Metric Correlation\n")
     print("| Evaluation Dimension | Strict Metric | Relaxed Metric | Strict Spearman (ρ) | Relaxed Spearman (ρ) |")
     print("|---|---|---|---|---|")
-    print(f"| **Lexical Match** | Set Text F1 | SQuAD Token F1 | {rho_set_text_f1:.4f} | **{rho_token_f1:.4f}** |")
+    print(f"| **Lexical Match** | Span F1 | SQuAD Token F1 | {rho_set_text_f1:.4f} | **{rho_token_f1:.4f}** |")
     print(f"| **Semantic Match** | DeBERTa F1 | Deduped DeBERTa F1 | {rho_f:.4f} | **{rho_f_dedup:.4f}** |\n")
     
     print("### Delta Analysis (Top 5 Disagreements after Relaxation)\n")

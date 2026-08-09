@@ -105,7 +105,7 @@ def evaluate_models_globally(model_files, gt_map, q_num):
                 record["set_text_f1"] = set_text_f1
                 record["token_f1"] = token_f1
 
-                # Label F1 (text + category tuples)
+                # Labeled Span F1 (text + category tuples)
                 record["label_f1"] = EvaluationEngine.evaluate_strict_tuple_match(gold_spans, pred_spans)
 
                 # Queue Pairs for BERTScore
@@ -179,11 +179,11 @@ def aggregate_squad2_metrics(df, group_cols):
         # 1b. Missed Answer Rate: pred empty when gold nonempty
         missed_answer_rate = round((~has_ans_group['has_pred']).mean(), 4) if has_ans_n > 0 else 0.0
 
-        # 2. Set Text F1
+        # 2. Span F1 (exact normalized phrase multiset F1)
         overall_set_text_f1 = round(group['set_text_f1'].mean(), 4)
         has_ans_set_text_f1 = round(has_ans_group['set_text_f1'].mean(), 4) if has_ans_n > 0 else 0.0
 
-        # 3. Label F1
+        # 3. Labeled Span F1 (text + category tuples)
         overall_label_f1 = round(group['label_f1'].mean(), 4)
         has_ans_label_f1 = round(has_ans_group['label_f1'].mean(), 4) if has_ans_n > 0 else 0.0
 
@@ -202,8 +202,8 @@ def aggregate_squad2_metrics(df, group_cols):
         avg_spans = round(group['spans_generated'].mean(), 2)
 
         res = {
-            "Model System": name if isinstance(name, str) else name[0],
-            "Total_N": len(group),
+            "Model": name if isinstance(name, str) else name[0],
+            "Doc Count": len(group),
             
             # Numeric columns used specifically for generating plots
             "Avg Spans": avg_spans,
@@ -211,18 +211,18 @@ def aggregate_squad2_metrics(df, group_cols):
             "Missed Answer Rate Num": missed_answer_rate,
             "Overall Dedup BERT": overall_dd_bert,
             "HasAns Dedup BERT": has_ans_dd_bert, 
-            "HasAns Set Text F1": has_ans_set_text_f1,
+            "HasAns Span F1": has_ans_set_text_f1,
             "HasAns Token F1": has_ans_token_f1,
-            "HasAns Std BERT": has_ans_std_bert,
-            "HasAns Label F1": has_ans_label_f1,
+            "HasAns BERTScore": has_ans_std_bert,
+            "HasAns Labeled Span F1": has_ans_label_f1,
             
             # Formatted columns used for the final Markdown table printout
             "Abstention (NoAns)": f"{no_ans_acc:.2f}",
             "Missed Answer Rate": f"{missed_answer_rate:.2f}",
-            "Set Text F1 (Overall / HasAns)": f"{overall_set_text_f1:.2f} / {has_ans_set_text_f1:.2f}",
-            "Label F1 (Overall / HasAns)": f"{overall_label_f1:.2f} / {has_ans_label_f1:.2f}",
+            "Span F1 (Overall / HasAns)": f"{overall_set_text_f1:.2f} / {has_ans_set_text_f1:.2f}",
+            "Labeled Span F1 (Overall / HasAns)": f"{overall_label_f1:.2f} / {has_ans_label_f1:.2f}",
             "SQuAD Token F1 (Overall / HasAns)": f"{overall_token_f1:.2f} / {has_ans_token_f1:.2f}",
-            "Standard BERTScore (Overall / HasAns)": f"{overall_std_bert:.2f} / {has_ans_std_bert:.2f}",
+            "BERTScore (Overall / HasAns)": f"{overall_std_bert:.2f} / {has_ans_std_bert:.2f}",
             "Deduped BERTScore (Overall / HasAns)": f"{overall_dd_bert:.2f} / {has_ans_dd_bert:.2f}"
         }
         
@@ -274,30 +274,30 @@ def run_evaluation_pipeline(question_filter=None):
 
     # Define exact columns to display 
     display_cols = [
-        "Model System", 
-        "Total_N",
+        "Model", 
+        "Doc Count",
         "Avg Spans",
         "Abstention (NoAns)", 
         "Missed Answer Rate",
-        "Set Text F1 (Overall / HasAns)", 
-        "Label F1 (Overall / HasAns)", 
+        "Span F1 (Overall / HasAns)", 
+        "Labeled Span F1 (Overall / HasAns)", 
         "SQuAD Token F1 (Overall / HasAns)",
-        "Standard BERTScore (Overall / HasAns)",
-        "Deduped BERTScore (Overall / HasAns)"
+        "BERTScore (Overall / HasAns)",
+        "Deduped BERTScore (Overall / HasAns)",
     ]
 
     # LAYER 1: GLOBAL AGGREGATION
     g_agg = aggregate_squad2_metrics(df, group_cols=['model'])
 
     # Pass the DF with numeric columns to the visualizer
-    generate_performance_quadrant(df=g_agg, model_col="Model System", filename="master_quadrant.png")
-    generate_strict_vs_relaxed_quadrant(df=g_agg, model_col="Model System", filename="strict_vs_relaxed.png")
-    generate_verbosity_scatter(df=g_agg, model_col="Model System", filename="verbosity_vs_accuracy.png")
+    generate_performance_quadrant(df=g_agg, model_col="Model", filename="master_quadrant.png")
+    generate_strict_vs_relaxed_quadrant(df=g_agg, model_col="Model", filename="strict_vs_relaxed.png")
+    generate_verbosity_scatter(df=g_agg, model_col="Model", filename="verbosity_vs_accuracy.png")
 
     total_time = round(time.time() - pipeline_start_time, 2)
     print(f"**Pipeline Execution Time:** {total_time} seconds")
     print(f"**Total Models Evaluated:** {len(g_agg)}")
-    print(f"**Total Documents Processed:** {g_agg['Total_N'].max()}\n")
+    print(f"**Total Documents Processed:** {g_agg['Doc Count'].max()}\n")
 
     print("## Part 1: Global Benchmark Leaderboard (SQuAD 2.0 Standard)")
     print("> *All text metrics formatted as (Overall / HasAns)*\n")
@@ -310,7 +310,7 @@ def run_evaluation_pipeline(question_filter=None):
     print("![Master Performance Quadrant](assets/master_quadrant.png)\n")
     
     print("### 2. Strict vs. Relaxed Evaluation Shift")
-    print("> *Visualizing the performance penalty models take when evaluated strictly (Set Text F1) vs. relaxed (Token/Semantic).*")
+    print("> *Visualizing the performance penalty models take when evaluated strictly (Span F1) vs. relaxed (Token/Semantic).*")
     print("![Strict vs Relaxed](assets/strict_vs_relaxed.png)\n")
     
     print("### 3. Verbosity vs. Semantic Accuracy")
@@ -325,8 +325,8 @@ def run_evaluation_pipeline(question_filter=None):
         print("\n---\n")
         print("## Part 3: Task Complexity Breakdown")
         
-        heatmap_df = q_agg[['Model System', 'Question', 'Overall Dedup BERT', 'HasAns Dedup BERT']].copy()
-        heatmap_df.rename(columns={'Model System': 'Model Target', 'Question': 'question'}, inplace=True)
+        heatmap_df = q_agg[['Model', 'Question', 'Overall Dedup BERT', 'HasAns Dedup BERT']].copy()
+        heatmap_df.rename(columns={'Model': 'Model Target', 'Question': 'question'}, inplace=True)
         heatmap_df['Question Track'] = heatmap_df['question'].apply(lambda x: f"Question {x}")
         
         generate_task_heatmap_overall(df=heatmap_df, filename="task_complexity_heatmap_overall.png")

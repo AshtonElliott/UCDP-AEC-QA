@@ -35,7 +35,7 @@ class EvaluationEngine:
     @classmethod
     def evaluate_strict_tuple_match(cls, gold_spans, pred_spans):
         """
-        Label F1: evaluates (text, label) pairs as inseparable units for one document.
+        Label F1 / Labeled Span F1: evaluates (text, label) pairs as inseparable units for one document.
         Returns document-level F1 (0.0 to 1.0), not binary exact match.
         """
         if not gold_spans and not pred_spans: return 1.0
