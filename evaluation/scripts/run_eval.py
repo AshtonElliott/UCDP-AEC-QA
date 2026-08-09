@@ -301,8 +301,8 @@ def run_evaluation_pipeline(question_filter=None):
 
     print("## Part 1: Global Benchmark Leaderboard (SQuAD 2.0 Standard)")
     print("> *All text metrics formatted as (Overall / HasAns)*\n")
-    # Safe sorting using the background numeric column
-    print(g_agg.sort_values(by="Overall Dedup BERT", ascending=False)[display_cols].to_markdown(index=False))
+    # Sort by HasAns Dedup BERT (extraction quality, not Overall padding)
+    print(g_agg.sort_values(by="HasAns Dedup BERT", ascending=False)[display_cols].to_markdown(index=False))
     
     print("\n## Part 2: Visual Insights")
     print("\n### 1. Abstention vs. Extraction Quality")
@@ -347,7 +347,7 @@ def run_evaluation_pipeline(question_filter=None):
         for q in unique_qs:
             print(f"\n### Question {q} Leaderboard")
             q_subset = q_agg[q_agg['Question'] == q].copy()
-            print(q_subset.sort_values(by="Overall Dedup BERT", ascending=False)[display_cols].to_markdown(index=False))
+            print(q_subset.sort_values(by="HasAns Dedup BERT", ascending=False)[display_cols].to_markdown(index=False))
             print("\n")
 
     print("\n---\n")
