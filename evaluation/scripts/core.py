@@ -36,10 +36,11 @@ class EvaluationEngine:
     def evaluate_strict_tuple_match(cls, gold_spans, pred_spans):
         """
         Label F1 / Labeled Span F1: evaluates (text, label) pairs as inseparable units for one document.
-        Returns document-level F1 (0.0 to 1.0), not binary exact match.
+        Returns document-level Precision, Recall, and F1.
         """
-        if not gold_spans and not pred_spans: return 1.0
-        if not gold_spans or not pred_spans: return 0.0
+        # Return P, R, F1
+        if not gold_spans and not pred_spans: return 1.0, 1.0, 1.0
+        if not gold_spans or not pred_spans: return 0.0, 0.0, 0.0
         
         def get_normalized_tuples(spans):
             tuples = []
@@ -60,11 +61,13 @@ class EvaluationEngine:
         fn = sum((g_counts - p_counts).values())
         
         if tp == 0:
-            return 0.0
+            return 0.0, 0.0, 0.0
             
         precision = tp / (tp + fp)
         recall = tp / (tp + fn)
-        return (2 * precision * recall) / (precision + recall)
+        f1 = (2 * precision * recall) / (precision + recall)
+        
+        return precision, recall, f1
 
     @classmethod
     def compute_squad_exact(cls, a_gold, a_pred):
@@ -94,20 +97,20 @@ class EvaluationEngine:
         Multi-span IE lexical scores after SQuAD normalization.
 
         Returns:
-            set_text_f1: F1 over exact normalized phrase multisets (not binary EM).
+            prec, rec, set_text_f1: Precision, Recall, and F1 over exact normalized phrase multisets.
             token_f1: max-mean official SQuAD token F1 across span pairs.
         """
-        # 1. Fast-fail on empty lists
-        if not g_texts and not p_texts: return 1.0, 1.0
-        if not g_texts or not p_texts: return 0.0, 0.0
+        # 1. Fast-fail on empty lists (Return P, R, F1, TokenF1)
+        if not g_texts and not p_texts: return 1.0, 1.0, 1.0, 1.0
+        if not g_texts or not p_texts: return 0.0, 0.0, 0.0, 0.0
 
         # 2. Normalize and filter out strings that normalize to ""
         g_norm = [cls.normalize_answer(g) for g in g_texts if cls.normalize_answer(g)]
         p_norm = [cls.normalize_answer(p) for p in p_texts if cls.normalize_answer(p)]
 
         # 3. Guard against lists that became empty after normalization
-        if not g_norm and not p_norm: return 1.0, 1.0
-        if not g_norm or not p_norm: return 0.0, 0.0
+        if not g_norm and not p_norm: return 1.0, 1.0, 1.0, 1.0
+        if not g_norm or not p_norm: return 0.0, 0.0, 0.0, 0.0
         
         g_counts = Counter(g_norm)
         p_counts = Counter(p_norm)
@@ -117,7 +120,7 @@ class EvaluationEngine:
         fn = sum((g_counts - p_counts).values())
         
         if tp == 0:
-            set_text_f1 = 0.0
+            prec, rec, set_text_f1 = 0.0, 0.0, 0.0
         else:
             prec = tp / (tp + fp)
             rec = tp / (tp + fn)
@@ -131,7 +134,7 @@ class EvaluationEngine:
         r_f1 = float(np.mean(r_f1_scores)) if r_f1_scores else 0.0
         token_f1 = 2 * (p_f1 * r_f1) / (p_f1 + r_f1) if (p_f1 + r_f1) > 0 else 0.0
 
-        return round(set_text_f1, 4), round(token_f1, 4)
+        return round(prec, 4), round(rec, 4), round(set_text_f1, 4), round(token_f1, 4)
 
     @classmethod
     def _bipartite_bert_f1(cls, g_texts, p_texts):
@@ -228,6 +231,6 @@ class EvaluationEngine:
                 return [unique_f1_scores[pair_to_unique_idx[(c, r)]] for c, r in zip(cands, refs)]
 
         except Exception as e:
-            print(f"\n[CUDA ERROR] Global BERT-Score backend execution failed: {str(e)}", file=sys.stderr)
+            print(f"\n[CUDA ERROR] Global BERT-Score execution failed: {str(e)}", file=sys.stderr)
 
         return [0.0] * num_pairs

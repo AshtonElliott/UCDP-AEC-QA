@@ -2,22 +2,12 @@ import sys
 import json
 import re
 import time
-import pandas as pd
 import warnings
 import numpy as np
 from collections import defaultdict
 from pathlib import Path
 
 from scripts.core import EvaluationEngine 
-# from scripts.error_analysis import run_error_analysis
-from scripts.visualization import (
-    generate_performance_quadrant, 
-    generate_verbosity_scatter,
-    generate_task_heatmap_overall,
-    generate_task_heatmap_hasans,
-    generate_strict_vs_relaxed_quadrant,
-    generate_classification_dropoff
-)
 
 warnings.filterwarnings("ignore")
 
@@ -90,23 +80,67 @@ def evaluate_models_globally(model_files, gt_map, q_num):
                 "g_labels": [str(g.get('labels', [])) for g in gold_spans],
                 "p_labels": [str(p.get('labels', [])) for p in pred_spans],
                 "spans_generated": len(p_texts),
-                "set_text_f1": 0.0, "token_f1": 0.0, "f1": 0.0, "dedup_f1": 0.0, "label_f1": 0.0
+                "set_text_p": 0.0, "set_text_r": 0.0, "set_text_f1": 0.0, 
+                "token_f1": 0.0, "f1": 0.0, "dedup_f1": 0.0, 
+                "label_p": 0.0, "label_r": 0.0, "label_f1": 0.0,
+                "cat_stats": {}
             }
+
+            # Q2 Category Match Logic (Strict Tuple Extraction for Grid)
+            g_tups = set()
+            for g in gold_spans:
+                t = EvaluationEngine.normalize_answer(g.get('text', ''))
+                if not t: continue
+                ls = g.get('labels', [])
+                if isinstance(ls, list):
+                    for l in ls: g_tups.add((t, str(l).strip()))
+                elif isinstance(ls, str): g_tups.add((t, ls.strip()))
+                else: g_tups.add((t, "no_label"))
+                    
+            p_tups = set()
+            for p in pred_spans:
+                t = EvaluationEngine.normalize_answer(p.get('text', ''))
+                if not t: continue
+                ls = p.get('labels', [])
+                if isinstance(ls, list):
+                    for l in ls: p_tups.add((t, str(l).strip()))
+                elif isinstance(ls, str): p_tups.add((t, ls.strip()))
+                else: p_tups.add((t, "no_label"))
+                    
+            cat_stats = defaultdict(lambda: {"TP": 0, "FP": 0, "FN": 0})
+            for t, l in g_tups:
+                if (t, l) in p_tups: cat_stats[l]["TP"] += 1
+                else: cat_stats[l]["FN"] += 1
+            for t, l in p_tups:
+                if (t, l) not in g_tups: cat_stats[l]["FP"] += 1
+            
+            record["cat_stats"] = dict(cat_stats)
 
             # SQuAD 2.0 Logic Routing
             if not has_ans and not has_pred:
-                record["set_text_f1"], record["token_f1"], record["f1"], record["dedup_f1"], record["label_f1"] = 1.0, 1.0, 1.0, 1.0, 1.0
+                record["set_text_p"], record["set_text_r"], record["set_text_f1"] = 1.0, 1.0, 1.0
+                record["label_p"], record["label_r"], record["label_f1"] = 1.0, 1.0, 1.0
+                record["token_f1"], record["f1"], record["dedup_f1"] = 1.0, 1.0, 1.0
             elif not has_ans and has_pred:
-                record["set_text_f1"], record["token_f1"], record["f1"], record["dedup_f1"], record["label_f1"] = 0.0, 0.0, 0.0, 0.0, 0.0
+                record["set_text_p"], record["set_text_r"], record["set_text_f1"] = 0.0, 0.0, 0.0
+                record["label_p"], record["label_r"], record["label_f1"] = 0.0, 0.0, 0.0
+                record["token_f1"], record["f1"], record["dedup_f1"] = 0.0, 0.0, 0.0
             elif has_ans and not has_pred:
-                record["set_text_f1"], record["token_f1"], record["f1"], record["dedup_f1"], record["label_f1"] = 0.0, 0.0, 0.0, 0.0, 0.0
+                record["set_text_p"], record["set_text_r"], record["set_text_f1"] = 0.0, 0.0, 0.0
+                record["label_p"], record["label_r"], record["label_f1"] = 0.0, 0.0, 0.0
+                record["token_f1"], record["f1"], record["dedup_f1"] = 0.0, 0.0, 0.0
             else:
-                set_text_f1, token_f1 = EvaluationEngine.evaluate_ie_squad_metrics(g_texts, p_texts)
-                record["set_text_f1"] = set_text_f1
-                record["token_f1"] = token_f1
+                set_p, set_r, set_f1, tok_f1 = EvaluationEngine.evaluate_ie_squad_metrics(g_texts, p_texts)
+                record["set_text_p"] = set_p
+                record["set_text_r"] = set_r
+                record["set_text_f1"] = set_f1
+                record["token_f1"] = tok_f1
 
-                # Labeled Span F1 (text + category tuples)
-                record["label_f1"] = EvaluationEngine.evaluate_strict_tuple_match(gold_spans, pred_spans)
+                # Labeled Span metrics (text + category tuples)
+                lbl_p, lbl_r, lbl_f1 = EvaluationEngine.evaluate_strict_tuple_match(gold_spans, pred_spans)
+                record["label_p"] = lbl_p
+                record["label_r"] = lbl_r
+                record["label_f1"] = lbl_f1
 
                 # Queue Pairs for BERTScore
                 norm_p = [EvaluationEngine.normalize_answer(p) for p in p_texts]
@@ -159,81 +193,6 @@ def evaluate_models_globally(model_files, gt_map, q_num):
             
     return master_records
 
-
-def aggregate_squad2_metrics(df, group_cols):
-    """Aggregates metrics and returns both numeric columns (for plots) and formatted string columns (for tables)."""
-    if df.empty:
-        return pd.DataFrame()
-
-    agg_data = []
-    for name, group in df.groupby(group_cols):
-        has_ans_group = group[group['has_ans'] == True]
-        no_ans_group = group[group['has_ans'] == False]
-
-        has_ans_n = len(has_ans_group)
-        no_ans_n = len(no_ans_group)
-
-        # 1. Abstention (set_text_f1 is 1.0 on correct empty, else 0.0)
-        no_ans_acc = round(no_ans_group['set_text_f1'].mean(), 4) if no_ans_n > 0 else 0.0
-
-        # 1b. Missed Answer Rate: pred empty when gold nonempty
-        missed_answer_rate = round((~has_ans_group['has_pred']).mean(), 4) if has_ans_n > 0 else 0.0
-
-        # 2. Span F1 (exact normalized phrase multiset F1)
-        overall_set_text_f1 = round(group['set_text_f1'].mean(), 4)
-        has_ans_set_text_f1 = round(has_ans_group['set_text_f1'].mean(), 4) if has_ans_n > 0 else 0.0
-
-        # 3. Labeled Span F1 (text + category tuples)
-        overall_label_f1 = round(group['label_f1'].mean(), 4)
-        has_ans_label_f1 = round(has_ans_group['label_f1'].mean(), 4) if has_ans_n > 0 else 0.0
-
-        # 4. Token F1
-        overall_token_f1 = round(group['token_f1'].mean(), 4)
-        has_ans_token_f1 = round(has_ans_group['token_f1'].mean(), 4) if has_ans_n > 0 else 0.0
-
-        # 5. Std BERT
-        overall_std_bert = round(group['f1'].mean(), 4)
-        has_ans_std_bert = round(has_ans_group['f1'].mean(), 4) if has_ans_n > 0 else 0.0
-
-        # 6. Dedup BERT
-        overall_dd_bert = round(group['dedup_f1'].mean(), 4)
-        has_ans_dd_bert = round(has_ans_group['dedup_f1'].mean(), 4) if has_ans_n > 0 else 0.0
-        
-        avg_spans = round(group['spans_generated'].mean(), 2)
-
-        res = {
-            "Model": name if isinstance(name, str) else name[0],
-            "Doc Count": len(group),
-            
-            # Numeric columns used specifically for generating plots
-            "Avg Spans": avg_spans,
-            "NoAns Acc": no_ans_acc,
-            "Missed Answer Rate Num": missed_answer_rate,
-            "Overall Dedup BERT": overall_dd_bert,
-            "HasAns Dedup BERT": has_ans_dd_bert, 
-            "HasAns Span F1": has_ans_set_text_f1,
-            "HasAns Token F1": has_ans_token_f1,
-            "HasAns BERTScore": has_ans_std_bert,
-            "HasAns Labeled Span F1": has_ans_label_f1,
-            
-            # Formatted columns used for the final Markdown table printout
-            "Abstention (NoAns)": f"{no_ans_acc:.2f}",
-            "Missed Answer Rate": f"{missed_answer_rate:.2f}",
-            "Span F1 (Overall / HasAns)": f"{overall_set_text_f1:.2f} / {has_ans_set_text_f1:.2f}",
-            "Labeled Span F1 (Overall / HasAns)": f"{overall_label_f1:.2f} / {has_ans_label_f1:.2f}",
-            "SQuAD Token F1 (Overall / HasAns)": f"{overall_token_f1:.2f} / {has_ans_token_f1:.2f}",
-            "BERTScore (Overall / HasAns)": f"{overall_std_bert:.2f} / {has_ans_std_bert:.2f}",
-            "Deduped BERTScore (Overall / HasAns)": f"{overall_dd_bert:.2f} / {has_ans_dd_bert:.2f}"
-        }
-        
-        if isinstance(name, tuple) and len(name) > 1:
-            res["Question"] = name[1]
-
-        agg_data.append(res)
-
-    return pd.DataFrame(agg_data)
-
-
 def run_evaluation_pipeline(question_filter=None):
     pipeline_start_time = time.time()
     llm_files = discover_llm_files(RAW_DIR)
@@ -245,7 +204,7 @@ def run_evaluation_pipeline(question_filter=None):
     
     for q_num, model_files in sorted(llm_files.items()):
         if question_filter is not None and q_num != question_filter: continue
-        print(f"\n--- Evaluating Question {q_num} ---", file=sys.stderr)
+        print(f"\n--- Computing Metrics for Question {q_num} ---", file=sys.stderr)
         
         gt_paths = [
             RAW_DIR / f'groundtruth_q{q_num}.json', 
@@ -262,96 +221,17 @@ def run_evaluation_pipeline(question_filter=None):
         if not gt_map: continue
         
         all_records.extend(evaluate_models_globally(model_files, gt_map, q_num))
+    
+    if not all_records:
+        print("\n[FATAL] Pipeline failed to parse any records. Check your data paths.", file=sys.stderr)
+        return
 
     artifact_path = RESULTS_DIR / "master_evaluation_artifact.json"
     with artifact_path.open("w", encoding="utf-8") as f:
         json.dump(all_records, f, indent=4)
         
-    df = pd.DataFrame(all_records)
-    if df.empty: 
-        print(f"\n[FATAL] Pipeline failed to parse any records.", file=sys.stderr)
-        return
-
-    # Define exact columns to display 
-    display_cols = [
-        "Model", 
-        "Doc Count",
-        "Avg Spans",
-        "Abstention (NoAns)", 
-        "Missed Answer Rate",
-        "Span F1 (Overall / HasAns)", 
-        "Labeled Span F1 (Overall / HasAns)", 
-        "SQuAD Token F1 (Overall / HasAns)",
-        "BERTScore (Overall / HasAns)",
-        "Deduped BERTScore (Overall / HasAns)",
-    ]
-
-    # LAYER 1: GLOBAL AGGREGATION
-    g_agg = aggregate_squad2_metrics(df, group_cols=['model'])
-
-    # Pass the DF with numeric columns to the visualizer
-    generate_performance_quadrant(df=g_agg, model_col="Model", filename="master_quadrant.png")
-    generate_strict_vs_relaxed_quadrant(df=g_agg, model_col="Model", filename="strict_vs_relaxed.png")
-    generate_verbosity_scatter(df=g_agg, model_col="Model", filename="verbosity_vs_accuracy.png")
-
     total_time = round(time.time() - pipeline_start_time, 2)
-    print(f"**Pipeline Execution Time:** {total_time} seconds")
-    print(f"**Total Models Evaluated:** {len(g_agg)}")
-    print(f"**Total Documents Processed:** {g_agg['Doc Count'].max()}\n")
-
-    print("## Part 1: Global Benchmark Leaderboard (SQuAD 2.0 Standard)")
-    print("> *All text metrics formatted as (Overall / HasAns)*\n")
-    # Sort by HasAns Dedup BERT (extraction quality, not Overall padding)
-    print(g_agg.sort_values(by="HasAns Dedup BERT", ascending=False)[display_cols].to_markdown(index=False))
-    
-    print("\n## Part 2: Visual Insights")
-    print("\n### 1. Abstention vs. Extraction Quality")
-    print("> *Evaluates whether models are 'Ideal Performers' (safe and accurate) or 'Hallucinators' (talkative but unsafe).*")
-    print("![Master Performance Quadrant](assets/master_quadrant.png)\n")
-    
-    print("### 2. Strict vs. Relaxed Evaluation Shift")
-    print("> *Visualizing the performance penalty models take when evaluated strictly (Span F1) vs. relaxed (Token/Semantic).*")
-    print("![Strict vs Relaxed](assets/strict_vs_relaxed.png)\n")
-    
-    print("### 3. Verbosity vs. Semantic Accuracy")
-    print("> *Tracking whether models artificially inflate their extraction scores by over-generating spans.*")
-    print("![Verbosity vs Semantic Accuracy](assets/verbosity_vs_accuracy.png)\n")
-
-    # LAYER 2: PER-QUESTION AGGREGATION
-    q_agg = aggregate_squad2_metrics(df, group_cols=['model', 'question'])
-    unique_qs = sorted(q_agg['Question'].unique()) if 'Question' in q_agg.columns else []
-    
-    if len(unique_qs) > 1:
-        print("\n---\n")
-        print("## Part 3: Task Complexity Breakdown")
-        
-        heatmap_df = q_agg[['Model', 'Question', 'Overall Dedup BERT', 'HasAns Dedup BERT']].copy()
-        heatmap_df.rename(columns={'Model': 'Model Target', 'Question': 'question'}, inplace=True)
-        heatmap_df['Question Track'] = heatmap_df['question'].apply(lambda x: f"Question {x}")
-        
-        generate_task_heatmap_overall(df=heatmap_df, filename="task_complexity_heatmap_overall.png")
-        generate_task_heatmap_hasans(df=heatmap_df, filename="task_complexity_heatmap_hasans.png")
-        
-        print("\n### Performance Degradation Heatmaps")
-        print("> *Overall Score (includes easy abstentions) vs. HasAns Score (true extraction capability).*")
-        print("![Task Complexity (Overall)](assets/task_complexity_heatmap_overall.png)")
-        print("![Task Complexity (HasAns)](assets/task_complexity_heatmap_hasans.png)\n")
-
-        # Generate the Drop-off chart (it handles the Q2 filtering internally)
-        generate_classification_dropoff(df=q_agg, filename="classification_dropoff_q2.png")
-        
-        print("\n### Question 2: The Classification Penalty")
-        print("> *Visualizing the gap between a model's ability to find the correct text vs. its ability to map it to the correct category.*")
-        print("![Classification Dropoff](assets/classification_dropoff_q2.png)\n")
-
-        for q in unique_qs:
-            print(f"\n### Question {q} Leaderboard")
-            q_subset = q_agg[q_agg['Question'] == q].copy()
-            print(q_subset.sort_values(by="HasAns Dedup BERT", ascending=False)[display_cols].to_markdown(index=False))
-            print("\n")
-
-    print("\n---\n")
-    # run_error_analysis(records=all_records)
+    print(f"\n[Compute Complete] Pipeline Execution Time: {total_time} seconds", file=sys.stderr)
 
 if __name__ == "__main__":
     run_evaluation_pipeline()
