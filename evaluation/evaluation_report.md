@@ -55,9 +55,9 @@
 | Vicuna.13B      |         923 |        6.02 |                 0.3  |                 0.21 | 0.22 / 0.20                  | 0.22 / 0.20                          | 0.28 / 0.28                         | 0.28 / 0.27                    | 0.28 / 0.27                            |
 | Llama2.13B      |         923 |        1.67 |                 0.44 |                 0.5  | 0.17 / 0.11                  | 0.17 / 0.11                          | 0.20 / 0.14                         | 0.21 / 0.16                    | 0.21 / 0.16                            |
 
-#### Plot A: Pure Text Extraction Behavior (Q1)
-> *This isolates reading comprehension: Did the model locate the correct phrases?*
-![Plot A: Text Spans](assets/q1_pr_scatter.png)
+#### Plot A: Text Extraction Precision & Recall (Q1)
+> *This isolates reading comprehension: Did the model locate the correct phrases? HasAns-only bars at exact span match — one operating point per model.*
+![Plot A: Text Spans](assets/q1_pr_bars.png)
 
 
 ### Question 2 Leaderboard
@@ -73,9 +73,9 @@
 | Vicuna.13B      |         651 |        0.71 |                 0.76 |                 0.48 | 0.58 / 0.17                  | 0.56 / 0.08                          | 0.61 / 0.24                         | 0.60 / 0.23                    | 0.60 / 0.23                            |
 | Mistral         |         651 |        0.23 |                 0.9  |                 0.83 | 0.66 / 0.07                  | 0.65 / 0.05                          | 0.66 / 0.07                         | 0.66 / 0.07                    | 0.66 / 0.07                            |
 
-#### Plot A: Pure Text Extraction Behavior (Q2)
-> *This isolates reading comprehension: Did the model locate the correct phrases?*
-![Plot A: Text Spans](assets/q2_pr_scatter.png)
+#### Plot A: Text Extraction Precision & Recall (Q2)
+> *This isolates reading comprehension: Did the model locate the correct phrases? HasAns-only bars at exact span match — one operating point per model.*
+![Plot A: Text Spans](assets/q2_pr_bars.png)
 
 #### Plot B: Category Mislabeling Breakdown
 > *Macro-averages hide class-level failures. This 8-panel grid isolates which specific event labels models confuse after extracting the text.*

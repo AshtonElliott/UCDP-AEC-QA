@@ -10,7 +10,7 @@ from scripts.visualization import (
     generate_task_heatmap_hasans,
     generate_strict_vs_relaxed_quadrant,
     generate_classification_dropoff,
-    generate_pr_scatter,
+    generate_pr_bars,
     generate_category_pr_grid
 )
 
@@ -175,18 +175,18 @@ def generate_full_report():
                 q_subset = q_agg[q_agg['Question'] == q_num].copy()
                 print(q_subset.sort_values(by="HasAns Dedup BERT", ascending=False)[display_cols].to_markdown(index=False))
                 
-                # Plot A generated dynamically for every question
-                scatter_filename = f"q{q_num}_pr_scatter.png"
-                generate_pr_scatter(
+                # Plot A: HasAns precision/recall bars (single operating point per model)
+                bars_filename = f"q{q_num}_pr_bars.png"
+                generate_pr_bars(
                     q_subset, 
                     "HasAns Span R", 
                     "HasAns Span P", 
-                    f"Q{q_num}: Precision vs. Recall (Text Spans)", 
-                    scatter_filename
+                    f"Q{q_num}: Precision vs. Recall (Text Spans)",
+                    bars_filename
                 )
-                print(f"\n#### Plot A: Pure Text Extraction Behavior (Q{q_num})")
-                print("> *This isolates reading comprehension: Did the model locate the correct phrases?*")
-                print(f"![Plot A: Text Spans](assets/{scatter_filename})\n")
+                print(f"\n#### Plot A: Text Extraction Precision & Recall (Q{q_num})")
+                print("> *This isolates reading comprehension: Did the model locate the correct phrases? HasAns-only bars at exact span match — one operating point per model.*")
+                print(f"![Plot A: Text Spans](assets/{bars_filename})\n")
                     
             # Generate Q2 Category Grid & Dropoff ONCE outside the per-question loop
             df_q2 = df[df['question'] == 2]

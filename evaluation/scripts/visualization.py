@@ -232,7 +232,7 @@ def generate_classification_dropoff(df, filename="classification_dropoff_q2.png"
     plt.savefig(str(filepath), dpi=300, bbox_inches='tight')
     plt.close(fig)
 
-def generate_pr_scatter(df, x_col, y_col, title, filename):
+def generate_pr_bars(df, x_col, y_col, title, filename):
     """
     Plot A: Paired Bar Chart (Precision vs. Recall) to clearly show extraction imbalances.
     """
@@ -254,7 +254,7 @@ def generate_pr_scatter(df, x_col, y_col, title, filename):
 
     ax.set_ylabel('Score', fontsize=12)
     ax.set_ylim(0, 1.05) 
-    ax.set_title(title.replace("scatter", "Bar Chart").replace("Scatter", "Bar Chart"), fontsize=14, pad=15)
+    ax.set_title(title, fontsize=14, pad=15)
     ax.set_xticks(x)
     ax.set_xticklabels([str(m).replace('*', '') for m in models], rotation=45, ha='right')
     
