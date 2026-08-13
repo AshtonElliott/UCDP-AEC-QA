@@ -13,6 +13,7 @@ from scripts.visualization import (
     generate_pr_bars,
     generate_category_pr_grid
 )
+from scripts.error_analysis import run_error_analysis
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 RESULTS_DIR = BASE_DIR / 'data' / 'evaluation_results'
@@ -201,6 +202,9 @@ def generate_full_report():
                 print("> **Classification Dropoff = set_text_f1 - label_f1**")
                 print("> *A large gap indicates the model successfully acts as a search engine (finding the correct evidence text) but fails as a classifier (assigning the wrong event label).*")
                 print("![Classification Dropoff](assets/classification_dropoff_q2.png)\n")
+
+    print("\n---\n")
+    run_error_analysis(records=all_records)
 
 if __name__ == "__main__":
     generate_full_report()
