@@ -84,3 +84,218 @@
 > *A large gap indicates the model successfully acts as a search engine (finding the correct evidence text) but fails as a classifier (assigning the wrong event label).*
 ![Classification Dropoff](assets/classification_dropoff_q2.png)
 
+
+---
+
+---
+
+## Part 4: Error Analysis & SQuAD 2.0 Edge Cases
+> *Automated extraction of specific failure modes across the IE pipeline.*
+
+### Analysis: Question 1
+
+#### A. Missed Extractions (Failed to extract an existing answer)
+* **Total cases:** 594
+* **By model:** Llama2.13B: 366, Vicuna.13B: 157, Qwen3.8B: 25, Mistral: 22, Llama3.1.8B: 11, Gemma3.4B: 5, Gemma4.E4B: 3, Gpt Oss.20B: 3, Claude Mythos 6: 2
+
+**Edge Case #1 (Llama2.13B)**
+* **Ground Truth:** `warplanes | warplanes | warplanes | shells | shells | shells | shells | shells | mortar shells | sniper shot | sniper shot | sniper shot | guided missile | bombed | mortars | rocket shelling | aerial bombardment | aerial bombardment | aerial bombardment | aerial bombardment | shelling | shelling | airstrikes | snipers | snipers | snipers | rocket shells | barrel bombs | shelled | shelled | shelled | shelled | shelled | shelled | shelled | shelled | shelled | drone`
+* **Model Prediction:** `[ABSTAINED - Predicted Nothing]`
+---
+
+**Edge Case #2 (Vicuna.13B)**
+* **Ground Truth:** `warplanes | warplanes | warplanes | shells | shells | shells | shells | shells | mortar shells | sniper shot | sniper shot | sniper shot | guided missile | bombed | mortars | rocket shelling | aerial bombardment | aerial bombardment | aerial bombardment | aerial bombardment | shelling | shelling | airstrikes | snipers | snipers | snipers | rocket shells | barrel bombs | shelled | shelled | shelled | shelled | shelled | shelled | shelled | shelled | shelled | drone`
+* **Model Prediction:** `[ABSTAINED - Predicted Nothing]`
+---
+
+**Edge Case #3 (Llama3.1.8B)**
+* **Ground Truth:** `booby trapped vehicle | booby trapped vehicle | shot | shot | improvised explosive devices | opening fire | bombing | bombing`
+* **Model Prediction:** `[ABSTAINED - Predicted Nothing]`
+---
+
+
+#### B. Hallucinations (Generated text on an unanswerable article)
+* **Total cases:** 1488
+* **By model:** Gemma3.4B: 183, Claude Mythos 6: 181, Gemma4.E4B: 181, Gpt Oss.20B: 180, Llama3.1.8B: 180, Qwen3.8B: 178, Mistral: 173, Vicuna.13B: 129, Llama2.13B: 103
+
+**Edge Case #1 (Gemma3.4B)**
+* **Ground Truth:** `[EMPTY ARTICLE - Should have abstained]`
+* **Model Prediction:** `Officer | Officer | officer | Officer | officer | Sergeant | sergeant | Sergeant | Terrorists | terrorists | terrorists | terrorists | terrorists | armed | armed | Armed | armed | armed | Armed | armed | armed | Armed | armed | armed | armed | armed | armed | armed | Armed | armed | armed | group | group | group | group | group | Group | group | group | Group | group | group | group | group | group | group | group | group | group | machineguns | RPGs | RPGs | RPGs | RPGs | launchers | night vision binoculars | sniper rifles | explosive | explosive | explosive | explosive | remote control | ambulance | ambulance`
+* **Spans Generated:** 64
+---
+
+**Edge Case #2 (Vicuna.13B)**
+* **Ground Truth:** `[EMPTY ARTICLE - Should have abstained]`
+* **Model Prediction:** `Iraqi armed forces | Iraqi armed forces | military statement | military statement | military statement | Old City center | three adjacent districts | Tigris river | Desperate civilians | little food and water | no electricity | limited access to hospitals | Iraqi air force | humanitarian groups | safety of those trying to escape | landmark leaning minaret | black flag | next few days | United Nations | deep concern | hundreds of thousands of civilians | behind Islamic State lines | behind Islamic State lines | disturbing reports | children being deliberately targeted by snipers | residents | Residents | Residents | millet | cooked like rice | wild mallow plants | mulberry leaves | operations launched | MOSUL | Mosul | Mosul | Mosul | Mosul | Mosul | surrounding Nineveh province | senior commander | senior commander | Mashregh | Iranian news website | Popular Mobilisation | Syrian army | significant advantage`
+* **Spans Generated:** 47
+---
+
+**Edge Case #3 (Claude Mythos 6)**
+* **Ground Truth:** `[EMPTY ARTICLE - Should have abstained]`
+* **Model Prediction:** `killed | killed | killed | killed | captured | captured | offensive | offensive | offensive | offensive | offensive | offensive | killed | killed | killed | killed | arrested | fight | fight | fight | fight | fight | fight | destroy | destroy | destroy | hurled gasoline | torched`
+* **Spans Generated:** 28
+---
+
+
+#### C. Over-Extraction (High Verbosity, Low Precision)
+* **Total cases:** 955
+* **By model:** Gemma3.4B: 218, Vicuna.13B: 176, Claude Mythos 6: 121, Llama3.1.8B: 101, Mistral: 84, Gemma4.E4B: 74, Gpt Oss.20B: 74, Qwen3.8B: 69, Llama2.13B: 38
+
+**Edge Case #1 (Vicuna.13B)**
+* **Ground Truth:** `artillery`
+* **Model Prediction:** `forces | forces | forces | forces | forces | forces | forces | forces | forces | troops | troops | troops | troops | troops | push | push | offensive | offensive | offensive | campaign | endurance | fighting heroes | return | arms of the motherland | surrender | Insurgency bastion | Sunni tribal volunteers | strikes | town of Albu Kamal | Syrian side of the border | Syrian side of the border | stronghold in the north | launch | launch | launch | launch | autonomous Kurdish region | autonomous Kurdish region | finances | crippling blow | territory | territory | territory | territory | territory | September 25 independence referendum | Iraqi prime minister | dismiss | annulment of the referendum | respect for the constitution | allies | Iran | Iran | Iran | Tehran | backing | military successes`
+* **Scores:** Spans Generated = 57 | Deduped BERTScore = 0.0000
+---
+
+**Edge Case #2 (Gemma3.4B)**
+* **Ground Truth:** `airstrikes`
+* **Model Prediction:** `UN | un | UN | UN | un | un | un | UN | UN | un | peace plan | peace plan | peace plan | heavy weapons | airstrikes | militant activity | forces | Forces | forces | forces | forces | forces | forces | Forces | forces | forces | forces | coalition | coalition | coalition | coalition | engineering college | port city | military | operation | operation | operation | fighters | soldiers`
+* **Scores:** Spans Generated = 39 | Deduped BERTScore = 0.0000
+---
+
+**Edge Case #3 (Gemma4.E4B)**
+* **Ground Truth:** `shell`
+* **Model Prediction:** `ballistic missiles | artillery | clash | clash | clash | clash | clash | Clash | clash | troops | troops | troops | troops | troops | troops | militant activity`
+* **Scores:** Spans Generated = 16 | Deduped BERTScore = 0.0000
+---
+
+
+#### D. Valid Paraphrasing (High Semantic Match, Zero Exact Match)
+* **Total cases:** 3
+* **By model:** Mistral: 1, Qwen3.8B: 1, Vicuna.13B: 1
+
+**Edge Case #1 (Mistral)**
+* **Ground Truth:** `gun`
+* **Model Prediction:** `guns`
+* **Scores:** Span F1 = 0.0000 | Deduped BERTScore = 0.7508
+---
+
+**Edge Case #2 (Qwen3.8B)**
+* **Ground Truth:** `air raid`
+* **Model Prediction:** `Air Attack | air attack`
+* **Scores:** Span F1 = 0.0000 | Deduped BERTScore = 0.7013
+---
+
+**Edge Case #3 (Vicuna.13B)**
+* **Ground Truth:** `bullets`
+* **Model Prediction:** `bullet`
+* **Scores:** Span F1 = 0.0000 | Deduped BERTScore = 0.7694
+---
+
+
+### Analysis: Question 2
+
+#### A. Missed Extractions (Failed to extract an existing answer)
+* **Total cases:** 561
+* **By model:** Mistral: 159, Vicuna.13B: 91, Claude Mythos 6: 65, Gpt Oss.20B: 58, Llama2.13B: 57, Gemma4.E4B: 52, Qwen3.8B: 36, Llama3.1.8B: 30, Gemma3.4B: 13
+
+**Edge Case #1 (Gemma4.E4B)**
+* **Ground Truth:** `weapons storage areas | oil storage tanks | ISIS headquarters | ISIS-held buildings | ISIS-held buildings | bridge | bridge | weapons storage area | ISIS fueling station | tunnels | oil refinement stills | VBIED storage facility`
+* **Model Prediction:** `[ABSTAINED - Predicted Nothing]`
+---
+
+**Edge Case #2 (Llama2.13B)**
+* **Ground Truth:** `weapons storage areas | oil storage tanks | ISIS headquarters | ISIS-held buildings | ISIS-held buildings | bridge | bridge | weapons storage area | ISIS fueling station | tunnels | oil refinement stills | VBIED storage facility`
+* **Model Prediction:** `[ABSTAINED - Predicted Nothing]`
+---
+
+**Edge Case #3 (Llama3.1.8B)**
+* **Ground Truth:** `weapons storage areas | oil storage tanks | ISIS headquarters | ISIS-held buildings | ISIS-held buildings | bridge | bridge | weapons storage area | ISIS fueling station | tunnels | oil refinement stills | VBIED storage facility`
+* **Model Prediction:** `[ABSTAINED - Predicted Nothing]`
+---
+
+
+#### B. Hallucinations (Generated text on an unanswerable article)
+* **Total cases:** 1450
+* **By model:** Gemma3.4B: 365, Llama2.13B: 246, Llama3.1.8B: 240, Qwen3.8B: 121, Gemma4.E4B: 116, Vicuna.13B: 112, Claude Mythos 6: 106, Gpt Oss.20B: 99, Mistral: 45
+
+**Edge Case #1 (Llama3.1.8B)**
+* **Ground Truth:** `[EMPTY ARTICLE - Should have abstained]`
+* **Model Prediction:** `areas | areas | areas | areas | areas | areas | areas | areas | areas | areas | areas | areas | areas | areas | areas | areas | areas | areas | areas | areas | areas | Douma city | Zamalka city | Zamalka city | Ein Tarma town | AlMotahalik AlJanobi (the Southern Bypass)`
+* **Spans Generated:** 26
+---
+
+**Edge Case #2 (Gpt Oss.20B)**
+* **Ground Truth:** `[EMPTY ARTICLE - Should have abstained]`
+* **Model Prediction:** `Morek | Morek | Morek | Morek | M’aarkaba | Lahaya | Lahaya | Lahaya | Kabani | Kabani | Atshan | Atshan | Om Jalal`
+* **Spans Generated:** 13
+---
+
+**Edge Case #3 (Qwen3.8B)**
+* **Ground Truth:** `[EMPTY ARTICLE - Should have abstained]`
+* **Model Prediction:** `regime forces | regime forces | regime forces | regime forces | regime forces | regime forces | regime forces | regime forces | regime forces | regime forces | regime forces | regime forces`
+* **Spans Generated:** 12
+---
+
+
+#### C. Over-Extraction (High Verbosity, Low Precision)
+* **Total cases:** 64
+* **By model:** Gemma3.4B: 21, Llama3.1.8B: 11, Claude Mythos 6: 9, Qwen3.8B: 7, Llama2.13B: 5, Vicuna.13B: 5, Mistral: 3, Gpt Oss.20B: 2, Gemma4.E4B: 1
+
+**Edge Case #1 (Gemma3.4B)**
+* **Ground Truth:** `neighborhoods`
+* **Model Prediction:** `warplanes | warplanes | missile | missile | shelling | shelling | shelling | shelling | shelling | shelling`
+* **Scores:** Spans Generated = 10 | Deduped BERTScore = 0.0000
+---
+
+**Edge Case #2 (Llama2.13B)**
+* **Ground Truth:** `olive plantations`
+* **Model Prediction:** `checkpoint | Military Council | Military Council | Military Council | Military Council | Military Council | Military Council | Military Council`
+* **Scores:** Spans Generated = 8 | Deduped BERTScore = 0.0000
+---
+
+**Edge Case #3 (Gpt Oss.20B)**
+* **Ground Truth:** `buildings`
+* **Model Prediction:** `navy ship | navy ship | port | port | port | port | headquarters`
+* **Scores:** Spans Generated = 7 | Deduped BERTScore = 0.0000
+---
+
+
+#### D. Valid Paraphrasing (High Semantic Match, Zero Exact Match)
+* **Total cases:** 7
+* **By model:** Claude Mythos 6: 2, Vicuna.13B: 2, Gemma3.4B: 1, Gpt Oss.20B: 1, Llama2.13B: 1
+
+**Edge Case #1 (Claude Mythos 6)**
+* **Ground Truth:** `Thermal Power plant`
+* **Model Prediction:** `Thermal Power plant area`
+* **Scores:** Span F1 = 0.0000 | Deduped BERTScore = 0.8119
+---
+
+**Edge Case #2 (Gpt Oss.20B)**
+* **Ground Truth:** `Thermal Power plant`
+* **Model Prediction:** `Thermal Power plant area`
+* **Scores:** Span F1 = 0.0000 | Deduped BERTScore = 0.8119
+---
+
+**Edge Case #3 (Llama2.13B)**
+* **Ground Truth:** `Shalf Castle`
+* **Model Prediction:** `Shalf Castle area`
+* **Scores:** Span F1 = 0.0000 | Deduped BERTScore = 0.7379
+---
+
+
+#### E. Label Mismatch (High Text Match, Wrong Category)
+* **Total cases:** 51
+* **By model:** Gemma3.4B: 11, Llama3.1.8B: 9, Vicuna.13B: 6, Claude Mythos 6: 5, Gemma4.E4B: 5, Gpt Oss.20B: 5, Llama2.13B: 5, Qwen3.8B: 3, Mistral: 2
+
+**Edge Case #1 (Claude Mythos 6)**
+* **Extracted Text:** `wine store` == `wine store`
+* **Target Label:** `['Transportation/Marketing']`
+* **Predicted Label:** `['Other']`
+* **Scores:** Span F1 = 1.0000 | Labeled Span F1 = 0.0000
+---
+
+**Edge Case #2 (Gemma3.4B)**
+* **Extracted Text:** `wells` == `wells`
+* **Target Label:** `['Water']`
+* **Predicted Label:** `['Energy']`
+* **Scores:** Span F1 = 1.0000 | Labeled Span F1 = 0.0000
+---
+
+**Edge Case #3 (Gemma4.E4B)**
+* **Extracted Text:** `wine store` == `wine store`
+* **Target Label:** `['Transportation/Marketing']`
+* **Predicted Label:** `['Other']`
+* **Scores:** Span F1 = 1.0000 | Labeled Span F1 = 0.0000
+---
+
