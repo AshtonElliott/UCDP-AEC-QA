@@ -87,7 +87,6 @@
 
 ---
 
----
 
 ## Part 4: Error Analysis & SQuAD 2.0 Edge Cases
 > *Automated extraction of specific failure modes across the IE pipeline.*
@@ -95,8 +94,8 @@
 ### Analysis: Question 1
 
 #### A. Missed Extractions (Failed to extract an existing answer)
-* **Total cases:** 594
-* **By model:** Llama2.13B: 366, Vicuna.13B: 157, Qwen3.8B: 25, Mistral: 22, Llama3.1.8B: 11, Gemma3.4B: 5, Gemma4.E4B: 3, Gpt Oss.20B: 3, Claude Mythos 6: 2
+* **Total cases:** 592
+* **By model:** Llama2.13B: 366, Vicuna.13B: 157, Qwen3.8B: 25, Mistral: 22, Llama3.1.8B: 11, Gemma3.4B: 5, Gemma4.E4B: 3, Gpt Oss.20B: 3
 
 **Edge Case #1 (Llama2.13B)**
 * **Ground Truth:** `warplanes | warplanes | warplanes | shells | shells | shells | shells | shells | mortar shells | sniper shot | sniper shot | sniper shot | guided missile | bombed | mortars | rocket shelling | aerial bombardment | aerial bombardment | aerial bombardment | aerial bombardment | shelling | shelling | airstrikes | snipers | snipers | snipers | rocket shells | barrel bombs | shelled | shelled | shelled | shelled | shelled | shelled | shelled | shelled | shelled | drone`
@@ -115,8 +114,8 @@
 
 
 #### B. Hallucinations (Generated text on an unanswerable article)
-* **Total cases:** 1488
-* **By model:** Gemma3.4B: 183, Claude Mythos 6: 181, Gemma4.E4B: 181, Gpt Oss.20B: 180, Llama3.1.8B: 180, Qwen3.8B: 178, Mistral: 173, Vicuna.13B: 129, Llama2.13B: 103
+* **Total cases:** 1307
+* **By model:** Gemma3.4B: 183, Gemma4.E4B: 181, Gpt Oss.20B: 180, Llama3.1.8B: 180, Qwen3.8B: 178, Mistral: 173, Vicuna.13B: 129, Llama2.13B: 103
 
 **Edge Case #1 (Gemma3.4B)**
 * **Ground Truth:** `[EMPTY ARTICLE - Should have abstained]`
@@ -130,16 +129,16 @@
 * **Spans Generated:** 47
 ---
 
-**Edge Case #3 (Claude Mythos 6)**
+**Edge Case #3 (Llama2.13B)**
 * **Ground Truth:** `[EMPTY ARTICLE - Should have abstained]`
-* **Model Prediction:** `killed | killed | killed | killed | captured | captured | offensive | offensive | offensive | offensive | offensive | offensive | killed | killed | killed | killed | arrested | fight | fight | fight | fight | fight | fight | destroy | destroy | destroy | hurled gasoline | torched`
+* **Model Prediction:** `operation | operation | operation | operation | operation | armed oppositions | terrorists | terrorists | Killed | killed | killed | killed | Afghan National Army | Afghan National Police | operation | operation | operation | operation | operation | armed oppositions | terrorists | terrorists | Killed | killed | killed | killed | wounded | wounded`
 * **Spans Generated:** 28
 ---
 
 
 #### C. Over-Extraction (High Verbosity, Low Precision)
-* **Total cases:** 955
-* **By model:** Gemma3.4B: 218, Vicuna.13B: 176, Claude Mythos 6: 121, Llama3.1.8B: 101, Mistral: 84, Gemma4.E4B: 74, Gpt Oss.20B: 74, Qwen3.8B: 69, Llama2.13B: 38
+* **Total cases:** 834
+* **By model:** Gemma3.4B: 218, Vicuna.13B: 176, Llama3.1.8B: 101, Mistral: 84, Gemma4.E4B: 74, Gpt Oss.20B: 74, Qwen3.8B: 69, Llama2.13B: 38
 
 **Edge Case #1 (Vicuna.13B)**
 * **Ground Truth:** `artillery`
@@ -186,8 +185,8 @@
 ### Analysis: Question 2
 
 #### A. Missed Extractions (Failed to extract an existing answer)
-* **Total cases:** 561
-* **By model:** Mistral: 159, Vicuna.13B: 91, Claude Mythos 6: 65, Gpt Oss.20B: 58, Llama2.13B: 57, Gemma4.E4B: 52, Qwen3.8B: 36, Llama3.1.8B: 30, Gemma3.4B: 13
+* **Total cases:** 496
+* **By model:** Mistral: 159, Vicuna.13B: 91, Gpt Oss.20B: 58, Llama2.13B: 57, Gemma4.E4B: 52, Qwen3.8B: 36, Llama3.1.8B: 30, Gemma3.4B: 13
 
 **Edge Case #1 (Gemma4.E4B)**
 * **Ground Truth:** `weapons storage areas | oil storage tanks | ISIS headquarters | ISIS-held buildings | ISIS-held buildings | bridge | bridge | weapons storage area | ISIS fueling station | tunnels | oil refinement stills | VBIED storage facility`
@@ -206,8 +205,8 @@
 
 
 #### B. Hallucinations (Generated text on an unanswerable article)
-* **Total cases:** 1450
-* **By model:** Gemma3.4B: 365, Llama2.13B: 246, Llama3.1.8B: 240, Qwen3.8B: 121, Gemma4.E4B: 116, Vicuna.13B: 112, Claude Mythos 6: 106, Gpt Oss.20B: 99, Mistral: 45
+* **Total cases:** 1344
+* **By model:** Gemma3.4B: 365, Llama2.13B: 246, Llama3.1.8B: 240, Qwen3.8B: 121, Gemma4.E4B: 116, Vicuna.13B: 112, Gpt Oss.20B: 99, Mistral: 45
 
 **Edge Case #1 (Llama3.1.8B)**
 * **Ground Truth:** `[EMPTY ARTICLE - Should have abstained]`
@@ -229,8 +228,8 @@
 
 
 #### C. Over-Extraction (High Verbosity, Low Precision)
-* **Total cases:** 64
-* **By model:** Gemma3.4B: 21, Llama3.1.8B: 11, Claude Mythos 6: 9, Qwen3.8B: 7, Llama2.13B: 5, Vicuna.13B: 5, Mistral: 3, Gpt Oss.20B: 2, Gemma4.E4B: 1
+* **Total cases:** 55
+* **By model:** Gemma3.4B: 21, Llama3.1.8B: 11, Qwen3.8B: 7, Llama2.13B: 5, Vicuna.13B: 5, Mistral: 3, Gpt Oss.20B: 2, Gemma4.E4B: 1
 
 **Edge Case #1 (Gemma3.4B)**
 * **Ground Truth:** `neighborhoods`
@@ -252,22 +251,22 @@
 
 
 #### D. Valid Paraphrasing (High Semantic Match, Zero Exact Match)
-* **Total cases:** 7
-* **By model:** Claude Mythos 6: 2, Vicuna.13B: 2, Gemma3.4B: 1, Gpt Oss.20B: 1, Llama2.13B: 1
+* **Total cases:** 5
+* **By model:** Vicuna.13B: 2, Gemma3.4B: 1, Gpt Oss.20B: 1, Llama2.13B: 1
 
-**Edge Case #1 (Claude Mythos 6)**
+**Edge Case #1 (Gpt Oss.20B)**
 * **Ground Truth:** `Thermal Power plant`
 * **Model Prediction:** `Thermal Power plant area`
 * **Scores:** Span F1 = 0.0000 | Deduped BERTScore = 0.8119
 ---
 
-**Edge Case #2 (Gpt Oss.20B)**
-* **Ground Truth:** `Thermal Power plant`
-* **Model Prediction:** `Thermal Power plant area`
-* **Scores:** Span F1 = 0.0000 | Deduped BERTScore = 0.8119
+**Edge Case #2 (Llama2.13B)**
+* **Ground Truth:** `Shalf Castle`
+* **Model Prediction:** `Shalf Castle area`
+* **Scores:** Span F1 = 0.0000 | Deduped BERTScore = 0.7379
 ---
 
-**Edge Case #3 (Llama2.13B)**
+**Edge Case #3 (Vicuna.13B)**
 * **Ground Truth:** `Shalf Castle`
 * **Model Prediction:** `Shalf Castle area`
 * **Scores:** Span F1 = 0.0000 | Deduped BERTScore = 0.7379
@@ -275,24 +274,24 @@
 
 
 #### E. Label Mismatch (High Text Match, Wrong Category)
-* **Total cases:** 51
-* **By model:** Gemma3.4B: 11, Llama3.1.8B: 9, Vicuna.13B: 6, Claude Mythos 6: 5, Gemma4.E4B: 5, Gpt Oss.20B: 5, Llama2.13B: 5, Qwen3.8B: 3, Mistral: 2
+* **Total cases:** 46
+* **By model:** Gemma3.4B: 11, Llama3.1.8B: 9, Vicuna.13B: 6, Gemma4.E4B: 5, Gpt Oss.20B: 5, Llama2.13B: 5, Qwen3.8B: 3, Mistral: 2
 
-**Edge Case #1 (Claude Mythos 6)**
-* **Extracted Text:** `wine store` == `wine store`
-* **Target Label:** `['Transportation/Marketing']`
-* **Predicted Label:** `['Other']`
-* **Scores:** Span F1 = 1.0000 | Labeled Span F1 = 0.0000
----
-
-**Edge Case #2 (Gemma3.4B)**
+**Edge Case #1 (Gemma3.4B)**
 * **Extracted Text:** `wells` == `wells`
 * **Target Label:** `['Water']`
 * **Predicted Label:** `['Energy']`
 * **Scores:** Span F1 = 1.0000 | Labeled Span F1 = 0.0000
 ---
 
-**Edge Case #3 (Gemma4.E4B)**
+**Edge Case #2 (Gemma4.E4B)**
+* **Extracted Text:** `wine store` == `wine store`
+* **Target Label:** `['Transportation/Marketing']`
+* **Predicted Label:** `['Other']`
+* **Scores:** Span F1 = 1.0000 | Labeled Span F1 = 0.0000
+---
+
+**Edge Case #3 (Gpt Oss.20B)**
 * **Extracted Text:** `wine store` == `wine store`
 * **Target Label:** `['Transportation/Marketing']`
 * **Predicted Label:** `['Other']`
