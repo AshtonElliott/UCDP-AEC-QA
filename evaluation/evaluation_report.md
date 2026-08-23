@@ -1,22 +1,28 @@
 # LLM Evaluation Report
-**Total Models Evaluated:** 8
-**Total Documents Processed:** 1574
+**Total Models Evaluated:** 10
+**Total Documents Processed:** 1860
+**Full Evaluation Compute Time:** 470.77 seconds
 
-## Part 1: Global Benchmark Leaderboard (SQuAD 2.0 Standard)
+## Part 1: Global Benchmark Leaderboard (SQuAD 2.0 Evaluation)
 > *All text metrics formatted as (Overall / HasAns)*
 
-| Model       |   Doc Count |   Avg Spans |   Abstention (NoAns) |   Missed Answer Rate | Span F1 (Overall / HasAns)   | Labeled Span F1 (Overall / HasAns)   | SQuAD Token F1 (Overall / HasAns)   | BERTScore (Overall / HasAns)   | Deduped BERTScore (Overall / HasAns)   |
-|:------------|------------:|------------:|---------------------:|---------------------:|:-----------------------------|:-------------------------------------|:------------------------------------|:-------------------------------|:---------------------------------------|
-| Gpt Oss.20B |        1574 |        3.8  |                 0.57 |                 0.07 | 0.48 / 0.42                  | 0.48 / 0.41                          | 0.56 / 0.56                         | 0.57 / 0.58                    | 0.57 / 0.57                            |
-| Gemma4.E4B  |        1574 |        3.82 |                 0.54 |                 0.06 | 0.46 / 0.41                  | 0.45 / 0.39                          | 0.54 / 0.54                         | 0.54 / 0.55                    | 0.54 / 0.55                            |
-| Qwen3.8B    |        1574 |        3.32 |                 0.54 |                 0.07 | 0.46 / 0.41                  | 0.45 / 0.40                          | 0.52 / 0.51                         | 0.54 / 0.54                    | 0.53 / 0.53                            |
-| Llama3.1.8B |        1574 |        3.86 |                 0.35 |                 0.04 | 0.37 / 0.38                  | 0.35 / 0.35                          | 0.43 / 0.49                         | 0.44 / 0.51                    | 0.44 / 0.51                            |
-| Gemma3.4B   |        1574 |        6.31 |                 0.15 |                 0.02 | 0.25 / 0.33                  | 0.24 / 0.30                          | 0.32 / 0.44                         | 0.33 / 0.46                    | 0.34 / 0.48                            |
-| Mistral     |        1574 |        2.82 |                 0.66 |                 0.19 | 0.45 / 0.31                  | 0.45 / 0.31                          | 0.51 / 0.40                         | 0.52 / 0.42                    | 0.52 / 0.42                            |
-| Vicuna.13B  |        1574 |        3.83 |                 0.63 |                 0.27 | 0.37 / 0.19                  | 0.36 / 0.18                          | 0.42 / 0.27                         | 0.41 / 0.26                    | 0.41 / 0.27                            |
-| Llama2.13B  |        1574 |        1.5  |                 0.46 |                 0.45 | 0.27 / 0.14                  | 0.26 / 0.12                          | 0.29 / 0.18                         | 0.30 / 0.19                    | 0.30 / 0.19                            |
+| Model            | Method    |   Doc Count |   Avg Spans |   Abstention (NoAns) |   Missed Answer Rate | Span F1 (Overall / HasAns)   | Labeled Span F1 (Overall / HasAns)   | SQuAD Token F1 (Overall / HasAns)   | BERTScore (Overall / HasAns)   | Deduped BERTScore (Overall / HasAns)   |
+|:-----------------|:----------|------------:|------------:|---------------------:|---------------------:|:-----------------------------|:-------------------------------------|:------------------------------------|:-------------------------------|:---------------------------------------|
+| Gpt Oss.20B      | Zero-Shot |        1860 |        3.34 |                 0.62 |                 0.04 | 0.53 / 0.44                  | 0.53 / 0.44                          | 0.60 / 0.58                         | 0.61 / 0.60                    | 0.61 / 0.60                            |
+| Gemma4.E4B       | Zero-Shot |        1860 |        3.37 |                 0.6  |                 0.03 | 0.52 / 0.44                  | 0.51 / 0.43                          | 0.59 / 0.57                         | 0.59 / 0.58                    | 0.59 / 0.58                            |
+|                  | Cookbook  |        1860 |        3.58 |                 0.59 |                 0.05 | 0.51 / 0.42                  | 0.50 / 0.40                          | 0.57 / 0.55                         | 0.58 / 0.56                    | 0.58 / 0.56                            |
+| Llama3.1         | Cookbook  |        1860 |        4.62 |                 0.05 |                 0    | 0.22 / 0.39                  | 0.21 / 0.38                          | 0.30 / 0.55                         | 0.30 / 0.56                    | 0.30 / 0.55                            |
+| Qwen3.8B         | Zero-Shot |        1860 |        2.98 |                 0.56 |                 0.05 | 0.49 / 0.42                  | 0.49 / 0.42                          | 0.54 / 0.53                         | 0.55 / 0.55                    | 0.55 / 0.55                            |
+| Llama3.1.8B      | Zero-Shot |        1860 |        3.53 |                 0.37 |                 0.04 | 0.39 / 0.40                  | 0.38 / 0.38                          | 0.44 / 0.51                         | 0.45 / 0.53                    | 0.45 / 0.53                            |
+| Mistral Nemo.12B | Zero-Shot |        1860 |        2.13 |                 0.57 |                 0.1  | 0.48 / 0.39                  | 0.48 / 0.39                          | 0.53 / 0.50                         | 0.55 / 0.52                    | 0.55 / 0.52                            |
+| Gemma3.4B        | Zero-Shot |        1860 |        5.76 |                 0.17 |                 0.02 | 0.25 / 0.34                  | 0.24 / 0.32                          | 0.31 / 0.46                         | 0.32 / 0.48                    | 0.33 / 0.49                            |
+|                  | Cookbook  |        1860 |        3.59 |                 0.8  |                 0.18 | 0.56 / 0.32                  | 0.56 / 0.32                          | 0.61 / 0.42                         | 0.62 / 0.44                    | 0.62 / 0.44                            |
+| Mistral          | Zero-Shot |        1860 |        2.5  |                 0.73 |                 0.17 | 0.53 / 0.32                  | 0.53 / 0.32                          | 0.57 / 0.41                         | 0.58 / 0.43                    | 0.58 / 0.43                            |
+|                  | Cookbook  |        1860 |        2.16 |                 0.69 |                 0.16 | 0.51 / 0.33                  | 0.51 / 0.32                          | 0.56 / 0.43                         | 0.57 / 0.44                    | 0.56 / 0.44                            |
+| Vicuna.13B       | Zero-Shot |        1860 |        3.45 |                 0.65 |                 0.25 | 0.43 / 0.20                  | 0.42 / 0.19                          | 0.47 / 0.28                         | 0.46 / 0.27                    | 0.46 / 0.27                            |
+| Llama2.13B       | Zero-Shot |        1860 |        1.45 |                 0.46 |                 0.45 | 0.30 / 0.14                  | 0.30 / 0.13                          | 0.32 / 0.18                         | 0.33 / 0.20                    | 0.33 / 0.20                            |
 
-## Part 2: Visual Insights
+## Part 2: Visual Insights (Zero-Shot Baseline)
 
 ### 1. Abstention vs. Extraction Quality
 > *Evaluates whether models are 'Ideal Performers' (safe and accurate) or 'Hallucinators' (talkative but unsafe).*
@@ -35,54 +41,64 @@
 
 ## Part 3: Task Complexity Breakdown
 
-### Performance Degradation Heatmaps
+### Performance Degradation Heatmaps (Zero-Shot Baseline)
 > *Overall Score (includes easy abstentions) vs. HasAns Score (true extraction capability).*
 ![Task Complexity (Overall)](assets/task_complexity_heatmap_overall.png)
 ![Task Complexity (HasAns)](assets/task_complexity_heatmap_hasans.png)
 
 
 ### Question 1 Leaderboard
-| Model       |   Doc Count |   Avg Spans |   Abstention (NoAns) |   Missed Answer Rate | Span F1 (Overall / HasAns)   | Labeled Span F1 (Overall / HasAns)   | SQuAD Token F1 (Overall / HasAns)   | BERTScore (Overall / HasAns)   | Deduped BERTScore (Overall / HasAns)   |
-|:------------|------------:|------------:|---------------------:|---------------------:|:-----------------------------|:-------------------------------------|:------------------------------------|:-------------------------------|:---------------------------------------|
-| Gpt Oss.20B |         923 |        5.93 |                 0.02 |                 0    | 0.36 / 0.45                  | 0.36 / 0.45                          | 0.48 / 0.59                         | 0.50 / 0.62                    | 0.50 / 0.61                            |
-| Gemma4.E4B  |         923 |        6.07 |                 0.02 |                 0    | 0.35 / 0.43                  | 0.35 / 0.43                          | 0.46 / 0.58                         | 0.48 / 0.59                    | 0.47 / 0.59                            |
-| Qwen3.8B    |         923 |        4.93 |                 0.03 |                 0.03 | 0.35 / 0.43                  | 0.35 / 0.43                          | 0.43 / 0.52                         | 0.46 / 0.56                    | 0.45 / 0.56                            |
-| Llama3.1.8B |         923 |        5.51 |                 0.02 |                 0.01 | 0.33 / 0.40                  | 0.33 / 0.40                          | 0.41 / 0.51                         | 0.43 / 0.54                    | 0.43 / 0.53                            |
-| Mistral     |         923 |        4.65 |                 0.06 |                 0.03 | 0.31 / 0.37                  | 0.31 / 0.37                          | 0.40 / 0.48                         | 0.42 / 0.50                    | 0.42 / 0.51                            |
-| Gemma3.4B   |         923 |        9.07 |                 0.01 |                 0.01 | 0.26 / 0.33                  | 0.26 / 0.33                          | 0.36 / 0.45                         | 0.38 / 0.47                    | 0.39 / 0.49                            |
-| Vicuna.13B  |         923 |        6.02 |                 0.3  |                 0.21 | 0.22 / 0.20                  | 0.22 / 0.20                          | 0.28 / 0.28                         | 0.28 / 0.27                    | 0.28 / 0.27                            |
-| Llama2.13B  |         923 |        1.67 |                 0.44 |                 0.5  | 0.17 / 0.11                  | 0.17 / 0.11                          | 0.20 / 0.14                         | 0.21 / 0.16                    | 0.21 / 0.16                            |
+| Model            | Method    |   Doc Count |   Avg Spans |   Abstention (NoAns) |   Missed Answer Rate | Span F1 (Overall / HasAns)   | Labeled Span F1 (Overall / HasAns)   | SQuAD Token F1 (Overall / HasAns)   | BERTScore (Overall / HasAns)   | Deduped BERTScore (Overall / HasAns)   |
+|:-----------------|:----------|------------:|------------:|---------------------:|---------------------:|:-----------------------------|:-------------------------------------|:------------------------------------|:-------------------------------|:---------------------------------------|
+| Llama3.1         | Cookbook  |         954 |        5.62 |                 0    |                 0    | 0.32 / 0.40                  | 0.32 / 0.40                          | 0.44 / 0.55                         | 0.45 / 0.57                    | 0.45 / 0.56                            |
+| Gpt Oss.20B      | Zero-Shot |         954 |        5.87 |                 0.02 |                 0.01 | 0.37 / 0.45                  | 0.37 / 0.45                          | 0.48 / 0.59                         | 0.50 / 0.62                    | 0.50 / 0.61                            |
+| Gemma4.E4B       | Zero-Shot |         954 |        6.01 |                 0.02 |                 0    | 0.36 / 0.44                  | 0.36 / 0.44                          | 0.47 / 0.58                         | 0.48 / 0.60                    | 0.48 / 0.59                            |
+|                  | Cookbook  |         954 |        6.45 |                 0    |                 0    | 0.35 / 0.43                  | 0.35 / 0.43                          | 0.46 / 0.57                         | 0.47 / 0.58                    | 0.47 / 0.59                            |
+| Gemma3.4B        | Zero-Shot |         954 |        9.05 |                 0.01 |                 0.01 | 0.27 / 0.33                  | 0.27 / 0.33                          | 0.36 / 0.45                         | 0.38 / 0.47                    | 0.39 / 0.49                            |
+|                  | Cookbook  |         954 |        7    |                 0.01 |                 0    | 0.31 / 0.39                  | 0.31 / 0.39                          | 0.41 / 0.51                         | 0.43 / 0.53                    | 0.43 / 0.53                            |
+| Llama3.1.8B      | Zero-Shot |         954 |        5.52 |                 0.02 |                 0.02 | 0.33 / 0.41                  | 0.33 / 0.41                          | 0.41 / 0.51                         | 0.43 / 0.54                    | 0.43 / 0.54                            |
+| Qwen3.8B         | Zero-Shot |         954 |        4.88 |                 0.03 |                 0.03 | 0.35 / 0.43                  | 0.35 / 0.43                          | 0.43 / 0.53                         | 0.46 / 0.56                    | 0.45 / 0.56                            |
+| Llama2.13B       | Zero-Shot |         954 |        1.67 |                 0.46 |                 0.49 | 0.18 / 0.11                  | 0.18 / 0.11                          | 0.20 / 0.14                         | 0.22 / 0.15                    | 0.22 / 0.16                            |
+| Mistral Nemo.12B | Zero-Shot |         954 |        3.53 |                 0.04 |                 0.04 | 0.35 / 0.43                  | 0.35 / 0.43                          | 0.43 / 0.53                         | 0.46 / 0.56                    | 0.46 / 0.56                            |
+| Vicuna.13B       | Zero-Shot |         954 |        6.11 |                 0.29 |                 0.21 | 0.22 / 0.20                  | 0.22 / 0.20                          | 0.28 / 0.28                         | 0.28 / 0.27                    | 0.28 / 0.27                            |
+| Mistral          | Zero-Shot |         954 |        4.65 |                 0.06 |                 0.03 | 0.31 / 0.38                  | 0.31 / 0.38                          | 0.40 / 0.48                         | 0.41 / 0.50                    | 0.42 / 0.51                            |
+|                  | Cookbook  |         954 |        3.79 |                 0.13 |                 0.05 | 0.32 / 0.37                  | 0.32 / 0.37                          | 0.41 / 0.48                         | 0.43 / 0.50                    | 0.42 / 0.50                            |
 
-#### Plot A: Text Extraction Precision & Recall (Q1)
+#### Plot A: Text Extraction Precision & Recall (Q1 - Zero-Shot)
 > *This isolates reading comprehension: Did the model locate the correct phrases? HasAns-only bars at exact span match — one operating point per model.*
 ![Plot A: Text Spans](assets/q1_pr_bars.png)
 
 
 ### Question 2 Leaderboard
-| Model       |   Doc Count |   Avg Spans |   Abstention (NoAns) |   Missed Answer Rate | Span F1 (Overall / HasAns)   | Labeled Span F1 (Overall / HasAns)   | SQuAD Token F1 (Overall / HasAns)   | BERTScore (Overall / HasAns)   | Deduped BERTScore (Overall / HasAns)   |
-|:------------|------------:|------------:|---------------------:|---------------------:|:-----------------------------|:-------------------------------------|:------------------------------------|:-------------------------------|:---------------------------------------|
-| Gemma3.4B   |         651 |        2.4  |                 0.21 |                 0.07 | 0.24 / 0.33                  | 0.20 / 0.18                          | 0.28 / 0.44                         | 0.27 / 0.44                    | 0.28 / 0.44                            |
-| Qwen3.8B    |         651 |        1.03 |                 0.74 |                 0.19 | 0.62 / 0.33                  | 0.60 / 0.27                          | 0.66 / 0.47                         | 0.65 / 0.44                    | 0.65 / 0.44                            |
-| Gpt Oss.20B |         651 |        0.77 |                 0.78 |                 0.3  | 0.65 / 0.33                  | 0.64 / 0.28                          | 0.68 / 0.44                         | 0.68 / 0.42                    | 0.68 / 0.42                            |
-| Llama3.1.8B |         651 |        1.53 |                 0.48 |                 0.16 | 0.43 / 0.31                  | 0.39 / 0.17                          | 0.46 / 0.41                         | 0.45 / 0.39                    | 0.45 / 0.40                            |
-| Gemma4.E4B  |         651 |        0.65 |                 0.75 |                 0.27 | 0.62 / 0.31                  | 0.60 / 0.25                          | 0.65 / 0.40                         | 0.64 / 0.38                    | 0.64 / 0.38                            |
-| Llama2.13B  |         651 |        1.26 |                 0.47 |                 0.3  | 0.40 / 0.24                  | 0.37 / 0.15                          | 0.43 / 0.33                         | 0.43 / 0.33                    | 0.43 / 0.34                            |
-| Vicuna.13B  |         651 |        0.71 |                 0.76 |                 0.48 | 0.58 / 0.17                  | 0.56 / 0.08                          | 0.61 / 0.24                         | 0.60 / 0.23                    | 0.60 / 0.23                            |
-| Mistral     |         651 |        0.23 |                 0.9  |                 0.83 | 0.66 / 0.07                  | 0.65 / 0.05                          | 0.66 / 0.07                         | 0.66 / 0.07                    | 0.66 / 0.07                            |
+| Model            | Method    |   Doc Count |   Avg Spans |   Abstention (NoAns) |   Missed Answer Rate | Span F1 (Overall / HasAns)   | Labeled Span F1 (Overall / HasAns)   | SQuAD Token F1 (Overall / HasAns)   | BERTScore (Overall / HasAns)   | Deduped BERTScore (Overall / HasAns)   |
+|:-----------------|:----------|------------:|------------:|---------------------:|---------------------:|:-----------------------------|:-------------------------------------|:------------------------------------|:-------------------------------|:---------------------------------------|
+| Gpt Oss.20B      | Zero-Shot |         906 |        0.67 |                 0.77 |                 0.21 | 0.70 / 0.39                  | 0.70 / 0.36                          | 0.73 / 0.53                         | 0.73 / 0.52                    | 0.73 / 0.52                            |
+| Gemma4.E4B       | Zero-Shot |         906 |        0.58 |                 0.75 |                 0.17 | 0.69 / 0.40                  | 0.68 / 0.34                          | 0.71 / 0.52                         | 0.71 / 0.51                    | 0.71 / 0.51                            |
+|                  | Cookbook  |         906 |        0.55 |                 0.75 |                 0.24 | 0.67 / 0.35                  | 0.66 / 0.27                          | 0.70 / 0.46                         | 0.69 / 0.46                    | 0.69 / 0.46                            |
+| Llama3.1         | Cookbook  |         906 |        3.57 |                 0.06 |                 0.02 | 0.12 / 0.37                  | 0.10 / 0.28                          | 0.14 / 0.52                         | 0.14 / 0.51                    | 0.14 / 0.50                            |
+| Gemma3.4B        | Zero-Shot |         906 |        2.29 |                 0.21 |                 0.08 | 0.24 / 0.38                  | 0.22 / 0.25                          | 0.26 / 0.48                         | 0.26 / 0.49                    | 0.26 / 0.50                            |
+|                  | Cookbook  |         906 |        0    |                 1    |                 1    | 0.82 / 0.00                  | 0.82 / 0.00                          | 0.82 / 0.00                         | 0.82 / 0.00                    | 0.82 / 0.00                            |
+| Llama3.1.8B      | Zero-Shot |         906 |        1.43 |                 0.46 |                 0.13 | 0.45 / 0.39                  | 0.42 / 0.26                          | 0.47 / 0.49                         | 0.47 / 0.50                    | 0.47 / 0.49                            |
+| Qwen3.8B         | Zero-Shot |         906 |        0.98 |                 0.69 |                 0.13 | 0.63 / 0.36                  | 0.62 / 0.33                          | 0.66 / 0.51                         | 0.65 / 0.49                    | 0.65 / 0.49                            |
+| Llama2.13B       | Zero-Shot |         906 |        1.22 |                 0.47 |                 0.26 | 0.44 / 0.30                  | 0.42 / 0.21                          | 0.45 / 0.39                         | 0.45 / 0.41                    | 0.45 / 0.41                            |
+| Mistral Nemo.12B | Zero-Shot |         906 |        0.64 |                 0.71 |                 0.35 | 0.62 / 0.22                  | 0.61 / 0.18                          | 0.64 / 0.33                         | 0.64 / 0.32                    | 0.64 / 0.32                            |
+| Vicuna.13B       | Zero-Shot |         906 |        0.65 |                 0.75 |                 0.44 | 0.65 / 0.20                  | 0.63 / 0.13                          | 0.66 / 0.28                         | 0.66 / 0.27                    | 0.66 / 0.27                            |
+| Mistral          | Zero-Shot |         906 |        0.23 |                 0.91 |                 0.82 | 0.76 / 0.07                  | 0.75 / 0.05                          | 0.76 / 0.09                         | 0.76 / 0.09                    | 0.76 / 0.09                            |
+|                  | Cookbook  |         906 |        0.44 |                 0.83 |                 0.68 | 0.70 / 0.12                  | 0.70 / 0.08                          | 0.71 / 0.16                         | 0.71 / 0.16                    | 0.71 / 0.16                            |
 
-#### Plot A: Text Extraction Precision & Recall (Q2)
+#### Plot A: Text Extraction Precision & Recall (Q2 - Zero-Shot)
 > *This isolates reading comprehension: Did the model locate the correct phrases? HasAns-only bars at exact span match — one operating point per model.*
 ![Plot A: Text Spans](assets/q2_pr_bars.png)
 
-#### Plot B: Category Mislabeling Breakdown
+#### Plot B: Category Mislabeling Breakdown (Q2 - Zero-Shot)
 > *Macro-averages hide class-level failures. This 8-panel grid isolates which specific event labels models confuse after extracting the text.*
 ![Plot B: Category Grid](assets/q2_category_pr_grid.png)
 
 
-### Question 2: The Classification Penalty
+### Question 2: The Classification Penalty (Zero-Shot)
 > **Classification Dropoff = set_text_f1 - label_f1**
 > *A large gap indicates the model successfully acts as a search engine (finding the correct evidence text) but fails as a classifier (assigning the wrong event label).*
-![Classification Dropoff](assets/classification_dropoff_q2.png)
+![Classification Dropoff](assets/q2_classification_dropoff.png)
 
 
 ---
@@ -94,28 +110,28 @@
 ### Analysis: Question 1
 
 #### A. Missed Extractions (Failed to extract an existing answer)
-* **Total cases:** 592
-* **By model:** Llama2.13B: 366, Vicuna.13B: 157, Qwen3.8B: 25, Mistral: 22, Llama3.1.8B: 11, Gemma3.4B: 5, Gemma4.E4B: 3, Gpt Oss.20B: 3
+* **Total cases:** 688
+* **By model:** Llama2.13B: 375, Vicuna.13B: 163, Mistral: 63, Mistral Nemo.12B: 32, Qwen3.8B: 26, Llama3.1.8B: 12, Gemma3.4B: 6, Gemma4.E4B: 6, Gpt Oss.20B: 4, Llama3.1: 1
 
 **Edge Case #1 (Llama2.13B)**
-* **Ground Truth:** `warplanes | warplanes | warplanes | shells | shells | shells | shells | shells | mortar shells | sniper shot | sniper shot | sniper shot | guided missile | bombed | mortars | rocket shelling | aerial bombardment | aerial bombardment | aerial bombardment | aerial bombardment | shelling | shelling | airstrikes | snipers | snipers | snipers | rocket shells | barrel bombs | shelled | shelled | shelled | shelled | shelled | shelled | shelled | shelled | shelled | drone`
+* **Ground Truth:** `shelled | warplanes | warplanes | warplanes | warplanes | warplanes | warplanes | warplanes | warplanes | airstrikes | airstrikes | airstrikes | airstrikes | airstrikes | airstrikes | airstrikes | bomb | shelling | shelling | shelling | shelling | shelling | shelling | shelling | rocket shelling | ground shelling | ground shelling | mine | aerial and ground shelling | aerial and ground shelling | aerial bombardment | aerial bombardment | aerial bombardment | aerial and ground bombardment | bombardment by warplanes | shells | shells | barrel bombs | barrel bombs | barrel bombs`
 * **Model Prediction:** `[ABSTAINED - Predicted Nothing]`
 ---
 
 **Edge Case #2 (Vicuna.13B)**
-* **Ground Truth:** `warplanes | warplanes | warplanes | shells | shells | shells | shells | shells | mortar shells | sniper shot | sniper shot | sniper shot | guided missile | bombed | mortars | rocket shelling | aerial bombardment | aerial bombardment | aerial bombardment | aerial bombardment | shelling | shelling | airstrikes | snipers | snipers | snipers | rocket shells | barrel bombs | shelled | shelled | shelled | shelled | shelled | shelled | shelled | shelled | shelled | drone`
+* **Ground Truth:** `guided missile | shelling | shelling | bombed | mortar shells | drone | shelled | shelled | shelled | shelled | shelled | shelled | shelled | shelled | shelled | shells | shells | shells | shells | shells | barrel bombs | warplanes | warplanes | warplanes | sniper shot | sniper shot | sniper shot | mortars | aerial bombardment | aerial bombardment | aerial bombardment | aerial bombardment | rocket shelling | airstrikes | snipers | snipers | snipers | rocket shells`
 * **Model Prediction:** `[ABSTAINED - Predicted Nothing]`
 ---
 
-**Edge Case #3 (Llama3.1.8B)**
-* **Ground Truth:** `booby trapped vehicle | booby trapped vehicle | shot | shot | improvised explosive devices | opening fire | bombing | bombing`
+**Edge Case #3 (Mistral Nemo.12B)**
+* **Ground Truth:** `shot | shot | shot | shot | shot | shot | shot | shot | AK-47 assault rifle | gunfire | shooting`
 * **Model Prediction:** `[ABSTAINED - Predicted Nothing]`
 ---
 
 
 #### B. Hallucinations (Generated text on an unanswerable article)
-* **Total cases:** 1307
-* **By model:** Gemma3.4B: 183, Gemma4.E4B: 181, Gpt Oss.20B: 180, Llama3.1.8B: 180, Qwen3.8B: 178, Mistral: 173, Vicuna.13B: 129, Llama2.13B: 103
+* **Total cases:** 2277
+* **By model:** Gemma3.4B: 379, Gemma4.E4B: 379, Mistral: 347, Llama3.1: 191, Gpt Oss.20B: 187, Llama3.1.8B: 187, Qwen3.8B: 185, Mistral Nemo.12B: 183, Vicuna.13B: 136, Llama2.13B: 103
 
 **Edge Case #1 (Gemma3.4B)**
 * **Ground Truth:** `[EMPTY ARTICLE - Should have abstained]`
@@ -137,13 +153,13 @@
 
 
 #### C. Over-Extraction (High Verbosity, Low Precision)
-* **Total cases:** 834
-* **By model:** Gemma3.4B: 218, Vicuna.13B: 176, Llama3.1.8B: 101, Mistral: 84, Gemma4.E4B: 74, Gpt Oss.20B: 74, Qwen3.8B: 69, Llama2.13B: 38
+* **Total cases:** 1273
+* **By model:** Gemma3.4B: 347, Vicuna.13B: 185, Gemma4.E4B: 162, Mistral: 148, Llama3.1.8B: 102, Llama3.1: 98, Gpt Oss.20B: 73, Qwen3.8B: 70, Mistral Nemo.12B: 48, Llama2.13B: 40
 
 **Edge Case #1 (Vicuna.13B)**
-* **Ground Truth:** `artillery`
-* **Model Prediction:** `forces | forces | forces | forces | forces | forces | forces | forces | forces | troops | troops | troops | troops | troops | push | push | offensive | offensive | offensive | campaign | endurance | fighting heroes | return | arms of the motherland | surrender | Insurgency bastion | Sunni tribal volunteers | strikes | town of Albu Kamal | Syrian side of the border | Syrian side of the border | stronghold in the north | launch | launch | launch | launch | autonomous Kurdish region | autonomous Kurdish region | finances | crippling blow | territory | territory | territory | territory | territory | September 25 independence referendum | Iraqi prime minister | dismiss | annulment of the referendum | respect for the constitution | allies | Iran | Iran | Iran | Tehran | backing | military successes`
-* **Scores:** Spans Generated = 57 | Deduped BERTScore = 0.0000
+* **Ground Truth:** `shot | shot`
+* **Model Prediction:** `crossfire | crossfire | army | army | army | rebels | rebels | rebels | rebels | rebels | attacked | town | town | Beni | Beni | Beni | Beni | North Kivu | civilians | civilians | civilians | civilians | civilians | civilians | civilians | civilians | soldier | soldier | ADF fighter | ADF fighter | shot dead | shot dead | Gilbert Kambale | civil society leader | Mak Hazukay | civilians and soldiers | killed | killed | killed | exchanges of fire | Human rights violations | independent observers | deadly attacks against civilians | Beni area | massacres | October 2014 | more than 700 civilians dead | Human Rights Watch | government | failing to protect | people | Beni region | authorities | DRC President Joseph Kabila | Museveni | Museveni | talks | Uganda | Uganda | coordinated military strategy | ADF fighters | rebels | rebels | rebels | rebels | rebels | 20 years | human rights abuses | criminal networks | funded | kidnappings | smuggling | illegal logging`
+* **Scores:** Spans Generated = 73 | Deduped BERTScore = 0.0000
 ---
 
 **Edge Case #2 (Gemma3.4B)**
@@ -160,99 +176,99 @@
 
 
 #### D. Valid Paraphrasing (High Semantic Match, Zero Exact Match)
-* **Total cases:** 3
-* **By model:** Mistral: 1, Qwen3.8B: 1, Vicuna.13B: 1
+* **Total cases:** 7
+* **By model:** Mistral Nemo.12B: 3, Gemma4.E4B: 1, Mistral: 1, Qwen3.8B: 1, Vicuna.13B: 1
 
-**Edge Case #1 (Mistral)**
-* **Ground Truth:** `gun`
-* **Model Prediction:** `guns`
-* **Scores:** Span F1 = 0.0000 | Deduped BERTScore = 0.7508
+**Edge Case #1 (Gemma4.E4B)**
+* **Ground Truth:** `car bomb`
+* **Model Prediction:** `car bomb attack`
+* **Scores:** Span F1 = 0.0000 | Deduped BERTScore = 0.8099
 ---
 
-**Edge Case #2 (Qwen3.8B)**
-* **Ground Truth:** `air raid`
-* **Model Prediction:** `Air Attack | air attack`
-* **Scores:** Span F1 = 0.0000 | Deduped BERTScore = 0.7013
----
-
-**Edge Case #3 (Vicuna.13B)**
+**Edge Case #2 (Vicuna.13B)**
 * **Ground Truth:** `bullets`
 * **Model Prediction:** `bullet`
 * **Scores:** Span F1 = 0.0000 | Deduped BERTScore = 0.7694
+---
+
+**Edge Case #3 (Mistral Nemo.12B)**
+* **Ground Truth:** `gun`
+* **Model Prediction:** `guns`
+* **Scores:** Span F1 = 0.0000 | Deduped BERTScore = 0.7508
 ---
 
 
 ### Analysis: Question 2
 
 #### A. Missed Extractions (Failed to extract an existing answer)
-* **Total cases:** 496
-* **By model:** Mistral: 159, Vicuna.13B: 91, Gpt Oss.20B: 58, Llama2.13B: 57, Gemma4.E4B: 52, Qwen3.8B: 36, Llama3.1.8B: 30, Gemma3.4B: 13
+* **Total cases:** 746
+* **By model:** Mistral: 247, Gemma3.4B: 177, Vicuna.13B: 72, Gemma4.E4B: 68, Mistral Nemo.12B: 57, Llama2.13B: 43, Gpt Oss.20B: 35, Llama3.1.8B: 22, Qwen3.8B: 22, Llama3.1: 3
 
-**Edge Case #1 (Gemma4.E4B)**
-* **Ground Truth:** `weapons storage areas | oil storage tanks | ISIS headquarters | ISIS-held buildings | ISIS-held buildings | bridge | bridge | weapons storage area | ISIS fueling station | tunnels | oil refinement stills | VBIED storage facility`
+**Edge Case #1 (Mistral Nemo.12B)**
+* **Ground Truth:** `Churches | houses | houses | houses | houses | churches | farmlands | crops | house`
 * **Model Prediction:** `[ABSTAINED - Predicted Nothing]`
 ---
 
-**Edge Case #2 (Llama2.13B)**
-* **Ground Truth:** `weapons storage areas | oil storage tanks | ISIS headquarters | ISIS-held buildings | ISIS-held buildings | bridge | bridge | weapons storage area | ISIS fueling station | tunnels | oil refinement stills | VBIED storage facility`
+**Edge Case #2 (Vicuna.13B)**
+* **Ground Truth:** `Churches | houses | houses | houses | houses | churches | farmlands | crops | house`
 * **Model Prediction:** `[ABSTAINED - Predicted Nothing]`
 ---
 
-**Edge Case #3 (Llama3.1.8B)**
-* **Ground Truth:** `weapons storage areas | oil storage tanks | ISIS headquarters | ISIS-held buildings | ISIS-held buildings | bridge | bridge | weapons storage area | ISIS fueling station | tunnels | oil refinement stills | VBIED storage facility`
+**Edge Case #3 (Mistral)**
+* **Ground Truth:** `Churches | houses | houses | houses | houses | churches | farmlands | crops | house`
 * **Model Prediction:** `[ABSTAINED - Predicted Nothing]`
 ---
 
 
 #### B. Hallucinations (Generated text on an unanswerable article)
-* **Total cases:** 1344
-* **By model:** Gemma3.4B: 365, Llama2.13B: 246, Llama3.1.8B: 240, Qwen3.8B: 121, Gemma4.E4B: 116, Vicuna.13B: 112, Gpt Oss.20B: 99, Mistral: 45
+* **Total cases:** 3449
+* **By model:** Llama3.1: 697, Gemma3.4B: 587, Llama3.1.8B: 401, Llama2.13B: 397, Gemma4.E4B: 370, Qwen3.8B: 230, Mistral Nemo.12B: 215, Mistral: 194, Vicuna.13B: 189, Gpt Oss.20B: 169
 
-**Edge Case #1 (Llama3.1.8B)**
+**Edge Case #1 (Llama3.1)**
+* **Ground Truth:** `[EMPTY ARTICLE - Should have abstained]`
+* **Model Prediction:** `areas | areas | areas | areas | areas | areas | areas | areas | villages | countryside | countryside | countryside | countryside | countryside | countryside | countryside | countryside | countryside | countryside | countryside | countryside | countryside | countryside | countryside | countryside | countryside | Al-Hbit | Al-Hbit | checkpoint | Abdeen | Abdeen | Horsh Abdeen | Horsh al-Qassabiyyeh | Tremla | Karsaa | Maarrat Al-Sain | Hish | Marayan | Ihsim | Maarrat al-Nu’man | Rowayha | Al-Dana | Jaradah | Mantaf | Ariha | Maarbalit | Shalkh | Ram Hamdan | Kafar Yahmoule | Maarrat Misrin | Haranbush | village | village | Sheikh Bahr | Al-Fiqia | Wadi Al-Deif Camp | Hazanu | Batabu | Killi | killi | Sahl al-Ghab`
+* **Spans Generated:** 61
+---
+
+**Edge Case #2 (Llama3.1.8B)**
 * **Ground Truth:** `[EMPTY ARTICLE - Should have abstained]`
 * **Model Prediction:** `areas | areas | areas | areas | areas | areas | areas | areas | areas | areas | areas | areas | areas | areas | areas | areas | areas | areas | areas | areas | areas | Douma city | Zamalka city | Zamalka city | Ein Tarma town | AlMotahalik AlJanobi (the Southern Bypass)`
 * **Spans Generated:** 26
 ---
 
-**Edge Case #2 (Gpt Oss.20B)**
-* **Ground Truth:** `[EMPTY ARTICLE - Should have abstained]`
-* **Model Prediction:** `Morek | Morek | Morek | Morek | M’aarkaba | Lahaya | Lahaya | Lahaya | Kabani | Kabani | Atshan | Atshan | Om Jalal`
-* **Spans Generated:** 13
----
-
 **Edge Case #3 (Qwen3.8B)**
 * **Ground Truth:** `[EMPTY ARTICLE - Should have abstained]`
-* **Model Prediction:** `regime forces | regime forces | regime forces | regime forces | regime forces | regime forces | regime forces | regime forces | regime forces | regime forces | regime forces | regime forces`
-* **Spans Generated:** 12
+* **Model Prediction:** `tunnels | tunnels | tunnels | tunnels | tunnels | trenches | trenches | trenches | trenches | trenches | Baghuz farms | Baghuz farms | Baghuz farms | Baghuz farms | Baghuz farms | Baghuz farms | Baghuz farms | Baghuz farms | Baghuz farms | Baghuz farms | Baghuz farms`
+* **Spans Generated:** 21
 ---
 
 
 #### C. Over-Extraction (High Verbosity, Low Precision)
-* **Total cases:** 55
-* **By model:** Gemma3.4B: 21, Llama3.1.8B: 11, Qwen3.8B: 7, Llama2.13B: 5, Vicuna.13B: 5, Mistral: 3, Gpt Oss.20B: 2, Gemma4.E4B: 1
+* **Total cases:** 87
+* **By model:** Llama3.1: 22, Gemma3.4B: 17, Llama3.1.8B: 9, Mistral: 9, Qwen3.8B: 9, Llama2.13B: 6, Gpt Oss.20B: 4, Mistral Nemo.12B: 4, Vicuna.13B: 4, Gemma4.E4B: 3
 
-**Edge Case #1 (Gemma3.4B)**
-* **Ground Truth:** `neighborhoods`
-* **Model Prediction:** `warplanes | warplanes | missile | missile | shelling | shelling | shelling | shelling | shelling | shelling`
-* **Scores:** Spans Generated = 10 | Deduped BERTScore = 0.0000
+**Edge Case #1 (Mistral)**
+* **Ground Truth:** `regime forces checkpoints`
+* **Model Prediction:** `other | other | other | other | other | other | other | other | other | other | other | other | other | other | other | other | other | other | other | other | other | other | other | other | other | other | other | other | other | other | other | other | other | other | other | other | other | other | other | other | other | other | other | other | other | other | other | other`
+* **Scores:** Spans Generated = 48 | Deduped BERTScore = 0.0000
 ---
 
-**Edge Case #2 (Llama2.13B)**
-* **Ground Truth:** `olive plantations`
-* **Model Prediction:** `checkpoint | Military Council | Military Council | Military Council | Military Council | Military Council | Military Council | Military Council`
-* **Scores:** Spans Generated = 8 | Deduped BERTScore = 0.0000
+**Edge Case #2 (Llama3.1.8B)**
+* **Ground Truth:** `house | house`
+* **Model Prediction:** `University housing units | University housing units | University housing units | University housing units | car in Al-Fahama area | car in Al-Fahama area | Madaya town | Madaya town | Kafr Al-Zair village | Kafr Al-Zair village | Ghassan Abboud roundabout | Ghassan Abboud roundabout | Al-Sena’a roundabout | Al-Sena’a roundabout`
+* **Scores:** Spans Generated = 14 | Deduped BERTScore = 0.0000
 ---
 
-**Edge Case #3 (Gpt Oss.20B)**
-* **Ground Truth:** `buildings`
-* **Model Prediction:** `navy ship | navy ship | port | port | port | port | headquarters`
-* **Scores:** Spans Generated = 7 | Deduped BERTScore = 0.0000
+**Edge Case #3 (Llama3.1)**
+* **Ground Truth:** `house | house`
+* **Model Prediction:** `University housing units | University housing units | University housing units | University housing units | Al-Seryan Al-Kadeem neighborhood | Al-Seryan Al-Kadeem neighborhood | Tashreen sports complex | Tashreen sports complex | Madaya town | Madaya town | Kafr Al-Zair village of Damascus countryside | Kafr Al-Zair village of Damascus countryside | Al-Fahama area | Al-Fahama area`
+* **Scores:** Spans Generated = 14 | Deduped BERTScore = 0.0000
 ---
 
 
 #### D. Valid Paraphrasing (High Semantic Match, Zero Exact Match)
 * **Total cases:** 5
-* **By model:** Vicuna.13B: 2, Gemma3.4B: 1, Gpt Oss.20B: 1, Llama2.13B: 1
+* **By model:** Gpt Oss.20B: 2, Gemma3.4B: 1, Mistral: 1, Vicuna.13B: 1
 
 **Edge Case #1 (Gpt Oss.20B)**
 * **Ground Truth:** `Thermal Power plant`
@@ -260,41 +276,41 @@
 * **Scores:** Span F1 = 0.0000 | Deduped BERTScore = 0.8119
 ---
 
-**Edge Case #2 (Llama2.13B)**
-* **Ground Truth:** `Shalf Castle`
-* **Model Prediction:** `Shalf Castle area`
-* **Scores:** Span F1 = 0.0000 | Deduped BERTScore = 0.7379
+**Edge Case #2 (Vicuna.13B)**
+* **Ground Truth:** `militant hideout`
+* **Model Prediction:** `militants' hideout`
+* **Scores:** Span F1 = 0.0000 | Deduped BERTScore = 0.7191
 ---
 
-**Edge Case #3 (Vicuna.13B)**
-* **Ground Truth:** `Shalf Castle`
-* **Model Prediction:** `Shalf Castle area`
-* **Scores:** Span F1 = 0.0000 | Deduped BERTScore = 0.7379
+**Edge Case #3 (Gemma3.4B)**
+* **Ground Truth:** `militant hideout`
+* **Model Prediction:** `militants' hideout`
+* **Scores:** Span F1 = 0.0000 | Deduped BERTScore = 0.7191
 ---
 
 
 #### E. Label Mismatch (High Text Match, Wrong Category)
-* **Total cases:** 46
-* **By model:** Gemma3.4B: 11, Llama3.1.8B: 9, Vicuna.13B: 6, Gemma4.E4B: 5, Gpt Oss.20B: 5, Llama2.13B: 5, Qwen3.8B: 3, Mistral: 2
+* **Total cases:** 45
+* **By model:** Gemma4.E4B: 10, Llama3.1.8B: 9, Gemma3.4B: 5, Llama2.13B: 4, Mistral Nemo.12B: 4, Vicuna.13B: 4, Gpt Oss.20B: 3, Llama3.1: 3, Mistral: 2, Qwen3.8B: 1
 
-**Edge Case #1 (Gemma3.4B)**
-* **Extracted Text:** `wells` == `wells`
-* **Target Label:** `['Water']`
-* **Predicted Label:** `['Energy']`
+**Edge Case #1 (Mistral Nemo.12B)**
+* **Extracted Text:** `al-Thala airbase` == `al-Thala airbase`
+* **Target Label:** `['Government/Rebel']`
+* **Predicted Label:** `['Transportation/Marketing']`
 * **Scores:** Span F1 = 1.0000 | Labeled Span F1 = 0.0000
 ---
 
-**Edge Case #2 (Gemma4.E4B)**
-* **Extracted Text:** `wine store` == `wine store`
-* **Target Label:** `['Transportation/Marketing']`
-* **Predicted Label:** `['Other']`
+**Edge Case #2 (Qwen3.8B)**
+* **Extracted Text:** `checkpoint` == `checkpoint`
+* **Target Label:** `['Government/Rebel']`
+* **Predicted Label:** `['Transportation/Marketing']`
 * **Scores:** Span F1 = 1.0000 | Labeled Span F1 = 0.0000
 ---
 
-**Edge Case #3 (Gpt Oss.20B)**
-* **Extracted Text:** `wine store` == `wine store`
-* **Target Label:** `['Transportation/Marketing']`
-* **Predicted Label:** `['Other']`
+**Edge Case #3 (Vicuna.13B)**
+* **Extracted Text:** `al-Thala airbase` == `al-Thala airbase`
+* **Target Label:** `['Government/Rebel']`
+* **Predicted Label:** `['Transportation/Marketing']`
 * **Scores:** Span F1 = 1.0000 | Labeled Span F1 = 0.0000
 ---
 

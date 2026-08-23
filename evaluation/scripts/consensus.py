@@ -1,6 +1,7 @@
 import json
 import os
 import argparse
+import re
 from collections import Counter
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__))) if '__file__' in locals() else os.getcwd()
@@ -119,12 +120,11 @@ def build_scalable_consensus_dataset(input_path, output_path, conflicts_path):
     with open(conflicts_path, 'w', encoding='utf-8') as f:
         json.dump(conflicts_dataset, f, indent=4, ensure_ascii=False)
         
-    print("=" * 60)
     print(f"Consensus Generation Complete for: {os.path.basename(output_path)}")
-    print(f"Total clean articles: {len(consensus_dataset)}")
-    print(f"Articles skipped (unannotated or cancelled): {skipped_count}")
-    print(f"Articles exported to conflicts file: {conflict_count}")
-    print("=" * 60)
+    print(f"  -> Total clean articles: {len(consensus_dataset)}")
+    print(f"  -> Articles skipped (unannotated/cancelled): {skipped_count}")
+    print(f"  -> Articles exported to conflicts file: {conflict_count}")
+    print("-" * 60)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Generate Consensus Ground Truth from Label Studio")
@@ -132,15 +132,35 @@ if __name__ == "__main__":
     
     args = parser.parse_args()
     
-    if args.q is not None:
-        # dynamically route the files based on the question number
-        input_file = os.path.join(RAW_DIR, f"label_studio_q{args.q}.json")
-        output_file = os.path.join(RAW_DIR, f"ground_truth_q{args.q}.json")
-        conflicts_file = os.path.join(RAW_DIR, f"annotator_conflicts_q{args.q}.json")
-    else:
-        # fallback to standard names if no --q is passed
-        input_file = os.path.join(RAW_DIR, "label_studio.json")
-        output_file = os.path.join(RAW_DIR, "ground_truth.json")
-        conflicts_file = os.path.join(RAW_DIR, "annotator_conflicts.json")
+    if not os.path.exists(RAW_DIR):
+        print(f"[ERROR] Raw directory not found at: {RAW_DIR}")
+        sys.exit(1)
         
-    build_scalable_consensus_dataset(input_file, output_file, conflicts_file)
+    qs_to_process = []
+    
+    if args.q is not None:
+        qs_to_process.append(args.q)
+    else:
+        # Dynamically scan the directory for all label_studio_qX.json files
+        for filename in os.listdir(RAW_DIR):
+            match = re.match(r"label_studio_q(\d+)\.json", filename, re.IGNORECASE)
+            if match:
+                qs_to_process.append(int(match.group(1)))
+                
+        if not qs_to_process:
+            print(f"[ERROR] Could not find any files matching 'label_studio_qX.json' in {RAW_DIR}")
+            sys.exit(1)
+            
+    # Sort them so they process in order (1, 2, 3...)
+    qs_to_process = sorted(qs_to_process)
+    
+    print("=" * 60)
+    print(f"Starting Consensus Generation for Questions: {qs_to_process}")
+    print("=" * 60)
+    
+    for q in qs_to_process:
+        input_file = os.path.join(RAW_DIR, f"label_studio_q{q}.json")
+        output_file = os.path.join(RAW_DIR, f"ground_truth_q{q}.json")
+        conflicts_file = os.path.join(RAW_DIR, f"annotator_conflicts_q{q}.json")
+        
+        build_scalable_consensus_dataset(input_file, output_file, conflicts_file)

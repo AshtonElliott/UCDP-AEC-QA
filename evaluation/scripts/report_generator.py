@@ -1,9 +1,11 @@
 import sys
 import json
+import time
 import pandas as pd
 from pathlib import Path
 
 from scripts.visualization import (
+    clear_assets_dir,
     generate_performance_quadrant, 
     generate_verbosity_scatter,
     generate_task_heatmap_overall,
@@ -61,8 +63,16 @@ def aggregate_squad2_metrics(df, group_cols):
         
         avg_spans = round(group['spans_generated'].mean(), 2)
 
+        model_raw = name[group_cols.index('model')] if isinstance(name, tuple) and 'model' in group_cols else (name[0] if isinstance(name, tuple) else name)
+        strategy_raw = name[group_cols.index('strategy')] if isinstance(name, tuple) and 'strategy' in group_cols else 'zero-shot'
+
+        display_strategy = strategy_raw.title()
+
         res = {
-            "Model": name if isinstance(name, str) else name[0],
+            "Model": model_raw,
+            "Method": display_strategy,
+            "Model_Raw": model_raw,          
+            "Strategy_Raw": strategy_raw,   
             "Doc Count": len(group),
             "Avg Spans": avg_spans,
             "NoAns Acc": no_ans_acc,
@@ -87,20 +97,55 @@ def aggregate_squad2_metrics(df, group_cols):
             "Deduped BERTScore (Overall / HasAns)": f"{overall_dd_bert:.2f} / {has_ans_dd_bert:.2f}"
         }
         
-        if isinstance(name, tuple) and len(name) > 1:
-            res["Question"] = int(name[1])
+        if isinstance(name, tuple) and 'question' in group_cols:
+            res["Question"] = int(name[group_cols.index('question')])
 
         agg_data.append(res)
 
     return pd.DataFrame(agg_data)
 
+def sort_paired_leaderboard(df):
+    """Sorts leaderboard by Zero-shot run performance, locking Cookbook directly underneath it."""
+    if df.empty: return df
+    
+    # Sort key anchors to the Zero-shot performance of each model
+    std_perfs = df[df['Strategy_Raw'] == 'zero-shot'].set_index('Model_Raw')['HasAns Dedup BERT'].to_dict()
+    df['Sort_Key'] = df.apply(lambda r: std_perfs.get(r['Model_Raw'], r['HasAns Dedup BERT']), axis=1)
+    
+    # Sort models descending by performance, then ensure Zero-shot comes before Cookbook (z > c, so ascending=False works)
+    df_sorted = df.sort_values(by=['Sort_Key', 'Model_Raw', 'Strategy_Raw'], ascending=[False, True, False]).copy()
+    return df_sorted
+
+def format_grouped_table_for_display(df, display_cols):
+    """
+    Safely blanks out repeating Model names for consecutive paired method rows,
+    while guaranteeing standalone models (no cookbook) never get blanked out.
+    """
+    table_df = df[display_cols].copy()
+    
+    formatted_models = []
+    previous_model = None
+    
+    for current_model in df['Model_Raw']:
+        if current_model != previous_model:
+            formatted_models.append(current_model)
+            previous_model = current_model
+        else:
+            formatted_models.append("")
+            
+    table_df['Model'] = formatted_models
+    return table_df
 
 def generate_full_report():
+    report_start_time = time.time()
     artifact_path = RESULTS_DIR / "master_evaluation_artifact.json"
     
     if not artifact_path.exists():
         print("[ERROR] No artifact found. Run the compute pipeline first.", file=sys.stderr)
         return
+
+    # Clear old graphics out of the assets directory
+    clear_assets_dir()
 
     with artifact_path.open("r", encoding="utf-8") as f:
         all_records = json.load(f)
@@ -110,33 +155,55 @@ def generate_full_report():
         print("\n[FATAL] Artifact is empty.", file=sys.stderr)
         return
 
-    # ENSURE TYPE CONSISTENCY FOR QUESTION NUMBERS
+    # Extract the GPU compute time logged by report_generator.py
+    meta_path = RESULTS_DIR / "pipeline_metadata.json"
+    compute_time = "Unknown"
+    if meta_path.exists():
+        with meta_path.open("r", encoding="utf-8") as f:
+            meta = json.load(f)
+            compute_time = meta.get("compute_time_seconds", "Unknown")
+
+    # ENSURE TYPE CONSISTENCY FOR QUESTION NUMBERS & STRATEGY
     if 'question' in df.columns:
         df['question'] = pd.to_numeric(df['question'], errors='coerce').fillna(0).astype(int)
+        
+    # --- LEGACY DATA FIX ---
+    # Convert 'standard' strings in old datasets directly to 'zero-shot'.
+    # This guarantees the graphs render, the sort works, and the table labels perfectly.
+    if 'strategy' not in df.columns:
+        df['strategy'] = 'zero-shot'
+    else:
+        df['strategy'] = df['strategy'].replace('standard', 'zero-shot')
 
     display_cols = [
-        "Model", "Doc Count", "Avg Spans", "Abstention (NoAns)", "Missed Answer Rate",
+        "Model", "Method", "Doc Count", "Avg Spans", "Abstention (NoAns)", "Missed Answer Rate",
         "Span F1 (Overall / HasAns)", "Labeled Span F1 (Overall / HasAns)", 
         "SQuAD Token F1 (Overall / HasAns)", "BERTScore (Overall / HasAns)",
         "Deduped BERTScore (Overall / HasAns)"
     ]
 
     # LAYER 1: GLOBAL AGGREGATION
-    g_agg = aggregate_squad2_metrics(df, group_cols=['model'])
+    g_agg = aggregate_squad2_metrics(df, group_cols=['model', 'strategy'])
+    g_agg = sort_paired_leaderboard(g_agg)
 
-    # Generate Visuals
-    generate_performance_quadrant(df=g_agg, model_col="Model", filename="master_quadrant.png")
-    generate_strict_vs_relaxed_quadrant(df=g_agg, model_col="Model", filename="strict_vs_relaxed.png")
-    generate_verbosity_scatter(df=g_agg, model_col="Model", filename="verbosity_vs_accuracy.png")
-
-    print(f"**Total Models Evaluated:** {len(g_agg)}")
-    print(f"**Total Documents Processed:** {g_agg['Doc Count'].max()}\n")
-
-    print("## Part 1: Global Benchmark Leaderboard (SQuAD 2.0 Standard)")
-    print("> *All text metrics formatted as (Overall / HasAns)*\n")
-    print(g_agg.sort_values(by="HasAns Dedup BERT", ascending=False)[display_cols].to_markdown(index=False))
+    # GENERATE VISUALS (STRICTLY ZERO-SHOT ONLY)
+    g_agg_plot = g_agg[g_agg['Strategy_Raw'] == 'zero-shot'].copy()
+    g_agg_plot['Model'] = g_agg_plot['Model_Raw'] # Map name directly without (Method) string
     
-    print("\n## Part 2: Visual Insights")
+    generate_performance_quadrant(df=g_agg_plot, model_col="Model", filename="master_quadrant.png")
+    generate_strict_vs_relaxed_quadrant(df=g_agg_plot, model_col="Model", filename="strict_vs_relaxed.png")
+    generate_verbosity_scatter(df=g_agg_plot, model_col="Model", filename="verbosity_vs_accuracy.png")
+
+    print(f"**Total Models Evaluated:** {df['model'].nunique()}")
+    print(f"**Total Documents Processed:** {g_agg['Doc Count'].max()}")
+    print(f"**Full Evaluation Compute Time:** {compute_time} seconds\n")
+
+    # Table 1: Global Benchmark Leaderboard (Contains BOTH Zero-Shot & Cookbook)
+    print("## Part 1: Global Benchmark Leaderboard (SQuAD 2.0 Evaluation)")
+    print("> *All text metrics formatted as (Overall / HasAns)*\n")
+    print(format_grouped_table_for_display(g_agg, display_cols).to_markdown(index=False))
+    
+    print("\n## Part 2: Visual Insights (Zero-Shot Baseline)")
     print("\n### 1. Abstention vs. Extraction Quality")
     print("> *Evaluates whether models are 'Ideal Performers' (safe and accurate) or 'Hallucinators' (talkative but unsafe).*")
     print("![Master Performance Quadrant](assets/master_quadrant.png)\n")
@@ -150,7 +217,9 @@ def generate_full_report():
     print("![Verbosity vs Semantic Accuracy](assets/verbosity_vs_accuracy.png)\n")
 
     # LAYER 2: PER-QUESTION AGGREGATION
-    q_agg = aggregate_squad2_metrics(df, group_cols=['model', 'question'])
+    q_agg = aggregate_squad2_metrics(df, group_cols=['model', 'strategy', 'question'])
+    q_agg = sort_paired_leaderboard(q_agg)
+
     if 'Question' in q_agg.columns:
         unique_qs = sorted(q_agg['Question'].unique())
         
@@ -158,53 +227,82 @@ def generate_full_report():
             print("\n---\n")
             print("## Part 3: Task Complexity Breakdown")
             
-            heatmap_df = q_agg[['Model', 'Question', 'Overall Dedup BERT', 'HasAns Dedup BERT']].copy()
-            heatmap_df.rename(columns={'Model': 'Model Target', 'Question': 'question'}, inplace=True)
+            # Heatmaps (Strictly Zero-Shot Only)
+            heatmap_df = q_agg[q_agg['Strategy_Raw'] == 'zero-shot'].copy()
+            heatmap_df = heatmap_df[['Model_Raw', 'Question', 'Overall Dedup BERT', 'HasAns Dedup BERT']].copy()
+            heatmap_df.rename(columns={'Model_Raw': 'Model Target', 'Question': 'question'}, inplace=True)
             heatmap_df['Question Track'] = heatmap_df['question'].apply(lambda x: f"Question {x}")
             
             generate_task_heatmap_overall(df=heatmap_df, filename="task_complexity_heatmap_overall.png")
             generate_task_heatmap_hasans(df=heatmap_df, filename="task_complexity_heatmap_hasans.png")
             
-            print("\n### Performance Degradation Heatmaps")
+            print("\n### Performance Degradation Heatmaps (Zero-Shot Baseline)")
             print("> *Overall Score (includes easy abstentions) vs. HasAns Score (true extraction capability).*")
             print("![Task Complexity (Overall)](assets/task_complexity_heatmap_overall.png)")
             print("![Task Complexity (HasAns)](assets/task_complexity_heatmap_hasans.png)\n")
 
+            # Tables 2 & 3: Per-Question Leaderboards (Contains BOTH Zero-Shot & Cookbook)
             for q in unique_qs:
                 q_num = int(q)
                 print(f"\n### Question {q_num} Leaderboard")
                 q_subset = q_agg[q_agg['Question'] == q_num].copy()
-                print(q_subset.sort_values(by="HasAns Dedup BERT", ascending=False)[display_cols].to_markdown(index=False))
+                print(format_grouped_table_for_display(q_subset, display_cols).to_markdown(index=False))
                 
-                # Plot A: HasAns precision/recall bars (single operating point per model)
+                # Plot A: HasAns precision/recall bars (Strictly Zero-Shot Only)
                 bars_filename = f"q{q_num}_pr_bars.png"
+                q_subset_plot = q_subset[q_subset['Strategy_Raw'] == 'zero-shot'].copy()
+                q_subset_plot['Model'] = q_subset_plot['Model_Raw']
+                
                 generate_pr_bars(
-                    q_subset, 
+                    q_subset_plot, 
                     "HasAns Span R", 
                     "HasAns Span P", 
                     f"Q{q_num}: Precision vs. Recall (Text Spans)",
                     bars_filename
                 )
-                print(f"\n#### Plot A: Text Extraction Precision & Recall (Q{q_num})")
+                print(f"\n#### Plot A: Text Extraction Precision & Recall (Q{q_num} - Zero-Shot)")
                 print("> *This isolates reading comprehension: Did the model locate the correct phrases? HasAns-only bars at exact span match — one operating point per model.*")
                 print(f"![Plot A: Text Spans](assets/{bars_filename})\n")
                     
-            # Generate Q2 Category Grid & Dropoff ONCE outside the per-question loop
-            df_q2 = df[df['question'] == 2]
-            if not df_q2.empty:
-                generate_category_pr_grid(df_q2, "q2_category_pr_grid.png")
-                print("#### Plot B: Category Mislabeling Breakdown")
-                print("> *Macro-averages hide class-level failures. This 8-panel grid isolates which specific event labels models confuse after extracting the text.*")
-                print("![Plot B: Category Grid](assets/q2_category_pr_grid.png)\n")
+                # Dynamic Routing: Q2 specific plots (Strictly Zero-Shot Only)
+                if q_num == 2:
+                    # Raw records filter
+                    q_subset_raw = df[(df['question'] == q_num) & (df['strategy'] == 'zero-shot')].copy()
+                    
+                    has_categories = q_subset_raw['cat_stats'].apply(lambda x: isinstance(x, dict) and len(x) > 0).any()
+                    
+                    if not q_subset_raw.empty and has_categories:
+                        q_subset_raw['Model'] = q_subset_raw['model'] 
+                        grid_filename = f"q{q_num}_category_pr_grid.png"
+                        
+                        generate_category_pr_grid(
+                            q_subset_raw, 
+                            filename=grid_filename
+                        )
+                        
+                        print(f"#### Plot B: Category Mislabeling Breakdown (Q{q_num} - Zero-Shot)")
+                        print("> *Macro-averages hide class-level failures. This 8-panel grid isolates which specific event labels models confuse after extracting the text.*")
+                        print(f"![Plot B: Category Grid](assets/{grid_filename})\n")
 
-                generate_classification_dropoff(df=q_agg, filename="classification_dropoff_q2.png")
-                print("\n### Question 2: The Classification Penalty")
-                print("> **Classification Dropoff = set_text_f1 - label_f1**")
-                print("> *A large gap indicates the model successfully acts as a search engine (finding the correct evidence text) but fails as a classifier (assigning the wrong event label).*")
-                print("![Classification Dropoff](assets/classification_dropoff_q2.png)\n")
+                        dropoff_filename = f"q{q_num}_classification_dropoff.png"
+                        q_agg_q_plot = q_agg[(q_agg['Question'] == q_num) & (q_agg['Strategy_Raw'] == 'zero-shot')].copy()
+                        q_agg_q_plot['Model'] = q_agg_q_plot['Model_Raw'] 
+                        
+                        generate_classification_dropoff(
+                            q_agg_q_plot, 
+                            filename=dropoff_filename
+                        )
+                        
+                        print(f"\n### Question {q_num}: The Classification Penalty (Zero-Shot)")
+                        print("> **Classification Dropoff = set_text_f1 - label_f1**")
+                        print("> *A large gap indicates the model successfully acts as a search engine (finding the correct evidence text) but fails as a classifier (assigning the wrong event label).*")
+                        print(f"![Classification Dropoff](assets/{dropoff_filename})\n")
 
     print("\n---\n")
     run_error_analysis(records=all_records)
+    
+    total_time = round(time.time() - report_start_time, 2)
+    print(f"\n[Report System] Report rendering completed in {total_time} seconds", file=sys.stderr)
 
 if __name__ == "__main__":
     generate_full_report()

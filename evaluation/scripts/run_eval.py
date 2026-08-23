@@ -19,11 +19,13 @@ RESULTS_DIR = DATA_DIR / 'evaluation_results'
 def discover_llm_files(raw_dir):
     llm_files_by_question = defaultdict(dict)
     for filepath in raw_dir.glob("*_results*.json"):
-        match = re.search(r"^(.*?)_results(\d*)\.json$", filepath.name, re.IGNORECASE)
+        # Match both standard (model.v_results2.json) and cookbook (model_results2_cb.json)
+        match = re.search(r"^(.*?)_results(\d*)(_cb)?\.json$", filepath.name, re.IGNORECASE)
         if match:
             raw_model_name = match.group(1).replace("_", " ").replace("-", " ").title() 
             q_num = int(match.group(2)) if match.group(2) else 1 
-            llm_files_by_question[q_num][raw_model_name] = filepath
+            strategy = "cookbook" if match.group(3) else "zero-shot"
+            llm_files_by_question[q_num][(raw_model_name, strategy)] = filepath
     return llm_files_by_question
 
 def load_ground_truth_map(filepath):
@@ -49,7 +51,7 @@ def evaluate_models_globally(model_files, gt_map, q_num):
     bert_queue_std, bert_queue_dd = [], []
     std_cross_pairs, dd_cross_pairs = [], []
     
-    for model_name, filepath in model_files.items():
+    for (model_name, strategy), filepath in model_files.items():
         if not filepath.exists(): continue
         
         try:
@@ -61,6 +63,8 @@ def evaluate_models_globally(model_files, gt_map, q_num):
             
         for pred_entry in predictions:
             article_text = pred_entry.get('source_article', '').strip()
+            
+            # Rigorous match check - Skip extra inferences that don't belong in the consensus GT set
             if article_text not in gt_map: continue
             
             gold_spans = gt_map[article_text].get('answer_labels', [])
@@ -74,7 +78,7 @@ def evaluate_models_globally(model_files, gt_map, q_num):
             
             rec_id = len(master_records)
             record = {
-                "model": model_name, "question": q_num, "article": article_text,
+                "model": model_name, "strategy": strategy, "question": q_num, "article": article_text,
                 "has_ans": has_ans, "has_pred": has_pred,
                 "g_texts": g_texts, "p_texts": p_texts,
                 "g_labels": [str(g.get('labels', [])) for g in gold_spans],
@@ -145,6 +149,10 @@ def evaluate_models_globally(model_files, gt_map, q_num):
                 # Queue Pairs for BERTScore
                 norm_p = [EvaluationEngine.normalize_answer(p) for p in p_texts]
                 norm_g = [EvaluationEngine.normalize_answer(g) for g in g_texts]
+                
+                norm_p = [p for p in norm_p if p]
+                norm_g = [g for g in norm_g if g]
+                
                 start_std = len(std_cross_pairs)
                 std_cross_pairs.extend(zip([p for p in norm_p for g in norm_g], [g for p in norm_p for g in norm_g]))
                 bert_queue_std.append((rec_id, start_std, len(norm_p), len(norm_g)))
@@ -231,7 +239,13 @@ def run_evaluation_pipeline(question_filter=None):
         json.dump(all_records, f, indent=4)
         
     total_time = round(time.time() - pipeline_start_time, 2)
-    print(f"\n[Compute Complete] Pipeline Execution Time: {total_time} seconds", file=sys.stderr)
+    
+    # Save the pipeline execution time to a meta file so the report generator can pull it
+    meta_path = RESULTS_DIR / "pipeline_metadata.json"
+    with meta_path.open("w", encoding="utf-8") as f:
+        json.dump({"compute_time_seconds": total_time}, f, indent=4)
+        
+    print(f"[Compute Complete] GPU Pipeline Execution Time: {total_time} seconds", file=sys.stderr)
 
 if __name__ == "__main__":
     run_evaluation_pipeline()
