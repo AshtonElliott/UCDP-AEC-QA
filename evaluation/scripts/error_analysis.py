@@ -62,13 +62,19 @@ def _empty_buckets():
 
 def run_error_analysis(records=None):
     print("\n## Part 4: Error Analysis & SQuAD 2.0 Edge Cases", file=sys.stdout)
-    print("> *Automated extraction of specific failure modes across the IE pipeline.*", file=sys.stdout)
+    print("> *Automated extraction of specific failure modes across the IE pipeline (Zero-Shot baseline only).*", file=sys.stdout)
 
     if records is None:
         if not ARTIFACT_PATH.exists():
             return
         with ARTIFACT_PATH.open('r', encoding='utf-8') as f:
             records = json.load(f)
+
+    # Keep Part 4 aligned with plots: analyze zero-shot only (legacy rows with no strategy count as zero-shot).
+    records = [
+        rec for rec in records
+        if rec.get('strategy', 'zero-shot').replace('standard', 'zero-shot') == 'zero-shot'
+    ]
 
     # Collect all matching cases first, then select diverse severe examples.
     candidates = defaultdict(_empty_buckets)

@@ -114,33 +114,33 @@
 
 
 ## Part 4: Error Analysis & SQuAD 2.0 Edge Cases
-> *Automated extraction of specific failure modes across the IE pipeline.*
+> *Automated extraction of specific failure modes across the IE pipeline (Zero-Shot baseline only).*
 
 ### Analysis: Question 1
 
 #### A. Missed Extractions (Failed to extract an existing answer)
-* **Total cases:** 1761
-* **By model:** Vicuna.13B: 617, Gpt Oss.20B: 598, Llama2.13B: 375, Mistral: 63, Mistral Nemo.12B: 57, Qwen3.8B: 26, Llama3.1.8B: 13, Gemma3.4B: 6, Gemma4.E4B: 6
+* **Total cases:** 644
+* **By model:** Llama2.13B: 375, Vicuna.13B: 163, Mistral Nemo.12B: 32, Qwen3.8B: 26, Mistral: 24, Llama3.1.8B: 12, Gemma3.4B: 5, Gpt Oss.20B: 4, Gemma4.E4B: 3
 
-**Edge Case #1 (Gpt Oss.20B)**
+**Edge Case #1 (Llama2.13B)**
 * **Ground Truth:** `mine | shelled | shelling | shelling | shelling | shelling | shelling | shelling | shelling | aerial and ground shelling | aerial and ground shelling | ground shelling | ground shelling | bomb | aerial and ground bombardment | airstrikes | airstrikes | airstrikes | airstrikes | airstrikes | airstrikes | airstrikes | shells | shells | barrel bombs | barrel bombs | barrel bombs | bombardment by warplanes | aerial bombardment | aerial bombardment | aerial bombardment | rocket shelling | warplanes | warplanes | warplanes | warplanes | warplanes | warplanes | warplanes | warplanes`
 * **Model Prediction:** `[ABSTAINED - Predicted Nothing]`
 ---
 
-**Edge Case #2 (Llama2.13B)**
-* **Ground Truth:** `mine | shelled | shelling | shelling | shelling | shelling | shelling | shelling | shelling | aerial and ground shelling | aerial and ground shelling | ground shelling | ground shelling | bomb | aerial and ground bombardment | airstrikes | airstrikes | airstrikes | airstrikes | airstrikes | airstrikes | airstrikes | shells | shells | barrel bombs | barrel bombs | barrel bombs | bombardment by warplanes | aerial bombardment | aerial bombardment | aerial bombardment | rocket shelling | warplanes | warplanes | warplanes | warplanes | warplanes | warplanes | warplanes | warplanes`
-* **Model Prediction:** `[ABSTAINED - Predicted Nothing]`
----
-
-**Edge Case #3 (Vicuna.13B)**
+**Edge Case #2 (Vicuna.13B)**
 * **Ground Truth:** `shelled | shelled | shelled | shelled | shelled | shelled | shelled | shelled | shelled | barrel bombs | mortars | shelling | shelling | shells | shells | shells | shells | shells | snipers | snipers | snipers | guided missile | drone | mortar shells | bombed | sniper shot | sniper shot | sniper shot | rocket shelling | warplanes | warplanes | warplanes | airstrikes | aerial bombardment | aerial bombardment | aerial bombardment | aerial bombardment | rocket shells`
+* **Model Prediction:** `[ABSTAINED - Predicted Nothing]`
+---
+
+**Edge Case #3 (Mistral Nemo.12B)**
+* **Ground Truth:** `AK-47 assault rifle | gunfire | shot | shot | shot | shot | shot | shot | shot | shot | shooting`
 * **Model Prediction:** `[ABSTAINED - Predicted Nothing]`
 ---
 
 
 #### B. Hallucinations (Generated text on an unanswerable article)
-* **Total cases:** 2574
-* **By model:** Gemma3.4B: 379, Gemma4.E4B: 379, Llama3.1.8B: 378, Mistral Nemo.12B: 369, Mistral: 347, Vicuna.13B: 224, Gpt Oss.20B: 210, Qwen3.8B: 185, Llama2.13B: 103
+* **Total cases:** 1539
+* **By model:** Gemma3.4B: 190, Gemma4.E4B: 188, Gpt Oss.20B: 187, Llama3.1.8B: 187, Qwen3.8B: 185, Mistral Nemo.12B: 183, Mistral: 180, Vicuna.13B: 136, Llama2.13B: 103
 
 **Edge Case #1 (Gemma3.4B)**
 * **Ground Truth:** `[EMPTY ARTICLE - Should have abstained]`
@@ -150,8 +150,8 @@
 
 **Edge Case #2 (Vicuna.13B)**
 * **Ground Truth:** `[EMPTY ARTICLE - Should have abstained]`
-* **Model Prediction:** `protests | protests | clashes | clashes | clashes | violence | violence | violence | security crackdown | arrests | leaders | leaders | Islamists | Islamists | Islamists | Islamists | Islamists | Morsi | Morsi | Morsi | Morsi | Morsi | Morsi | Morsi | Morsi | Muslim Brotherhood | Muslim Brotherhood | democracy | posters | coup | Coup | Coup | coup | military | military | peaceful rallies | proposals | tensions | prisoners | probe | violence | violence | violence | police | police | police | Police | police | Police | government buildings | stations | Soldiers | thoroughfares | squares | Beltagi | Beltagi | Beltagi | Azhari | parliament | opponents | warrant | inciting violence`
-* **Spans Generated:** 62
+* **Model Prediction:** `Iraqi armed forces | Iraqi armed forces | military statement | military statement | military statement | Old City center | three adjacent districts | Tigris river | Desperate civilians | little food and water | no electricity | limited access to hospitals | Iraqi air force | humanitarian groups | safety of those trying to escape | landmark leaning minaret | black flag | next few days | United Nations | deep concern | hundreds of thousands of civilians | behind Islamic State lines | behind Islamic State lines | disturbing reports | children being deliberately targeted by snipers | residents | Residents | Residents | millet | cooked like rice | wild mallow plants | mulberry leaves | operations launched | MOSUL | Mosul | Mosul | Mosul | Mosul | Mosul | surrounding Nineveh province | senior commander | senior commander | Mashregh | Iranian news website | Popular Mobilisation | Syrian army | significant advantage`
+* **Spans Generated:** 47
 ---
 
 **Edge Case #3 (Llama2.13B)**
@@ -162,13 +162,13 @@
 
 
 #### C. Over-Extraction (High Verbosity, Low Precision)
-* **Total cases:** 1520
-* **By model:** Vicuna.13B: 350, Gemma3.4B: 347, Llama3.1.8B: 200, Gemma4.E4B: 162, Mistral: 148, Gpt Oss.20B: 113, Mistral Nemo.12B: 90, Qwen3.8B: 70, Llama2.13B: 40
+* **Total cases:** 894
+* **By model:** Gemma3.4B: 216, Vicuna.13B: 185, Llama3.1.8B: 102, Mistral: 87, Gemma4.E4B: 73, Gpt Oss.20B: 73, Qwen3.8B: 70, Mistral Nemo.12B: 48, Llama2.13B: 40
 
 **Edge Case #1 (Vicuna.13B)**
-* **Ground Truth:** `Improvised Explosive Devices (IED) borne-vehicle`
-* **Model Prediction:** `troops | troops | troops | troops | troops | troops | killed | killed | Boko Haram terrorists | Boko Haram terrorists | Goniri community | Gubio Local Government Area | Yobe | Yobe | Assistant Director | Army Public Relations | 27 Task Force Brigade | insurgents | insurgents | insurgents | insurgents | insurgents | Sambisa Forest | community | community | community | community | engaged | killed | killed | wounded | wounded | high calibre ammunition | fleeing terrorists | Operation DEEDP PUNCH II | attempted to infiltrate | formidable blocking positions | Goniri | Goniri | Gujba Local Government Area | Yobe State | destroyed | neutralised | wounded | wounded | several others | several others | recovered | recovered | long belt of ammunitions | items | unscrupulous elements | society | provided information | insurgents | insurgents | insurgents | insurgents | insurgents | Area | Area | area | utilised the information | made concerted attempt | infiltrate | infiltrate | infiltrate | gallant troops | repelled | attack | attack | attack | crushed them | soldiers | injuries | attack | attack | attack | treatment`
-* **Scores:** Spans Generated = 79 | Deduped BERTScore = 0.0000
+* **Ground Truth:** `shot | shot`
+* **Model Prediction:** `crossfire | crossfire | army | army | army | rebels | rebels | rebels | rebels | rebels | attacked | town | town | Beni | Beni | Beni | Beni | North Kivu | civilians | civilians | civilians | civilians | civilians | civilians | civilians | civilians | soldier | soldier | ADF fighter | ADF fighter | shot dead | shot dead | Gilbert Kambale | civil society leader | Mak Hazukay | civilians and soldiers | killed | killed | killed | exchanges of fire | Human rights violations | independent observers | deadly attacks against civilians | Beni area | massacres | October 2014 | more than 700 civilians dead | Human Rights Watch | government | failing to protect | people | Beni region | authorities | DRC President Joseph Kabila | Museveni | Museveni | talks | Uganda | Uganda | coordinated military strategy | ADF fighters | rebels | rebels | rebels | rebels | rebels | 20 years | human rights abuses | criminal networks | funded | kidnappings | smuggling | illegal logging`
+* **Scores:** Spans Generated = 73 | Deduped BERTScore = 0.0000
 ---
 
 **Edge Case #2 (Gemma3.4B)**
@@ -177,30 +177,30 @@
 * **Scores:** Spans Generated = 39 | Deduped BERTScore = 0.0000
 ---
 
-**Edge Case #3 (Gpt Oss.20B)**
-* **Ground Truth:** `shot | grenades`
-* **Model Prediction:** `New Standard Hotel | and | and | and | and | and | and | and | and | and | and | and | and | and | and | and | and | and | and | and | and | and | and | and | and | and | and | and | and`
-* **Scores:** Spans Generated = 29 | Deduped BERTScore = 0.0000
+**Edge Case #3 (Gemma4.E4B)**
+* **Ground Truth:** `shell`
+* **Model Prediction:** `ballistic missiles | artillery | clash | clash | clash | clash | clash | Clash | clash | troops | troops | troops | troops | troops | troops | militant activity`
+* **Scores:** Spans Generated = 16 | Deduped BERTScore = 0.0000
 ---
 
 
 #### D. Valid Paraphrasing (High Semantic Match, Zero Exact Match)
-* **Total cases:** 9
-* **By model:** Mistral Nemo.12B: 4, Vicuna.13B: 2, Gemma4.E4B: 1, Mistral: 1, Qwen3.8B: 1
+* **Total cases:** 6
+* **By model:** Mistral Nemo.12B: 3, Mistral: 1, Qwen3.8B: 1, Vicuna.13B: 1
 
-**Edge Case #1 (Gemma4.E4B)**
-* **Ground Truth:** `car bomb`
-* **Model Prediction:** `car bomb attack`
-* **Scores:** Span F1 = 0.0000 | Deduped BERTScore = 0.8099
----
-
-**Edge Case #2 (Vicuna.13B)**
+**Edge Case #1 (Vicuna.13B)**
 * **Ground Truth:** `bullets`
 * **Model Prediction:** `bullet`
 * **Scores:** Span F1 = 0.0000 | Deduped BERTScore = 0.7694
 ---
 
-**Edge Case #3 (Mistral Nemo.12B)**
+**Edge Case #2 (Mistral Nemo.12B)**
+* **Ground Truth:** `gun`
+* **Model Prediction:** `guns`
+* **Scores:** Span F1 = 0.0000 | Deduped BERTScore = 0.7508
+---
+
+**Edge Case #3 (Mistral)**
 * **Ground Truth:** `gun`
 * **Model Prediction:** `guns`
 * **Scores:** Span F1 = 0.0000 | Deduped BERTScore = 0.7508
@@ -210,33 +210,33 @@
 ### Analysis: Question 2
 
 #### A. Missed Extractions (Failed to extract an existing answer)
-* **Total cases:** 1132
-* **By model:** Mistral: 247, Vicuna.13B: 236, Gpt Oss.20B: 194, Gemma3.4B: 177, Mistral Nemo.12B: 120, Gemma4.E4B: 68, Llama2.13B: 43, Llama3.1.8B: 25, Qwen3.8B: 22
+* **Total cases:** 427
+* **By model:** Mistral: 135, Vicuna.13B: 72, Mistral Nemo.12B: 57, Llama2.13B: 43, Gpt Oss.20B: 35, Gemma4.E4B: 28, Llama3.1.8B: 22, Qwen3.8B: 22, Gemma3.4B: 13
 
 **Edge Case #1 (Gemma3.4B)**
 * **Ground Truth:** `house | farmlands | Churches | crops | houses | houses | houses | houses | churches`
 * **Model Prediction:** `[ABSTAINED - Predicted Nothing]`
 ---
 
-**Edge Case #2 (Gpt Oss.20B)**
+**Edge Case #2 (Llama2.13B)**
 * **Ground Truth:** `house | farmlands | Churches | crops | houses | houses | houses | houses | churches`
 * **Model Prediction:** `[ABSTAINED - Predicted Nothing]`
 ---
 
-**Edge Case #3 (Llama2.13B)**
+**Edge Case #3 (Mistral Nemo.12B)**
 * **Ground Truth:** `house | farmlands | Churches | crops | houses | houses | houses | houses | churches`
 * **Model Prediction:** `[ABSTAINED - Predicted Nothing]`
 ---
 
 
 #### B. Hallucinations (Generated text on an unanswerable article)
-* **Total cases:** 3655
-* **By model:** Llama3.1.8B: 1098, Gemma3.4B: 587, Mistral Nemo.12B: 420, Llama2.13B: 397, Gemma4.E4B: 370, Qwen3.8B: 230, Mistral: 194, Vicuna.13B: 189, Gpt Oss.20B: 170
+* **Total cases:** 2440
+* **By model:** Gemma3.4B: 587, Llama3.1.8B: 401, Llama2.13B: 397, Qwen3.8B: 230, Mistral Nemo.12B: 215, Vicuna.13B: 189, Gemma4.E4B: 182, Gpt Oss.20B: 169, Mistral: 70
 
 **Edge Case #1 (Llama3.1.8B)**
 * **Ground Truth:** `[EMPTY ARTICLE - Should have abstained]`
-* **Model Prediction:** `areas | areas | areas | areas | areas | areas | areas | areas | villages | countryside | countryside | countryside | countryside | countryside | countryside | countryside | countryside | countryside | countryside | countryside | countryside | countryside | countryside | countryside | countryside | countryside | Al-Hbit | Al-Hbit | checkpoint | Abdeen | Abdeen | Horsh Abdeen | Horsh al-Qassabiyyeh | Tremla | Karsaa | Maarrat Al-Sain | Hish | Marayan | Ihsim | Maarrat al-Nu’man | Rowayha | Al-Dana | Jaradah | Mantaf | Ariha | Maarbalit | Shalkh | Ram Hamdan | Kafar Yahmoule | Maarrat Misrin | Haranbush | village | village | Sheikh Bahr | Al-Fiqia | Wadi Al-Deif Camp | Hazanu | Batabu | Killi | killi | Sahl al-Ghab`
-* **Spans Generated:** 61
+* **Model Prediction:** `areas | areas | areas | areas | areas | areas | areas | areas | areas | areas | areas | areas | areas | areas | areas | areas | areas | areas | areas | areas | areas | Douma city | Zamalka city | Zamalka city | Ein Tarma town | AlMotahalik AlJanobi (the Southern Bypass)`
+* **Spans Generated:** 26
 ---
 
 **Edge Case #2 (Qwen3.8B)**
@@ -253,18 +253,18 @@
 
 
 #### C. Over-Extraction (High Verbosity, Low Precision)
-* **Total cases:** 91
-* **By model:** Llama3.1.8B: 31, Gemma3.4B: 17, Mistral: 9, Qwen3.8B: 9, Mistral Nemo.12B: 7, Llama2.13B: 6, Gpt Oss.20B: 5, Vicuna.13B: 4, Gemma4.E4B: 3
+* **Total cases:** 59
+* **By model:** Gemma3.4B: 17, Llama3.1.8B: 9, Qwen3.8B: 9, Llama2.13B: 6, Gpt Oss.20B: 4, Mistral: 4, Mistral Nemo.12B: 4, Vicuna.13B: 4, Gemma4.E4B: 2
 
-**Edge Case #1 (Mistral)**
-* **Ground Truth:** `regime forces checkpoints`
-* **Model Prediction:** `other | other | other | other | other | other | other | other | other | other | other | other | other | other | other | other | other | other | other | other | other | other | other | other | other | other | other | other | other | other | other | other | other | other | other | other | other | other | other | other | other | other | other | other | other | other | other | other`
-* **Scores:** Spans Generated = 48 | Deduped BERTScore = 0.0000
----
-
-**Edge Case #2 (Llama3.1.8B)**
+**Edge Case #1 (Llama3.1.8B)**
 * **Ground Truth:** `house | house`
 * **Model Prediction:** `University housing units | University housing units | University housing units | University housing units | car in Al-Fahama area | car in Al-Fahama area | Madaya town | Madaya town | Kafr Al-Zair village | Kafr Al-Zair village | Ghassan Abboud roundabout | Ghassan Abboud roundabout | Al-Sena’a roundabout | Al-Sena’a roundabout`
+* **Scores:** Spans Generated = 14 | Deduped BERTScore = 0.0000
+---
+
+**Edge Case #2 (Mistral)**
+* **Ground Truth:** `market`
+* **Model Prediction:** `car | car | car | car | car | vehicle | motorcycle | motorcycle | motorcycle | old market in al-Bab city | al-Awasi area | Kafrkalbin junction | Sharan Township | checkpoint of the Corps on the outskirts of Deir Ballut village`
 * **Scores:** Spans Generated = 14 | Deduped BERTScore = 0.0000
 ---
 
@@ -276,8 +276,8 @@
 
 
 #### D. Valid Paraphrasing (High Semantic Match, Zero Exact Match)
-* **Total cases:** 5
-* **By model:** Gpt Oss.20B: 2, Gemma3.4B: 1, Mistral: 1, Vicuna.13B: 1
+* **Total cases:** 4
+* **By model:** Gpt Oss.20B: 2, Gemma3.4B: 1, Vicuna.13B: 1
 
 **Edge Case #1 (Gpt Oss.20B)**
 * **Ground Truth:** `Thermal Power plant`
@@ -291,7 +291,7 @@
 * **Scores:** Span F1 = 0.0000 | Deduped BERTScore = 0.7191
 ---
 
-**Edge Case #3 (Mistral)**
+**Edge Case #3 (Vicuna.13B)**
 * **Ground Truth:** `militant hideout`
 * **Model Prediction:** `militants' hideout`
 * **Scores:** Span F1 = 0.0000 | Deduped BERTScore = 0.7191
@@ -299,8 +299,8 @@
 
 
 #### E. Label Mismatch (High Text Match, Wrong Category)
-* **Total cases:** 47
-* **By model:** Llama3.1.8B: 12, Gemma4.E4B: 10, Mistral Nemo.12B: 6, Gemma3.4B: 5, Llama2.13B: 4, Vicuna.13B: 4, Gpt Oss.20B: 3, Mistral: 2, Qwen3.8B: 1
+* **Total cases:** 35
+* **By model:** Llama3.1.8B: 9, Gemma3.4B: 5, Gemma4.E4B: 4, Llama2.13B: 4, Mistral Nemo.12B: 4, Vicuna.13B: 4, Gpt Oss.20B: 3, Mistral: 1, Qwen3.8B: 1
 
 **Edge Case #1 (Gemma3.4B)**
 * **Extracted Text:** `car | car` == `car | car`
