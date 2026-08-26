@@ -105,16 +105,40 @@ def aggregate_squad2_metrics(df, group_cols):
     return pd.DataFrame(agg_data)
 
 def sort_paired_leaderboard(df):
-    """Sorts leaderboard by Zero-shot run performance, locking Cookbook directly underneath it."""
-    if df.empty: return df
-    
-    # Sort key anchors to the Zero-shot performance of each model
-    std_perfs = df[df['Strategy_Raw'] == 'zero-shot'].set_index('Model_Raw')['HasAns Dedup BERT'].to_dict()
-    df['Sort_Key'] = df.apply(lambda r: std_perfs.get(r['Model_Raw'], r['HasAns Dedup BERT']), axis=1)
-    
-    # Sort models descending by performance, then ensure Zero-shot comes before Cookbook (z > c, so ascending=False works)
-    df_sorted = df.sort_values(by=['Sort_Key', 'Model_Raw', 'Strategy_Raw'], ascending=[False, True, False]).copy()
-    return df_sorted
+    """Rank by zero-shot HasAns Dedup BERT; nest each model's cookbook row directly underneath.
+
+    When a Question column is present, the zero-shot anchor is per (model, question)
+    so Q1/Q2 tables are not polluted by scores from the other question.
+    Cookbook-only models fall back to their own HasAns Dedup BERT.
+    """
+    if df.empty:
+        return df
+
+    df = df.copy()
+    zero_shot = df[df['Strategy_Raw'] == 'zero-shot']
+    has_question = 'Question' in df.columns
+
+    if has_question:
+        std_perfs = zero_shot.set_index(['Model_Raw', 'Question'])['HasAns Dedup BERT'].to_dict()
+        df['Sort_Key'] = df.apply(
+            lambda r: std_perfs.get((r['Model_Raw'], r['Question']), r['HasAns Dedup BERT']),
+            axis=1,
+        )
+        return df.sort_values(
+            by=['Question', 'Sort_Key', 'Model_Raw', 'Strategy_Raw'],
+            ascending=[True, False, True, False],
+        )
+
+    std_perfs = zero_shot.set_index('Model_Raw')['HasAns Dedup BERT'].to_dict()
+    df['Sort_Key'] = df.apply(
+        lambda r: std_perfs.get(r['Model_Raw'], r['HasAns Dedup BERT']),
+        axis=1,
+    )
+    # Strategy_Raw descending puts zero-shot before cookbook (z > c)
+    return df.sort_values(
+        by=['Sort_Key', 'Model_Raw', 'Strategy_Raw'],
+        ascending=[False, True, False],
+    )
 
 def format_grouped_table_for_display(df, display_cols):
     """
@@ -218,7 +242,6 @@ def generate_full_report():
 
     # LAYER 2: PER-QUESTION AGGREGATION
     q_agg = aggregate_squad2_metrics(df, group_cols=['model', 'strategy', 'question'])
-    q_agg = sort_paired_leaderboard(q_agg)
 
     if 'Question' in q_agg.columns:
         unique_qs = sorted(q_agg['Question'].unique())
@@ -245,7 +268,7 @@ def generate_full_report():
             for q in unique_qs:
                 q_num = int(q)
                 print(f"\n### Question {q_num} Leaderboard")
-                q_subset = q_agg[q_agg['Question'] == q_num].copy()
+                q_subset = sort_paired_leaderboard(q_agg[q_agg['Question'] == q_num].copy())
                 print(format_grouped_table_for_display(q_subset, display_cols).to_markdown(index=False))
                 
                 # Plot A: HasAns precision/recall bars (Strictly Zero-Shot Only)
