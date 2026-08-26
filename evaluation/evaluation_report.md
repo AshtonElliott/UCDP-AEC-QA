@@ -1,7 +1,7 @@
 # LLM Evaluation Report
 **Total Models Evaluated:** 13
 **Total Documents Processed:** 1860
-**Full Evaluation Compute Time:** 660.97 seconds
+**Full Evaluation Compute Time:** 650.13 seconds
 
 ## Part 1: Global Benchmark Leaderboard (SQuAD 2.0 Evaluation)
 > *All text metrics formatted as (Overall / HasAns)*

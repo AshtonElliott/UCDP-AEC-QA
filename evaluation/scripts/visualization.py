@@ -26,7 +26,8 @@ def clear_assets_dir():
 def generate_performance_quadrant(df, model_col="Model", filename="master_quadrant.png"):
     """Plots Answerability (NoAns Acc) vs. Extraction Quality (HasAns Dedup BERT)."""
     _ensure_assets_dir()
-    fig, ax = plt.subplots(figsize=(10, 8)) 
+    # Unified sizing for quadrant plots
+    fig, ax = plt.subplots(figsize=(11, 8)) 
     
     models = df[model_col].unique()
     palette = sns.color_palette("deep", len(models))
@@ -60,6 +61,9 @@ def generate_performance_quadrant(df, model_col="Model", filename="master_quadra
     ax.set_xlim(-0.05, 1.05)
     ax.set_ylim(-0.05, 1.05)
     ax.grid(True, linestyle=':', alpha=0.4)
+    
+    # FORCES the axes box to be a perfect square, making the unified domain physically accurate
+    ax.set_box_aspect(1)
    
     model_handles = [mlines.Line2D([], [], color=color_map[m], marker='o', 
                                    linestyle='None', markersize=10, label=m.replace('*', '')) for m in models]
@@ -73,6 +77,7 @@ def generate_performance_quadrant(df, model_col="Model", filename="master_quadra
 def generate_strict_vs_relaxed_quadrant(df, model_col="Model", filename="strict_vs_relaxed.png"):
     """Plots the performance shift from Strict (Span F1) to Relaxed (Token F1)."""
     _ensure_assets_dir()
+    # Unified sizing
     fig, ax = plt.subplots(figsize=(11, 8))
     
     models = df[model_col].unique()
@@ -101,6 +106,8 @@ def generate_strict_vs_relaxed_quadrant(df, model_col="Model", filename="strict_
     ax.set_xlim(-0.05, 1.05)
     ax.set_ylim(-0.05, 1.05)
     ax.grid(True, alpha=0.3)
+    
+    ax.set_box_aspect(1)
    
     model_handles = [mlines.Line2D([], [], color=color_map[m], marker='s', 
                                    linestyle='None', markersize=10, label=m.replace('*', '')) for m in models]
@@ -120,7 +127,8 @@ def generate_strict_vs_relaxed_quadrant(df, model_col="Model", filename="strict_
 def generate_verbosity_scatter(df, model_col="Model", filename="verbosity_vs_accuracy.png"):
     """Plots Avg Spans vs HasAns Dedup BERT."""
     _ensure_assets_dir()
-    fig, ax = plt.subplots(figsize=(9, 6))
+    # Unified sizing
+    fig, ax = plt.subplots(figsize=(11, 8))
     
     models = df[model_col].unique()
     palette = sns.color_palette("deep", len(models))
@@ -139,6 +147,8 @@ def generate_verbosity_scatter(df, model_col="Model", filename="verbosity_vs_acc
     
     ax.set_ylim(-0.05, 1.05)
     ax.grid(True, linestyle=':', alpha=0.6)
+    
+    ax.set_box_aspect(1)
     
     handles_to_plot = [mlines.Line2D([], [], color=color_map[m], marker='o', 
                                    linestyle='None', markersize=10, label=m.replace('*', '')) for m in models]
@@ -162,7 +172,8 @@ def generate_verbosity_scatter(df, model_col="Model", filename="verbosity_vs_acc
 
 def generate_task_heatmap_overall(df, filename="task_complexity_heatmap_overall.png"):
     _ensure_assets_dir()
-    fig, ax = plt.subplots(figsize=(10, 6))
+    # Unified sizing for structural plots
+    fig, ax = plt.subplots(figsize=(11, 6))
     
     heatmap_data = df.pivot(index="Model Target", columns="Question Track", values="Overall Dedup BERT")
     if "Question 1" in heatmap_data.columns:
@@ -180,7 +191,7 @@ def generate_task_heatmap_overall(df, filename="task_complexity_heatmap_overall.
 
 def generate_task_heatmap_hasans(df, filename="task_complexity_heatmap_hasans.png"):
     _ensure_assets_dir()
-    fig, ax = plt.subplots(figsize=(10, 6))
+    fig, ax = plt.subplots(figsize=(11, 6))
     
     heatmap_data = df.pivot(index="Model Target", columns="Question Track", values="HasAns Dedup BERT")
     if "Question 1" in heatmap_data.columns:
@@ -212,7 +223,8 @@ def generate_classification_dropoff(df, filename="classification_dropoff_q2.png"
     x = np.arange(len(models))
     width = 0.35
 
-    fig, ax = plt.subplots(figsize=(10, 6))
+    # Unified bar chart sizing
+    fig, ax = plt.subplots(figsize=(11, 6))
     
     rects1 = ax.bar(x - width/2, text_scores, width, label='Extracted Correct Text (Span F1)', color='#4c72b0')
     rects2 = ax.bar(x + width/2, label_scores, width, label='Assigned Correct Label (Labeled Span F1)', color='#dd8452')
@@ -223,7 +235,6 @@ def generate_classification_dropoff(df, filename="classification_dropoff_q2.png"
     ax.set_xticks(x)
     ax.set_xticklabels([str(m).replace('*', '') for m in models], rotation=45, ha='right')
     
-    # Legend tucked inside the graph
     ax.legend(loc='upper right')
     ax.grid(True, axis='y', linestyle=':', alpha=0.6)
 
@@ -247,7 +258,8 @@ def generate_pr_bars(df, x_col, y_col, title, filename):
     x = np.arange(len(models))
     width = 0.35
 
-    fig, ax = plt.subplots(figsize=(10, 6))
+    # Unified bar chart sizing
+    fig, ax = plt.subplots(figsize=(11, 6))
     
     rects1 = ax.bar(x - width/2, recall_scores, width, label='Recall (Found the correct text)', color='#4c72b0')
     rects2 = ax.bar(x + width/2, precision_scores, width, label='Precision (Only extracted the right text)', color='#dd8452')
@@ -258,7 +270,6 @@ def generate_pr_bars(df, x_col, y_col, title, filename):
     ax.set_xticks(x)
     ax.set_xticklabels([str(m).replace('*', '') for m in models], rotation=45, ha='right')
     
-    # Legend tucked inside the graph
     ax.legend(loc='upper right')
     ax.grid(True, axis='y', linestyle=':', alpha=0.6)
 
@@ -269,7 +280,6 @@ def generate_pr_bars(df, x_col, y_col, title, filename):
 def generate_category_pr_grid(df, filename="q2_category_pr_grid.png"):
     """
     Plot B: Grid panels = Models. X/Y = Recall/Precision. Colors = Event Categories.
-    (No F1 line to prevent visual clutter).
     """
     _ensure_assets_dir()
     
@@ -305,7 +315,7 @@ def generate_category_pr_grid(df, filename="q2_category_pr_grid.png"):
 
     palette = sns.color_palette("deep", len(top_cats))
     
-    g = sns.FacetGrid(plot_df, col="Model", col_wrap=3, height=3.5, aspect=1.1, hue="Category", palette=palette)
+    g = sns.FacetGrid(plot_df, col="Model", col_wrap=3, height=4, aspect=1, hue="Category", palette=palette)
     
     g.map_dataframe(sns.scatterplot, x="Recall", y="Precision", s=150, alpha=0.9, edgecolor='white')
     
