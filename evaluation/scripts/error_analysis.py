@@ -12,6 +12,8 @@ ERROR_TYPES = (
     "missed_extraction",
     "hallucination",
     "over_extraction",
+    "partial_extraction",
+    "dedup_invariance",
     "paraphrase",
     "label_crash",
 )
@@ -89,7 +91,9 @@ def run_error_analysis(records=None):
         has_ans = rec.get('has_ans', len(g_texts) > 0)
         has_pred = rec.get('has_pred', len(p_texts) > 0)
         set_text_f1 = rec.get('set_text_f1', 0.0)
+        token_f1 = rec.get('token_f1', 0.0)
         dedup_f1 = rec.get('dedup_f1', 0.0)
+        std_bertscore = rec.get('bertscore', rec.get('std_bertscore', dedup_f1))
         label_f1 = rec.get('label_f1', 0.0)
 
         # 1. Missed Extraction (answerable, but model abstained)
@@ -118,7 +122,31 @@ def run_error_analysis(records=None):
                 "f1": dedup_f1,
             })
 
-        # 4. Valid Paraphrasing (no exact span match, high semantic score)
+        # 4. Partial Extraction (Span F1 = 0, but Token F1 captures the entity)
+        elif has_ans and has_pred and set_text_f1 == 0.0 and token_f1 >= 0.50:
+            candidates[q_num]["partial_extraction"].append({
+                "model": rec['model'],
+                "gt": g_text_str,
+                "pred": p_text_str,
+                "span_f1": set_text_f1,
+                "token_f1": token_f1,
+                "bertscore": dedup_f1,
+            })
+
+        # 5. Deduplication Invariance Evidence
+        elif has_ans and has_pred and len(p_texts) > len(set(p_texts)) and abs(std_bertscore - dedup_f1) <= 0.03:
+            candidates[q_num]["dedup_invariance"].append({
+                "model": rec['model'],
+                "gt": g_text_str,
+                "pred": p_text_str,
+                "raw_count": len(p_texts),
+                "unique_count": len(set(p_texts)),
+                "std_bert": std_bertscore,
+                "dedup_bert": dedup_f1,
+                "delta": abs(std_bertscore - dedup_f1)
+            })
+
+        # 6. Valid Paraphrasing (no exact span match, high semantic score)
         elif has_ans and has_pred and set_text_f1 == 0.0 and dedup_f1 > 0.70:
             candidates[q_num]["paraphrase"].append({
                 "model": rec['model'],
@@ -128,7 +156,7 @@ def run_error_analysis(records=None):
                 "f1": dedup_f1,
             })
 
-        # 5. Label Mismatch (high text match, low labeled-span match)
+        # 7. Label Mismatch (high text match, low labeled-span match)
         elif has_ans and has_pred and set_text_f1 > 0.8 and label_f1 < 0.3:
             g_lbl = [l for l in rec.get('g_labels', []) if l.strip("[]'\" ") != ""]
             p_lbl = [l for l in rec.get('p_labels', []) if l.strip("[]'\" ") != ""]
@@ -151,6 +179,8 @@ def run_error_analysis(records=None):
         "missed_extraction": lambda case: (-case["spans"],),
         "hallucination": lambda case: (-case["spans"],),
         "over_extraction": lambda case: (case["f1"], -case["spans"]),
+        "partial_extraction": lambda case: (-case["token_f1"],),
+        "dedup_invariance": lambda case: (-(case["raw_count"] - case["unique_count"]), case["delta"]),
         "paraphrase": lambda case: (-case["f1"],),
         "label_crash": lambda case: (case["label_f1"], -case["set_text_f1"]),
     }
@@ -196,8 +226,39 @@ def run_error_analysis(records=None):
                 )
                 print("---\n")
 
+        if q_all["partial_extraction"]:
+            print("\n#### D. Token F1 Capturing Partial Matches (Span F1 = 0)")
+            _print_counts(q_all["partial_extraction"])
+            for i, case in enumerate(q_data["partial_extraction"], 1):
+                print(f"**Case #{i} ({case['model']})**")
+                print(f"* **Ground Truth:** `{case['gt']}`")
+                print(f"* **Model Prediction:** `{case['pred']}`")
+                print(
+                    f"* **Metrics:** Span F1 = **{case['span_f1']:.4f}** | "
+                    f"Token F1 = **{case['token_f1']:.4f}** | "
+                    f"BERTScore = {case['bertscore']:.4f}"
+                )
+                print("---\n")
+
+        if q_all["dedup_invariance"]:
+            print("\n#### E. Deduplication Invariance on BERTScore")
+            _print_counts(q_all["dedup_invariance"])
+            for i, case in enumerate(q_data["dedup_invariance"], 1):
+                print(f"**Case #{i} ({case['model']})**")
+                print(f"* **Ground Truth:** `{case['gt']}`")
+                print(f"* **Model Prediction:** `{case['pred']}`")
+                print(
+                    f"* **Counts:** Total Spans = {case['raw_count']} | Unique Spans = {case['unique_count']}"
+                )
+                print(
+                    f"* **Metrics:** Standard BERTScore = **{case['std_bert']:.4f}** | "
+                    f"Deduped BERTScore = **{case['dedup_bert']:.4f}** | "
+                    f"Delta = **{case['delta']:.4f}**"
+                )
+                print("---\n")
+
         if q_all["paraphrase"]:
-            print("\n#### D. Valid Paraphrasing (High Semantic Match, Zero Exact Match)")
+            print("\n#### F. Valid Paraphrasing (High Semantic Match, Zero Exact Match)")
             _print_counts(q_all["paraphrase"])
             for i, case in enumerate(q_data["paraphrase"], 1):
                 print(f"**Edge Case #{i} ({case['model']})**")
@@ -210,7 +271,7 @@ def run_error_analysis(records=None):
                 print("---\n")
 
         if q_all["label_crash"]:
-            print("\n#### E. Label Mismatch (High Text Match, Wrong Category)")
+            print("\n#### G. Label Mismatch (High Text Match, Wrong Category)")
             _print_counts(q_all["label_crash"])
             for i, case in enumerate(q_data["label_crash"], 1):
                 print(f"**Edge Case #{i} ({case['model']})**")
@@ -223,7 +284,7 @@ def run_error_analysis(records=None):
                 )
                 print("---\n")
         elif q_num > 1:
-            print("\n#### E. Label Mismatch")
+            print("\n#### G. Label Mismatch")
             print("*No label mapping errors found for this question.*")
 
 
