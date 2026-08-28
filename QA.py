@@ -39,7 +39,10 @@ async def process_entry(idx, entry):
                 messages=[
                     {'role': 'system', 'content': 'Identify the words that answer the question. Return only a comma-separated list of words found in the article. There can be more than one answer to the question in the text.'},
                     {'role': 'user', 'content': f"Context: {retrieved_context}\n\nQuestion: {question}"}
-                ]
+                ],
+                options = {
+                    "temperature": 0
+                }
             )
             prediction = response['message']['content']
             labels = prediction.split(',')
@@ -56,7 +59,10 @@ async def process_entry(idx, entry):
                         })
             # Check AFTER processing all labels
             if len(spans) == 0:
-                entry['no_answer'] = "No arms or methods mentioned"
+                if prediction == "Losolnichttproblem":
+                    entry['no_answer'] = "No arms or methods mentioned (Geniune No Answer)"
+                else:
+                    entry['no_answer'] = "No arms or methods mentioned (Non-Geniune No Answer)"
             else:
                 entry['answer_labels'] = spans
         except Exception as e:
