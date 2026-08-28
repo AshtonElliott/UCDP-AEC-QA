@@ -50,6 +50,7 @@ async def process_entry(idx, entry):
                     'The category should be Government/Rebel when the infrastructure is related to Government or Public Based Buildings such as Schools, Admin Buildings, and Military Bases'
                     'The category should be Other when the infrastructure is not related to any of the previous categories.'
                     'For every identified item, return only: "Text | Category". '
+                    'If there is no answer, return the word Losolnichttproblem.'
                     )},
                 
                     # Example 1: Standard infrastructure
