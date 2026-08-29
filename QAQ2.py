@@ -50,7 +50,7 @@ async def process_entry(idx, entry):
                     'The category should be Government/Rebel when the infrastructure is related to Government or Public Based Buildings such as Schools, Admin Buildings, and Military Bases'
                     'The category should be Other when the infrastructure is not related to any of the previous categories.'
                     'For every identified item, return only: "Text | Category". '
-                    'If there is no answer, return the word Losolnichttproblem.'
+                    'If there is no answer, return the word Losolnachtnuma.'
                     )},
                 
                     # Example 1: Standard infrastructure
@@ -64,7 +64,7 @@ async def process_entry(idx, entry):
                     {'role': 'user', 'content': f"Context: {retrieved_context}\n\nQuestion: {question}"}   
                 ],
                 options = {
-                    "temperature": 0
+                    "temperature": 0.6
                 }
             )
             prediction = response['message']['content']
@@ -110,7 +110,7 @@ async def process_entry(idx, entry):
                                 "labels": [QAlabel]
                             })
             if len(spans) == 0:
-                if prediction == "Losolnichttproblem":
+                if prediction == "Losolnachtnuma":
                     entry['no_answer'] = "No arms or methods mentioned (Geniune No Answer)"
                 else:
                     entry['no_answer'] = "No arms or methods mentioned (Non-Geniune No Answer)"
