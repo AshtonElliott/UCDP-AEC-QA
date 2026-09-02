@@ -39,10 +39,7 @@ async def process_entry(idx, entry):
                 messages=[
                     {'role': 'system', 'content': 'Identify the words that answer the question. Return only a comma-separated list of words found in the article. There can be more than one answer to the question in the text.If there is no answer, return the word Losolnachtnuma.'},
                     {'role': 'user', 'content': f"Context: {retrieved_context}\n\nQuestion: {question}"}
-                ],
-                options = {
-                    "temperature": 0
-                }
+                ]
             )
             prediction = response['message']['content']
             labels = prediction.split(',')
