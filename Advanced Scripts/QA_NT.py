@@ -46,7 +46,6 @@ async def process_entry(idx, entry):
                 }
             )
             prediction = response['message']['content']
-            print(prediction)
             labels = prediction.split(',')
             spans = []
             for label in labels:
