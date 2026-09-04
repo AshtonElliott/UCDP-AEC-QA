@@ -137,7 +137,7 @@ class EvaluationEngine:
         return round(prec, 4), round(rec, 4), round(set_text_f1, 4), round(token_f1, 4)
 
     @classmethod
-    def _bipartite_bert_f1(cls, g_texts, p_texts):
+    def _bipartite_bertscore_f1(cls, g_texts, p_texts):
         """Max-mean BERTScore F1 over pred×gold pairs. Returns a single F1."""
         if not g_texts and not p_texts:
             return 1.0
@@ -164,15 +164,10 @@ class EvaluationEngine:
 
     @classmethod
     def evaluate_bipartite_bertscore(cls, g_texts, p_texts):
-        """Per-doc standard BERTScore. Returns (unused, unused, f1) for older callers."""
-        f1 = cls._bipartite_bert_f1(g_texts, p_texts)
-        return 0.0, 0.0, f1
+        """Per-doc standard BERTScore. Returns (unused, unused, bertscore_f1) for older callers."""
+        bertscore_f1 = cls._bipartite_bertscore_f1(g_texts, p_texts)
+        return 0.0, 0.0, bertscore_f1
 
-    @classmethod
-    def evaluate_dedup_bertscore(cls, g_texts, p_texts):
-        """Per-doc deduped BERTScore. Returns (unused, unused, f1) for older callers."""
-        f1 = cls._bipartite_bert_f1(cls.deduplicate_texts(g_texts), cls.deduplicate_texts(p_texts))
-        return 0.0, 0.0, f1
 
     @classmethod
     def run_global_bertscore_backend(cls, cands, refs):

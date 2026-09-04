@@ -13,19 +13,27 @@ warnings.filterwarnings("ignore")
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / 'data'
-RAW_DIR = DATA_DIR / 'raw_inputs'
 RESULTS_DIR = DATA_DIR / 'evaluation_results'
 
-def discover_llm_files(raw_dir):
+def discover_llm_files(data_dir):
     llm_files_by_question = defaultdict(dict)
-    for filepath in raw_dir.glob("*_results*.json"):
-        # Match both standard (model.v_results2.json) and cookbook (model_results2_cb.json)
-        match = re.search(r"^(.*?)_results(\d*)(_cb)?\.json$", filepath.name, re.IGNORECASE)
-        if match:
-            raw_model_name = match.group(1).replace("_", " ").replace("-", " ").title() 
-            q_num = int(match.group(2)) if match.group(2) else 1 
-            strategy = "cookbook" if match.group(3) else "zero-shot"
-            llm_files_by_question[q_num][(raw_model_name, strategy)] = filepath
+    
+    subdirs = ["raw_NT", "raw_T", "cookbook_NT", "cookbook_T"]
+    for subdir in subdirs:
+        dir_path = data_dir / subdir
+        if not dir_path.exists(): continue
+        
+        for filepath in dir_path.glob("*.json"):
+            match = re.search(r"^(.*?)_results(\d*)(_cb)?(_NT|_T)?\.json$", filepath.name, re.IGNORECASE)
+            if match:
+                raw_model_name = match.group(1).replace("_", " ").replace("-", " ").title() 
+                q_num = int(match.group(2)) if match.group(2) else 1 
+                
+                strategy = "cookbook" if "cookbook" in subdir else "raw"
+                thinking = "T" if subdir.endswith("_T") else "NT"
+                
+                llm_files_by_question[q_num][(raw_model_name, strategy, thinking)] = filepath
+                
     return llm_files_by_question
 
 def load_ground_truth_map(filepath):
@@ -48,10 +56,10 @@ def load_ground_truth_map(filepath):
 def evaluate_models_globally(model_files, gt_map, q_num):
     master_records = []
     
-    bert_queue_std, bert_queue_dd = [], []
-    std_cross_pairs, dd_cross_pairs = [], []
+    bert_queue_std = []
+    std_cross_pairs = []
     
-    for (model_name, strategy), filepath in model_files.items():
+    for (model_name, strategy, thinking), filepath in model_files.items():
         if not filepath.exists(): continue
         
         try:
@@ -78,14 +86,14 @@ def evaluate_models_globally(model_files, gt_map, q_num):
             
             rec_id = len(master_records)
             record = {
-                "model": model_name, "strategy": strategy, "question": q_num, "article": article_text,
+                "model": model_name, "strategy": strategy, "thinking": thinking, "question": q_num, "article": article_text,
                 "has_ans": has_ans, "has_pred": has_pred,
                 "g_texts": g_texts, "p_texts": p_texts,
                 "g_labels": [str(g.get('labels', [])) for g in gold_spans],
                 "p_labels": [str(p.get('labels', [])) for p in pred_spans],
                 "spans_generated": len(p_texts),
                 "set_text_p": 0.0, "set_text_r": 0.0, "set_text_f1": 0.0, 
-                "token_f1": 0.0, "f1": 0.0, "dedup_f1": 0.0, 
+                "token_f1": 0.0, "bertscore_f1": 0.0, 
                 "label_p": 0.0, "label_r": 0.0, "label_f1": 0.0,
                 "cat_stats": {}
             }
@@ -124,15 +132,15 @@ def evaluate_models_globally(model_files, gt_map, q_num):
             if not has_ans and not has_pred:
                 record["set_text_p"], record["set_text_r"], record["set_text_f1"] = 1.0, 1.0, 1.0
                 record["label_p"], record["label_r"], record["label_f1"] = 1.0, 1.0, 1.0
-                record["token_f1"], record["f1"], record["dedup_f1"] = 1.0, 1.0, 1.0
+                record["token_f1"], record["bertscore_f1"] = 1.0, 1.0
             elif not has_ans and has_pred:
                 record["set_text_p"], record["set_text_r"], record["set_text_f1"] = 0.0, 0.0, 0.0
                 record["label_p"], record["label_r"], record["label_f1"] = 0.0, 0.0, 0.0
-                record["token_f1"], record["f1"], record["dedup_f1"] = 0.0, 0.0, 0.0
+                record["token_f1"], record["bertscore_f1"] = 0.0, 0.0
             elif has_ans and not has_pred:
                 record["set_text_p"], record["set_text_r"], record["set_text_f1"] = 0.0, 0.0, 0.0
                 record["label_p"], record["label_r"], record["label_f1"] = 0.0, 0.0, 0.0
-                record["token_f1"], record["f1"], record["dedup_f1"] = 0.0, 0.0, 0.0
+                record["token_f1"], record["bertscore_f1"] = 0.0, 0.0
             else:
                 set_p, set_r, set_f1, tok_f1 = EvaluationEngine.evaluate_ie_squad_metrics(g_texts, p_texts)
                 record["set_text_p"] = set_p
@@ -157,23 +165,14 @@ def evaluate_models_globally(model_files, gt_map, q_num):
                 std_cross_pairs.extend(zip([p for p in norm_p for g in norm_g], [g for p in norm_p for g in norm_g]))
                 bert_queue_std.append((rec_id, start_std, len(norm_p), len(norm_g)))
 
-                g_dedup = EvaluationEngine.deduplicate_texts(g_texts)
-                p_dedup = EvaluationEngine.deduplicate_texts(p_texts)
-                norm_p_d = [EvaluationEngine.normalize_answer(p) for p in p_dedup]
-                norm_g_d = [EvaluationEngine.normalize_answer(g) for g in g_dedup]
-                start_dd = len(dd_cross_pairs)
-                dd_cross_pairs.extend(zip([p for p in norm_p_d for g in norm_g_d], [g for p in norm_p_d for g in norm_g_d]))
-                bert_queue_dd.append((rec_id, start_dd, len(norm_p_d), len(norm_g_d)))
-
             master_records.append(record)
 
     print(f"    -> Pushing batched matrix to GPU...", file=sys.stderr, flush=True)
     global_f1_std = EvaluationEngine.run_global_bertscore_backend([x[0] for x in std_cross_pairs], [x[1] for x in std_cross_pairs]) if std_cross_pairs else []
-    global_f1_dd = EvaluationEngine.run_global_bertscore_backend([x[0] for x in dd_cross_pairs], [x[1] for x in dd_cross_pairs]) if dd_cross_pairs else []
 
     for rec_id, start, num_p, num_g in bert_queue_std:
         if num_p == 0 or num_g == 0:
-            master_records[rec_id]["f1"] = 0.0
+            master_records[rec_id]["bertscore_f1"] = 0.0
             continue
 
         flat = global_f1_std[start : start + (num_p * num_g)]
@@ -183,27 +182,13 @@ def evaluate_models_globally(model_files, gt_map, q_num):
         # Clip negative rescaled values BEFORE harmonic mean calculation
         mp = float(np.clip(mp, 0.0, 1.0))
         mr = float(np.clip(mr, 0.0, 1.0))
-        master_records[rec_id]["f1"] = float(np.clip(round(2 * (mp * mr) / (mp + mr) if (mp + mr) > 0 else 0.0, 4), 0.0, 1.0))
-
-    for rec_id, start, num_p, num_g in bert_queue_dd:
-        if num_p == 0 or num_g == 0:
-            master_records[rec_id]["dedup_f1"] = 0.0
-            continue
-            
-        flat = global_f1_dd[start : start + (num_p * num_g)]
-        mat = np.array([flat[r * num_g : (r + 1) * num_g] for r in range(num_p)])
-        mp, mr = mat.max(axis=1).mean(), mat.max(axis=0).mean()
-        
-        # Clip negative rescaled values BEFORE harmonic mean calculation
-        mp = float(np.clip(mp, 0.0, 1.0))
-        mr = float(np.clip(mr, 0.0, 1.0))
-        master_records[rec_id]["dedup_f1"] = float(np.clip(round(2 * (mp * mr) / (mp + mr) if (mp + mr) > 0 else 0.0, 4), 0.0, 1.0))
+        master_records[rec_id]["bertscore_f1"] = float(np.clip(round(2 * (mp * mr) / (mp + mr) if (mp + mr) > 0 else 0.0, 4), 0.0, 1.0))
             
     return master_records
 
 def run_evaluation_pipeline(question_filter=None):
     pipeline_start_time = time.time()
-    llm_files = discover_llm_files(RAW_DIR)
+    llm_files = discover_llm_files(DATA_DIR)
     
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
     (BASE_DIR / "assets").mkdir(parents=True, exist_ok=True)
@@ -215,9 +200,9 @@ def run_evaluation_pipeline(question_filter=None):
         print(f"\n--- Computing Metrics for Question {q_num} ---", file=sys.stderr)
         
         gt_paths = [
-            RAW_DIR / f'groundtruth_q{q_num}.json', 
-            RAW_DIR / f'ground_truth_q{q_num}.json', 
-            RAW_DIR / 'groundtruth.json'
+            DATA_DIR / 'groundtruth' / f'ground_truth_q{q_num}.json', 
+            DATA_DIR / 'groundtruth' / f'groundtruth_q{q_num}.json', 
+            DATA_DIR / 'groundtruth' / 'groundtruth.json'
         ]
         
         found_path = next((p for p in gt_paths if p.exists()), None)
