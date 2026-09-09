@@ -12,7 +12,7 @@ os.environ.pop("https_proxy", None)
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
 input_path = os.path.join(script_dir, 'train.json')
-output_path = os.path.join(script_dir, 'llama2.13b_results.json')
+output_path = os.path.join(script_dir, 'llama3.1.8b_results.json')
 
 # Load dataset
 with open(input_path, 'r') as f:
@@ -34,7 +34,7 @@ async def process_entry(idx, entry):
             chunks = [context[i:i+1500] for i in range(0, len(context), 1500)]
             retrieved_context = "\n".join(chunks[:5])
             response = await client.chat(
-                model='llama2:13b',
+                model='llama3.1:8b',
                 format = 'json',
                 messages=[
                     {'role': 'system', 'content': (
