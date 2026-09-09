@@ -73,7 +73,11 @@ async def process_entry(idx, entry):
                     {'role': 'assistant', 'content': 'Losolnachtnuma'},
                     
                     {'role': 'user', 'content': f"Context: {retrieved_context}\n\nQuestion: {question}"}   
-                ]
+                ],
+                think= False,
+                options = {
+                    "temperature": 0
+                }
             )
             prediction = response['message']['content']
             labels = prediction.split(',')
