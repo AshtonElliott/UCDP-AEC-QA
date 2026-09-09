@@ -12,7 +12,7 @@ os.environ.pop("https_proxy", None)
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
 input_path = os.path.join(script_dir, 'train.json')
-output_path = os.path.join(script_dir, 'gpt_oss_results_cb.json')
+output_path = os.path.join(script_dir, 'gpt_oss_results_cb_T.json')
 
 # Load dataset
 with open(input_path, 'r') as f:
