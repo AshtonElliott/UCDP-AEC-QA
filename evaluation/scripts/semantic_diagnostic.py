@@ -151,7 +151,7 @@ def run_comprehensive_evaluation():
         print(f"* **ID:** {row['Evaluation_ID']}")
         print(f"* **Ground Truth:** `{row['Human_Ground_Truth']}`")
         print(f"* **AI Prediction:** `{row['LLM_Prediction']}`")
-        print(f"* **Scores:** Human = {row['Normalized_Human_Score']:.4f} | Relaxed BERTScore = {row['BS_F1_Dedup']:.4f}\n")
+        print(f"* **Scores:** Human = {row['Normalized_Human_Score']:.4f} | BERTScore = {row['BS_F1']:.4f}\n")
         print("---\n")
 
 if __name__ == "__main__":
