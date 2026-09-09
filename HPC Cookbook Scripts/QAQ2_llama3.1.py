@@ -82,7 +82,7 @@ async def process_entry(idx, entry):
                     text = label.get('word', '')
                     QALabel = label.get('category', 'Other')
                 
-                if "" in text:
+                if not text.strip():
                         # Filter out blanks-positives
                         continue
                     else:

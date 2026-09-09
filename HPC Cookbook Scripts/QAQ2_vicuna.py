@@ -82,7 +82,7 @@ async def process_entry(idx, entry):
                     else:
                         QAlabel = "Other"
                     
-                    if "" in text:
+                    if not text.strip():
                         # Filter out blanks-positives
                         continue
                     else:
