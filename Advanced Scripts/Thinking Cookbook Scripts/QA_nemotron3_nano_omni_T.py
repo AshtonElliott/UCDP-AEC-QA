@@ -62,7 +62,7 @@ async def process_entry(idx, entry):
                         })
             # Check AFTER processing all labels
             if len(spans) == 0:
-                if prediction == "Losolnichttproblem":
+                if prediction == "Losolnachtnuma":
                     entry['no_answer'] = "No arms or methods mentioned (Geniune No Answer)"
                 else:
                     entry['no_answer'] = "No arms or methods mentioned (Non-Geniune No Answer)"
