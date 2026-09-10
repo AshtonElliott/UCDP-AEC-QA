@@ -92,20 +92,20 @@ async def process_entry(idx, entry):
                     # Filter Out for Label
                     QAlabel = parts[1]
                         
-                    if "Energy" in QAlabel:
-                        QAlabel = "Energy"
-                    elif "Water" in QAlabel:
-                        QAlabel = "Water"
+                    if "Energy/Water" in QAlabel:
+                        QAlabel = "Energy/Water"
                     elif "Transportation/Marketing" in QAlabel:
                         QAlabel = "Transportation/Marketing"
-                    elif "Energy/Water" in QAlabel:
-                        QAlabel = "Energy/Water"
-                    elif "Health" in QAlabel:
-                        QAlabel = "Health"
                     elif "Agriculture/Fishing" in QAlabel:
                         QAlabel = "Agriculture/Fishing"
                     elif "Government/Rebel" in QAlabel:
                         QAlabel = "Government/Rebel"
+                    elif "Energy" in QAlabel:
+                        QAlabel = "Energy"
+                    elif "Water" in QAlabel:
+                        QAlabel = "Water"
+                    elif "Health" in QAlabel:
+                        QAlabel = "Health"
                     else:
                         QAlabel = "Other"
                     
