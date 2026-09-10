@@ -34,7 +34,7 @@ async def process_entry(idx, entry):
             chunks = [context[i:i+1500] for i in range(0, len(context), 1500)]
             retrieved_context = "\n".join(chunks[:5])
             response = await client.chat(
-                model='gpt_oss:20b',
+                model='gpt-oss:20b',
                 messages=[
                     {'role': 'developer', 'content': (
                     'Reasoning: high \n'
