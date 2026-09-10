@@ -69,7 +69,7 @@ async def process_entry(idx, entry):
                     # Example 2: Standard infrastructure
                     'Input: '
                     f"Context: The hydroelectric dam was targeted in the raid.\n\nQuestion: {question}"
-                    'Answer: hydroelectric dam | Energy/Water''
+                    'Answer: hydroelectric dam | Energy/Water'
                     )},
                     
                     # Example 3: Using Safe Word
