@@ -77,28 +77,44 @@ async def process_entry(idx, entry):
             spans = []
             for label in extractions:
                 text = ""
-                QALabel = ""
+                QAlabel = ""
                 if isinstance(label, dict):
                     text = label.get('word', '')
-                    QALabel = label.get('category', 'Other')
-                
+                    QAlabel = label.get('category', 'Other')
+
+                if "Energy/Water" in QAlabel:
+                    QAlabel = "Energy/Water"
+                elif "Transportation/Marketing" in QAlabel:
+                    QAlabel = "Transportation/Marketing"
+                elif "Agriculture/Fishing" in QAlabel:
+                    QAlabel = "Agriculture/Fishing"
+                elif "Government/Rebel" in QAlabel:
+                    QAlabel = "Government/Rebel"
+                elif "Energy" in QAlabel:
+                    QAlabel = "Energy"
+                elif "Water" in QAlabel:
+                    QAlabel = "Water"
+                elif "Health" in QAlabel:
+                    QAlabel = "Health"
+                else:
+                    QAlabel = "Other"
+
                 if not text.strip():
-                        # Filter out blanks-positives
-                        continue
-                    else:
-                        # Apply Text & Label
-                        for match in re.finditer(re.escape(text), context, re.IGNORECASE):
-                            spans.append({
-                                "end": match.end(),
-                                "text": context[match.start():match.end()],
-                                "start": match.start(),
-                                "labels": [QAlabel]
-                            })
-            if len(spans) == 0 or QALabel == "":
+                    # Filter out blanks-positives
+                    continue
+                else:
+                    # Apply Text & Label
+                    for match in re.finditer(re.escape(text), context, re.IGNORECASE):
+                        spans.append({
+                            "end": match.end(),
+                            "text": context[match.start():match.end()],
+                            "start": match.start(),
+                            "labels": [QAlabel]
+                        })
+            if len(spans) == 0:
                 entry['no_answer'] = "No Damage Detected"
             else:
                 entry['answer_labels'] = spans
-            entry.pop('extractions', None)
         except Exception as e:
             print(f"Error processing entry {idx}: {e}", file=sys.stderr)
             entry['error'] = str(e)
