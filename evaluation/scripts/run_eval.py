@@ -80,6 +80,8 @@ def evaluate_models_globally(model_files, gt_map, q_num):
 
             g_texts = [g.get('text', '').strip() for g in gold_spans if g.get('text', '').strip()]
             p_texts = [p.get('text', '').strip() for p in pred_spans if p.get('text', '').strip()]
+            # Measure extracted spans before adding any scoring-only sentinel.
+            spans_generated = len(p_texts)
             
             # Restore Hallucination Penalty: If the pipeline flagged a Non-Genuine (hallucinated) output
             no_ans_flag = pred_entry.get("no_answer", "")
@@ -96,7 +98,7 @@ def evaluate_models_globally(model_files, gt_map, q_num):
                 "g_texts": g_texts, "p_texts": p_texts,
                 "g_labels": [str(g.get('labels', [])) for g in gold_spans],
                 "p_labels": [str(p.get('labels', [])) for p in pred_spans],
-                "spans_generated": len(p_texts),
+                "spans_generated": spans_generated,
                 "set_text_p": 0.0, "set_text_r": 0.0, "set_text_f1": 0.0, 
                 "token_f1": 0.0, "bertscore_f1": 0.0, 
                 "label_p": 0.0, "label_r": 0.0, "label_f1": 0.0,
