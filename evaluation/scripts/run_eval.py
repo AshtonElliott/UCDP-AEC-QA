@@ -81,6 +81,11 @@ def evaluate_models_globally(model_files, gt_map, q_num):
             g_texts = [g.get('text', '').strip() for g in gold_spans if g.get('text', '').strip()]
             p_texts = [p.get('text', '').strip() for p in pred_spans if p.get('text', '').strip()]
             
+            # Restore Hallucination Penalty: If the pipeline flagged a Non-Genuine (hallucinated) output
+            no_ans_flag = pred_entry.get("no_answer", "")
+            if "Non-Geniune" in no_ans_flag or "Non-Genuine" in no_ans_flag:
+                p_texts = ["<HALLUCINATED_TEXT>"]
+            
             has_ans = len(g_texts) > 0
             has_pred = len(p_texts) > 0
             
@@ -137,7 +142,7 @@ def evaluate_models_globally(model_files, gt_map, q_num):
                 record["set_text_p"], record["set_text_r"], record["set_text_f1"] = 0.0, 0.0, 0.0
                 record["label_p"], record["label_r"], record["label_f1"] = 0.0, 0.0, 0.0
                 record["token_f1"], record["bertscore_f1"] = 0.0, 0.0
-            elif has_ans and not has_pred:
+            elif (has_ans and not has_pred) or (p_texts == ["<HALLUCINATED_TEXT>"]):
                 record["set_text_p"], record["set_text_r"], record["set_text_f1"] = 0.0, 0.0, 0.0
                 record["label_p"], record["label_r"], record["label_f1"] = 0.0, 0.0, 0.0
                 record["token_f1"], record["bertscore_f1"] = 0.0, 0.0
