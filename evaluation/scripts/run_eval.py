@@ -6,6 +6,8 @@ import warnings
 import numpy as np
 from collections import defaultdict
 from pathlib import Path
+from scipy.optimize import linear_sum_assignment
+
 
 from scripts.core import EvaluationEngine 
 
@@ -78,8 +80,14 @@ def evaluate_models_globally(model_files, gt_map, q_num):
             gold_spans = gt_map[article_text].get('answer_labels', [])
             pred_spans = pred_entry.get('answer_labels', pred_entry.get('model_spans', [])) 
 
-            g_texts = [g.get('text', '').strip() for g in gold_spans if g.get('text', '').strip()]
-            p_texts = [p.get('text', '').strip() for p in pred_spans if p.get('text', '').strip()]
+            def _get_text_str(span):
+                t = span.get('text', '')
+                if isinstance(t, list):
+                    return " ".join(str(x) for x in t) if t else ""
+                return str(t)
+
+            g_texts = [_get_text_str(g).strip() for g in gold_spans if _get_text_str(g).strip()]
+            p_texts = [_get_text_str(p).strip() for p in pred_spans if _get_text_str(p).strip()]
             # Measure extracted spans before adding any scoring-only sentinel.
             spans_generated = len(p_texts)
             
@@ -108,7 +116,7 @@ def evaluate_models_globally(model_files, gt_map, q_num):
             # Q2 Category Match Logic (Strict Tuple Extraction for Grid)
             g_tups = set()
             for g in gold_spans:
-                t = EvaluationEngine.normalize_answer(g.get('text', ''))
+                t = EvaluationEngine.normalize_answer(_get_text_str(g))
                 if not t: continue
                 ls = g.get('labels', [])
                 if isinstance(ls, list):
@@ -118,7 +126,7 @@ def evaluate_models_globally(model_files, gt_map, q_num):
                     
             p_tups = set()
             for p in pred_spans:
-                t = EvaluationEngine.normalize_answer(p.get('text', ''))
+                t = EvaluationEngine.normalize_answer(_get_text_str(p))
                 if not t: continue
                 ls = p.get('labels', [])
                 if isinstance(ls, list):
@@ -176,19 +184,25 @@ def evaluate_models_globally(model_files, gt_map, q_num):
 
     print(f"    -> Pushing batched matrix to GPU...", file=sys.stderr, flush=True)
     global_f1_std = EvaluationEngine.run_global_bertscore_backend([x[0] for x in std_cross_pairs], [x[1] for x in std_cross_pairs]) if std_cross_pairs else []
-
+    
+    # Process BERTScore
     for rec_id, start, num_p, num_g in bert_queue_std:
+        if num_p == 0 and num_g == 0:
+            master_records[rec_id]["bertscore_f1"] = 1.0
+            continue
         if num_p == 0 or num_g == 0:
             master_records[rec_id]["bertscore_f1"] = 0.0
             continue
 
         flat = global_f1_std[start : start + (num_p * num_g)]
         mat = np.array([flat[r * num_g : (r + 1) * num_g] for r in range(num_p)])
-        mp, mr = mat.max(axis=1).mean(), mat.max(axis=0).mean()
         
-        # Clip negative rescaled values BEFORE harmonic mean calculation
-        mp = float(np.clip(mp, 0.0, 1.0))
-        mr = float(np.clip(mr, 0.0, 1.0))
+        row_ind, col_ind = linear_sum_assignment(mat, maximize=True)
+        matched_scores = mat[row_ind, col_ind]
+        soft_tp = matched_scores[matched_scores > 0].sum()
+        
+        mp = float(np.clip(soft_tp / num_p if num_p > 0 else 0.0, 0.0, 1.0))
+        mr = float(np.clip(soft_tp / num_g if num_g > 0 else 0.0, 0.0, 1.0))
         master_records[rec_id]["bertscore_f1"] = float(np.clip(round(2 * (mp * mr) / (mp + mr) if (mp + mr) > 0 else 0.0, 4), 0.0, 1.0))
             
     return master_records
