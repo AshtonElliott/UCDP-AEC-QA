@@ -12,7 +12,7 @@ os.environ.pop("https_proxy", None)
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
 input_path = os.path.join(script_dir, 'train.json')
-output_path = os.path.join(script_dir, 'llama3.1.8b_results.json')
+output_path = os.path.join(script_dir, 'gemma3.4b_results_cb_NT.json')
 
 # Load dataset
 with open(input_path, 'r') as f:
@@ -34,46 +34,37 @@ async def process_entry(idx, entry):
             chunks = [context[i:i+1500] for i in range(0, len(context), 1500)]
             retrieved_context = "\n".join(chunks[:5])
             response = await client.chat(
-                model='llama3.1:8b',
-                format = 'json',
+                model='gemma3:4b',
                 messages=[
-                    {'role': 'system', 'content': (
-                    'Extract the words that answer the question. '
-                    'Respond in JSON format with a list called "extractions" containing objects with the key "word".'
+                    {'role': 'system', 'content': ('Act as a document intelligence assistant.')}, 
+                    {'role': 'user', 'content': (
+                        f"Context: {retrieved_context}\n\n"
+                        f"Question: {question}\n\n"  
+                        'Identify the words that answer the question. Return only a comma-separated list of words found in the article. There can be more than one answer to the question in the text. If there is no answer, return the word Losolnichttproblem.'
                     )},
-                    
-                    {'role': 'user', 'content': f"Context: {retrieved_context}\n\nQuestion: {question}"}
                 ]
             )
             prediction = response['message']['content']
-            
-            # Read in JSON Produced by Llama3.1
-            data = json.loads(prediction)
-            
-            if isinstance(data, dict):
-                extractions = data.get('extractions', [])
-            elif isinstance(data, list):
-                extractions = data
-            else:
-                extractions = []
-            
+            labels = prediction.split(',')
             spans = []
-            for label in extractions:
-                text = label.get('word', '')
-                
-                # Apply Text & Label
-                for match in re.finditer(re.escape(text), context, re.IGNORECASE):
-                    spans.append({
-                        "end": match.end(),
-                        "text": context[match.start():match.end()],
-                        "start": match.start(),
-                        "labels": ["Answer"]
-                    })
-            if len(spans) == 0 or data.get('extractions', []) == "None found":
-                entry['no_answer'] = "No Damage Detected"
+            for label in labels:
+                clean_label = re.sub(r'[^\w\s]', '', label.strip())
+                if clean_label:
+                    for match in re.finditer(re.escape(clean_label), context, re.IGNORECASE):
+                        spans.append({
+                            "end": match.end(),
+                            "text": context[match.start():match.end()],
+                            "start": match.start(),
+                            "labels": ["Answer"]
+                        })
+            # Check AFTER processing all labels
+            if len(spans) == 0:
+                if prediction == "Losolnichttproblem":
+                    entry['no_answer'] = "No arms or methods mentioned (Geniune No Answer)"
+                else:
+                    entry['no_answer'] = "No arms or methods mentioned (Non-Geniune No Answer)"
             else:
                 entry['answer_labels'] = spans
-            entry.pop('extractions', None)
         except Exception as e:
             print(f"Error processing entry {idx}: {e}", file=sys.stderr)
             entry['error'] = str(e)

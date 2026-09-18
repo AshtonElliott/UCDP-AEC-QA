@@ -12,7 +12,7 @@ os.environ.pop("https_proxy", None)
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
 input_path = os.path.join(script_dir, 'train2.json')
-output_path = os.path.join(script_dir, 'gpt_oss_results2_cb_NT.json')
+output_path = os.path.join(script_dir, 'gemma3.4b_results2_cb_NT.json')
 
 # Load dataset
 with open(input_path, 'r') as f:
@@ -34,54 +34,34 @@ async def process_entry(idx, entry):
             chunks = [context[i:i+1500] for i in range(0, len(context), 1500)]
             retrieved_context = "\n".join(chunks[:5])
             response = await client.chat(
-                model='gpt_oss:20b',
+                model='gemma3:4b',
                 messages=[
-                    {'role': 'developer', 'content': (
-                    'Reasoning: high \n'
-                     
-                    '### INSTRUCTION \n'
-                    'Identify the words that answer the question. Return only a comma-separated list of words found in the article.'
-                    'With every word, associate one of the 8 categories below in the format: "Word | Category"'
-                    'There can be more than one answer to the question in the text.'
-                    'For every identified item, return only: "Text | Category". '
+                    {'role': 'system', 'content': ('Act as a document intelligence assistant.')}, 
                     
-                    '### DEFINITIONS \n'
-                    'The 8 Categories are: Energy, Water, Transportation/Marketing, Energy/Water, Health, Agriculture/Fishing, Government/Rebel, Other.'
+                    {'role': 'user', 'content': (
+                        f"Context: {retrieved_context}\n\n"
+                        f"Question: {question}\n\n"
                     
-                    '### CRITERIA \n'
-                    'The category should be Energy when the infrastructure is related to energy exploration, production, and distribution.'
-                    'The category should be Water when the infrastructure is related to drinking water, purification, irrigation, wastewatertreatment, and sanitation'
-                    'The category should be Transportation/Marketing when the infrastructure is related to the transportation marketing, andexchange of commodities'
-                    'The category should be Energy/Water when the infrastructure is related to both producing energy and water (e.g. a dam where hydropower and irrigation functions cannot be separated)'
-                    'The category should be Health when the infrastructure is related to public health, including but not limited to hospitals, clinics, ambulances'
-                    'The category should be Agriculture/Fishing when the infrastructure is related to crop cultivation and harvesting, and infrastructure related to fisheries'
-                    'The category should be Government/Rebel when the infrastructure is related to Government or Public Based Buildings such as Schools, Admin Buildings, and Military Bases'
-                    'The category should be Other when the infrastructure is not related to any of the previous categories.'
-                    'If there is no answer, return ONLY the word Losolnachtnuma.'
+                        'Identify the words that answer the question.'
+                        'With every word, associate one of the 8 categories: Energy, Water, Transportation/Marketing, Energy/Water, Health, Agriculture/Fishing, Government/Rebel, Other. \n'
                     
-                    '### EXAMPLES\n'
-                    
-                    # Example 1: Standard infrastructure
-                    'Input: '
-                    f"Context: Rebels bombed the local bridge and the central hospital.\n\nQuestion: {question}"
-                    'Answer: bridge | Transportation/Marketing, hospital | Health'
-                    
-                    # Example 2: Standard infrastructure
-                    'Input: '
-                    f"Context: The hydroelectric dam was targeted in the raid.\n\nQuestion: {question}"
-                    'Answer: hydroelectric dam | Energy/Water''
+                        'For every identified item, return the following: "Word | Category". '
+                        
+                        'If there is no answer, return the word Losolnachtnuma.'
                     )},
+                
+                    # Example 1: Standard infrastructure
+                    {'role': 'user', 'content': f"Context: Rebels bombed the local bridge and the central hospital.\n\nQuestion: {question}"},
+                    {'role': 'assistant', 'content': 'bridge | Transportation/Marketing, hospital | Health'},
+                    
+                    # Example 2: Multipurpose infrastructure
+                    {'role': 'user', 'content': f"Context: The hydroelectric dam was targeted in the raid.\n\nQuestion: {question}"},
+                    {'role': 'assistant', 'content': 'hydroelectric dam | Energy/Water'},
                     
                     # Example 3: Using Safe Word
                     {'role': 'user', 'content': f"Context: The town was targeted in the raid.\n\nQuestion: {question}"},
-                    {'role': 'assistant', 'content': 'Losolnachtnuma'},
-
-                    {'role': 'user', 'content': f"Context: {retrieved_context}\n\nQuestion: {question}"}   
-                ],
-                think= False,
-                options = {
-                    "temperature": 0
-                }
+                    {'role': 'assistant', 'content': 'Losolnachtnuma'}
+                ]
             )
             prediction = response['message']['content']
             labels = prediction.split(',')
@@ -126,7 +106,7 @@ async def process_entry(idx, entry):
                                 "labels": [QAlabel]
                             })
             if len(spans) == 0:
-                if "Losolnachtnuma" in prediction:
+                if prediction == "Losolnichttproblem":
                     entry['no_answer'] = "No arms or methods mentioned (Geniune No Answer)"
                 else:
                     entry['no_answer'] = "No arms or methods mentioned (Non-Geniune No Answer)"

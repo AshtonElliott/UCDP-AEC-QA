@@ -12,7 +12,7 @@ os.environ.pop("https_proxy", None)
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
 input_path = os.path.join(script_dir, 'train2.json')
-output_path = os.path.join(script_dir, 'gpt_oss_results2_cb_NT.json')
+output_path = os.path.join(script_dir, 'gemma4.e4b_results2_cb_T.json')
 
 # Load dataset
 with open(input_path, 'r') as f:
@@ -34,21 +34,14 @@ async def process_entry(idx, entry):
             chunks = [context[i:i+1500] for i in range(0, len(context), 1500)]
             retrieved_context = "\n".join(chunks[:5])
             response = await client.chat(
-                model='gpt_oss:20b',
+                model='gemma4:e4b',
                 messages=[
-                    {'role': 'developer', 'content': (
-                    'Reasoning: high \n'
-                     
-                    '### INSTRUCTION \n'
+                    {'role': 'system', 'content': (
+                    '<|think|>'
                     'Identify the words that answer the question. Return only a comma-separated list of words found in the article.'
                     'With every word, associate one of the 8 categories below in the format: "Word | Category"'
                     'There can be more than one answer to the question in the text.'
-                    'For every identified item, return only: "Text | Category". '
-                    
-                    '### DEFINITIONS \n'
                     'The 8 Categories are: Energy, Water, Transportation/Marketing, Energy/Water, Health, Agriculture/Fishing, Government/Rebel, Other.'
-                    
-                    '### CRITERIA \n'
                     'The category should be Energy when the infrastructure is related to energy exploration, production, and distribution.'
                     'The category should be Water when the infrastructure is related to drinking water, purification, irrigation, wastewatertreatment, and sanitation'
                     'The category should be Transportation/Marketing when the infrastructure is related to the transportation marketing, andexchange of commodities'
@@ -57,30 +50,29 @@ async def process_entry(idx, entry):
                     'The category should be Agriculture/Fishing when the infrastructure is related to crop cultivation and harvesting, and infrastructure related to fisheries'
                     'The category should be Government/Rebel when the infrastructure is related to Government or Public Based Buildings such as Schools, Admin Buildings, and Military Bases'
                     'The category should be Other when the infrastructure is not related to any of the previous categories.'
+                    'For every identified item, return only: "Text | Category". '
                     'If there is no answer, return ONLY the word Losolnachtnuma.'
-                    
-                    '### EXAMPLES\n'
-                    
-                    # Example 1: Standard infrastructure
-                    'Input: '
-                    f"Context: Rebels bombed the local bridge and the central hospital.\n\nQuestion: {question}"
-                    'Answer: bridge | Transportation/Marketing, hospital | Health'
-                    
-                    # Example 2: Standard infrastructure
-                    'Input: '
-                    f"Context: The hydroelectric dam was targeted in the raid.\n\nQuestion: {question}"
-                    'Answer: hydroelectric dam | Energy/Water''
                     )},
+                
+                    # Example 1: Standard infrastructure
+                    {'role': 'user', 'content': f"Context: Rebels bombed the local bridge and the central hospital.\n\nQuestion: {question}"},
+                    {'role': 'assistant', 'content': 'bridge | Transportation/Marketing, hospital | Health'},
+                    
+                    # Example 2: Multipurpose infrastructure
+                    {'role': 'user', 'content': f"Context: The hydroelectric dam was targeted in the raid.\n\nQuestion: {question}"},
+                    {'role': 'assistant', 'content': 'hydroelectric dam | Energy/Water'},
                     
                     # Example 3: Using Safe Word
                     {'role': 'user', 'content': f"Context: The town was targeted in the raid.\n\nQuestion: {question}"},
                     {'role': 'assistant', 'content': 'Losolnachtnuma'},
-
+                    
                     {'role': 'user', 'content': f"Context: {retrieved_context}\n\nQuestion: {question}"}   
                 ],
-                think= False,
+                think= True,
                 options = {
-                    "temperature": 0
+                    "temperature": 0,
+                    'top_p': 0.95,
+                    'top_k': 64
                 }
             )
             prediction = response['message']['content']
@@ -126,7 +118,7 @@ async def process_entry(idx, entry):
                                 "labels": [QAlabel]
                             })
             if len(spans) == 0:
-                if "Losolnachtnuma" in prediction:
+                if prediction == "Losolnichttproblem":
                     entry['no_answer'] = "No arms or methods mentioned (Geniune No Answer)"
                 else:
                     entry['no_answer'] = "No arms or methods mentioned (Non-Geniune No Answer)"

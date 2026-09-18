@@ -12,7 +12,7 @@ os.environ.pop("https_proxy", None)
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
 input_path = os.path.join(script_dir, 'train.json')
-output_path = os.path.join(script_dir, 'llama3.1.8b_results.json')
+output_path = os.path.join(script_dir, 'llama3.1.8b_results_NT.json')
 
 # Load dataset
 with open(input_path, 'r') as f:
@@ -40,15 +40,23 @@ async def process_entry(idx, entry):
                     {'role': 'system', 'content': (
                     'Extract the words that answer the question. '
                     'Respond in JSON format with a list called "extractions" containing objects with the key "word".'
+                    'If there is no answer, return the word Losolnachtnuma in the "extractions" list.'
                     )},
                     
                     {'role': 'user', 'content': f"Context: {retrieved_context}\n\nQuestion: {question}"}
-                ]
+                ],
+                think= False,
+                options = {
+                    "temperature": 0
+                } 
             )
             prediction = response['message']['content']
             
             # Read in JSON Produced by Llama3.1
             data = json.loads(prediction)
+            
+            # Boolean to catch abstaining answers
+            safeword = False
             
             if isinstance(data, dict):
                 extractions = data.get('extractions', [])
@@ -60,6 +68,8 @@ async def process_entry(idx, entry):
             spans = []
             for label in extractions:
                 text = label.get('word', '')
+                if text == "Losolnachtnuma":
+                    safeword = True
                 
                 # Apply Text & Label
                 for match in re.finditer(re.escape(text), context, re.IGNORECASE):
@@ -69,8 +79,11 @@ async def process_entry(idx, entry):
                         "start": match.start(),
                         "labels": ["Answer"]
                     })
-            if len(spans) == 0 or data.get('extractions', []) == "None found":
-                entry['no_answer'] = "No Damage Detected"
+            if len(spans) == 0 or data.get('extractions', []) == "None found" or safeword == True:
+                if safeword == True:
+                    entry['no_answer'] = "No arms or methods mentioned (Geniune No Answer)"
+                else:
+                    entry['no_answer'] = "No arms or methods mentioned (Non-Geniune No Answer)"
             else:
                 entry['answer_labels'] = spans
             entry.pop('extractions', None)

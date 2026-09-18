@@ -11,8 +11,8 @@ os.environ.pop("http_proxy", None)
 os.environ.pop("https_proxy", None)
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
-input_path = os.path.join(script_dir, 'train2.json')
-output_path = os.path.join(script_dir, 'gpt_oss_results2_cb_NT.json')
+input_path = os.path.join(script_dir, 'train2sample.json')
+output_path = os.path.join(script_dir, 'Invalid.json')
 
 # Load dataset
 with open(input_path, 'r') as f:
@@ -25,7 +25,7 @@ sem = asyncio.Semaphore(5) # max concurrency
 client = ollama.AsyncClient()
 
 # Creating a function for one single async action
-async def process_entry(idx, entry):
+async def process_entry(idx, entry, ThinkingDet, Model):
     async with sem:
         try:
             print(f"Processing entry {idx+1}/{len(dataset)}...")
@@ -34,21 +34,14 @@ async def process_entry(idx, entry):
             chunks = [context[i:i+1500] for i in range(0, len(context), 1500)]
             retrieved_context = "\n".join(chunks[:5])
             response = await client.chat(
-                model='gpt_oss:20b',
+                model=Model,
+                format='json',
                 messages=[
-                    {'role': 'developer', 'content': (
-                    'Reasoning: high \n'
-                     
-                    '### INSTRUCTION \n'
+                    {'role': 'system', 'content': (
                     'Identify the words that answer the question. Return only a comma-separated list of words found in the article.'
                     'With every word, associate one of the 8 categories below in the format: "Word | Category"'
                     'There can be more than one answer to the question in the text.'
-                    'For every identified item, return only: "Text | Category". '
-                    
-                    '### DEFINITIONS \n'
                     'The 8 Categories are: Energy, Water, Transportation/Marketing, Energy/Water, Health, Agriculture/Fishing, Government/Rebel, Other.'
-                    
-                    '### CRITERIA \n'
                     'The category should be Energy when the infrastructure is related to energy exploration, production, and distribution.'
                     'The category should be Water when the infrastructure is related to drinking water, purification, irrigation, wastewatertreatment, and sanitation'
                     'The category should be Transportation/Marketing when the infrastructure is related to the transportation marketing, andexchange of commodities'
@@ -57,79 +50,70 @@ async def process_entry(idx, entry):
                     'The category should be Agriculture/Fishing when the infrastructure is related to crop cultivation and harvesting, and infrastructure related to fisheries'
                     'The category should be Government/Rebel when the infrastructure is related to Government or Public Based Buildings such as Schools, Admin Buildings, and Military Bases'
                     'The category should be Other when the infrastructure is not related to any of the previous categories.'
-                    'If there is no answer, return ONLY the word Losolnachtnuma.'
-                    
-                    '### EXAMPLES\n'
-                    
-                    # Example 1: Standard infrastructure
-                    'Input: '
-                    f"Context: Rebels bombed the local bridge and the central hospital.\n\nQuestion: {question}"
-                    'Answer: bridge | Transportation/Marketing, hospital | Health'
-                    
-                    # Example 2: Standard infrastructure
-                    'Input: '
-                    f"Context: The hydroelectric dam was targeted in the raid.\n\nQuestion: {question}"
-                    'Answer: hydroelectric dam | Energy/Water''
+                    'Respond in JSON format with a list called "extractions" containing objects with keys "word" and "category".'
+                    'If there is no answer, return the word Losolnachtnuma in the "extractions" list.'
                     )},
+                
+                    # Example 1: Standard infrastructure
+                    {'role': 'user', 'content': f"Context: Rebels bombed the local bridge and the central hospital.\n\nQuestion: {question}"},
+                    {'role': 'assistant', 'content': 'bridge | Transportation/Marketing, hospital | Health'},
+                    
+                    # Example 2: Multipurpose infrastructure
+                    {'role': 'user', 'content': f"Context: The hydroelectric dam was targeted in the raid.\n\nQuestion: {question}"},
+                    {'role': 'assistant', 'content': 'hydroelectric dam | Energy/Water'},
                     
                     # Example 3: Using Safe Word
                     {'role': 'user', 'content': f"Context: The town was targeted in the raid.\n\nQuestion: {question}"},
                     {'role': 'assistant', 'content': 'Losolnachtnuma'},
-
+                    
                     {'role': 'user', 'content': f"Context: {retrieved_context}\n\nQuestion: {question}"}   
                 ],
-                think= False,
+                think= ThinkingDet,
                 options = {
                     "temperature": 0
                 }
             )
             prediction = response['message']['content']
-            labels = prediction.split(',')
+            
+            # Read in JSON Produced by Llama3.1
+            data = json.loads(prediction)
+            print(data)
+            
+            # Boolean to catch abstaining answers
+            safeword = False
+            
+            if isinstance(data, dict):
+                extractions = data.get('extractions', [])
+            elif isinstance(data, list):
+                extractions = data
+            else:
+                extractions = []
+            
             spans = []
-            for label in labels:
-                clean_label = label.strip(' ".\' ')
-                if '|' in clean_label:
-                    # Separate Text and Label
-                    parts = clean_label.split('|', 1)
-                    text = parts[0]
-                    
-                    # Filter Out for Label
-                    QAlabel = parts[1]
-                        
-                    if "Energy" in QAlabel:
-                        QAlabel = "Energy"
-                    elif "Water" in QAlabel:
-                        QAlabel = "Water"
-                    elif "Transportation/Marketing" in QAlabel:
-                        QAlabel = "Transportation/Marketing"
-                    elif "Energy/Water" in QAlabel:
-                        QAlabel = "Energy/Water"
-                    elif "Health" in QAlabel:
-                        QAlabel = "Health"
-                    elif "Agriculture/Fishing" in QAlabel:
-                        QAlabel = "Agriculture/Fishing"
-                    elif "Government/Rebel" in QAlabel:
-                        QAlabel = "Government/Rebel"
-                    else:
-                        QAlabel = "Other"
-                    
-                    if "" in text:
-                        # Filter out blanks-positives
-                        continue
-                    else:
-                        # Apply Text & Label
-                        for match in re.finditer(re.escape(text), context, re.IGNORECASE):
-                            spans.append({
-                                "end": match.end(),
-                                "text": context[match.start():match.end()],
-                                "start": match.start(),
-                                "labels": [QAlabel]
-                            })
-            if len(spans) == 0:
-                if "Losolnachtnuma" in prediction:
-                    entry['no_answer'] = "No arms or methods mentioned (Geniune No Answer)"
+            for label in extractions:
+                text = ""
+                QALabel = ""
+                if isinstance(label, dict):
+                    text = label.get('word', '')
+                    if text == "Losolnachtnuma":
+                        safeword = True
+                    QALabel = label.get('category', 'Other')
+                
+                if not text.strip():
+                    # Filter out blanks-positives
+                    continue
                 else:
-                    entry['no_answer'] = "No arms or methods mentioned (Non-Geniune No Answer)"
+                    # Apply Text & Label
+                        spans.append({
+                        "end": "N/A",
+                        "text": [text],
+                        "start": "N/A",
+                        "labels": [QALabel]
+                        })
+                        
+
+            if safeword == True:
+                entry['no_answer'] = "No arms or methods mentioned (Geniune No Answer)"
             else:
                 entry['answer_labels'] = spans
         except Exception as e:
@@ -139,10 +123,27 @@ async def process_entry(idx, entry):
 # Main function to use async later on. 
 # Use await instead of for loop for asyncio.
 async def main():
-    await tqdm.gather(*[
-        process_entry(idx, entry)
-        for idx, entry in enumerate(dataset)
-    ])
+    process = input("Select which process to Run (by number) \n 1. Non-Thinking \n 2. Thinking \n")
+    # Change Model Here
+    Model = 'gpt-oss:20b'
+    
+    if process == "1":
+        await tqdm.gather(*[
+            process_entry(idx, entry, False, Model)
+            for idx, entry in enumerate(dataset)
+        ])
+        output_path = os.path.join(script_dir, 'gpt-oss.20b_results2_NT.json')
+        
+    elif process == "2": 
+        await tqdm.gather(*[
+            process_entry(idx, entry, True, Model)
+            for idx, entry in enumerate(dataset)
+        ])
+        output_path = os.path.join(script_dir, 'gpt-oss.20b_results2_T.json')
+        
+    else:
+        print("Invalid Selection")
+        
     # Write ONCE after all entries processed
     print("Writing results...")
     with open(output_path, 'w') as f:
