@@ -122,7 +122,7 @@ async def process_entry(idx, entry, ThinkingDet, Reasoning):
             
             spans = []
             for label in data.extractions:
-                text = item.word.strip()
+                text = label.word.strip()
                 if text == "Losolnachtnuma":
                     safeword = True
                     break
