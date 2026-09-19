@@ -35,7 +35,7 @@ async def process_entry(idx, entry, ThinkingDet):
             retrieved_context = "\n".join(chunks[:5])
             response = await client.chat(
                 model='nemotron3:33b',
-                format='json',
+                format= ExtractionResponse.model_json_schema(),
                 messages=[
                     {'role': 'system', 'content': (
                     'Identify the words that answer the question. Return only a comma-separated list of words found in the article.'
@@ -56,15 +56,15 @@ async def process_entry(idx, entry, ThinkingDet):
                 
                     # Example 1: Standard infrastructure
                     {'role': 'user', 'content': f"Context: Rebels bombed the local bridge and the central hospital.\n\nQuestion: {question}"},
-                    {'role': 'assistant', 'content': 'bridge | Transportation/Marketing, hospital | Health'},
+                    {'role': 'assistant', 'content': '{"extractions": [{"word": "bridge", "category": "Transportation/Marketing"}, {"word": "hospital", "category": "Health"}]}'},
                     
                     # Example 2: Multipurpose infrastructure
                     {'role': 'user', 'content': f"Context: The hydroelectric dam was targeted in the raid.\n\nQuestion: {question}"},
-                    {'role': 'assistant', 'content': 'hydroelectric dam | Energy/Water'},
+                    {'role': 'assistant', 'content': '{"extractions": [{"word": "hydroelectric dam", "category": "Energy/Water"}'},
                     
                     # Example 3: Using Safe Word
                     {'role': 'user', 'content': f"Context: The town was targeted in the raid.\n\nQuestion: {question}"},
-                    {'role': 'assistant', 'content': 'Losolnachtnuma'},
+                    {'role': 'assistant', 'content': '{"extractions": [{"word": "Losolnachtnuma", "category": "Other"}]}'},
                     
                     {'role': 'user', 'content': f"Context: {retrieved_context}\n\nQuestion: {question}"}
                 ],
@@ -78,47 +78,34 @@ async def process_entry(idx, entry, ThinkingDet):
             )
             prediction = response['message']['content']
             
-            # Read in JSON Produced by Llama3.1
-            data = json.loads(prediction)
-            print(data)
-            
+            # Read in JSON with Pydantic
+            data = ExtractionResponse.model_validate_json(prediction)
+                
             # Boolean to catch abstaining answers
             safeword = False
             
-            if isinstance(data, dict):
-                extractions = data.get('extractions', [])
-            elif isinstance(data, list):
-                extractions = data
-            else:
-                extractions = []
-            
             spans = []
-            for label in extractions:
-                text = ""
-                QALabel = ""
-                if isinstance(label, dict):
-                    text = label.get('word', '')
-                    if text == "Losolnachtnuma":
-                        safeword = True
-                    QALabel = label.get('category', 'Other')
-                
-                if not text.strip():
-                    # Filter out blanks-positives
-                    continue
-                else:
+            for label in data.extractions:
+                text = label.word.strip()
+                if text == "Losolnachtnuma":
+                    safeword = True
+                    break
+                if text:
                     # Apply Text & Label
-                        spans.append({
+                    spans.append({
                         "end": "N/A",
                         "text": [text],
                         "start": "N/A",
-                        "labels": [QALabel]
-                        })
-                        
-
+                        "labels": [label.category]
+                    })
+                    
             if safeword == True:
                 entry['no_answer'] = "No arms or methods mentioned (Geniune No Answer)"
             else:
                 entry['answer_labels'] = spans
+        except ValidationError as e:
+            print(f"Pydantic Validation Error in entry {idx}: {e}", file=sys.stderr)
+            entry['error'] = f"Invalid schema returned: {e}"
         except Exception as e:
             print(f"Error processing entry {idx}: {e}", file=sys.stderr)
             entry['error'] = str(e)
