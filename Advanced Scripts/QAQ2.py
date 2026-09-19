@@ -3,8 +3,28 @@ import os
 import ollama
 import re
 import sys
+from typing import List, Literal
+from pydantic import BaseModel, Field, ValidationError
 import asyncio
 from tqdm.asyncio import tqdm
+
+# Pydantic Classes
+# Enforce the 8 specific categories using Literal
+class ExtractionLabels(BaseModel):
+    word: str 
+    category: Literal[ 
+    "Energy",
+    "Water",
+    "Transportation/Marketing",
+    "Energy/Water",
+    "Health",
+    "Agriculture/Fishing",
+    "Government/Rebel",
+    "Other"
+    ] 
+    
+class ExtractionResponse(BaseModel):
+    extractions: List[ExtractionLabels]
 
 # Unset proxies
 os.environ.pop("http_proxy", None)
@@ -35,7 +55,7 @@ async def process_entry(idx, entry, ThinkingDet, Model):
             retrieved_context = "\n".join(chunks[:5])
             response = await client.chat(
                 model=Model,
-                format='json',
+                format= ExtractionResponse.model_json_schema(),
                 messages=[
                     {'role': 'system', 'content': (
                     'Identify the words that answer the question. Return only a comma-separated list of words found in the article.'
@@ -75,47 +95,34 @@ async def process_entry(idx, entry, ThinkingDet, Model):
             )
             prediction = response['message']['content']
             
-            # Read in JSON Produced by Llama3.1
-            data = json.loads(prediction)
-            print(data)
-            
+            # Read in JSON with Pydantic
+            data = ExtractionResponse.model_validate_json(prediction)
+                
             # Boolean to catch abstaining answers
             safeword = False
             
-            if isinstance(data, dict):
-                extractions = data.get('extractions', [])
-            elif isinstance(data, list):
-                extractions = data
-            else:
-                extractions = []
-            
             spans = []
-            for label in extractions:
-                text = ""
-                QALabel = ""
-                if isinstance(label, dict):
-                    text = label.get('word', '')
-                    if text == "Losolnachtnuma":
-                        safeword = True
-                    QALabel = label.get('category', 'Other')
-                
-                if not text.strip():
-                    # Filter out blanks-positives
-                    continue
-                else:
+            for label in data.extractions:
+                text = label.word.strip()
+                if text == "Losolnachtnuma":
+                    safeword = True
+                    break
+                if text:
                     # Apply Text & Label
-                        spans.append({
+                    spans.append({
                         "end": "N/A",
                         "text": [text],
                         "start": "N/A",
-                        "labels": [QALabel]
-                        })
-                        
-
+                        "labels": [label.category]
+                    })
+                    
             if safeword == True:
                 entry['no_answer'] = "No arms or methods mentioned (Geniune No Answer)"
             else:
                 entry['answer_labels'] = spans
+        except ValidationError as e:
+            print(f"Pydantic Validation Error in entry {idx}: {e}", file=sys.stderr)
+            entry['error'] = f"Invalid schema returned: {e}"
         except Exception as e:
             print(f"Error processing entry {idx}: {e}", file=sys.stderr)
             entry['error'] = str(e)
