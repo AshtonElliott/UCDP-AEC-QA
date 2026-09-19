@@ -76,15 +76,15 @@ async def process_entry(idx, entry, ThinkingDet, Model):
                 
                     # Example 1: Standard infrastructure
                     {'role': 'user', 'content': f"Context: Rebels bombed the local bridge and the central hospital.\n\nQuestion: {question}"},
-                    {'role': 'assistant', 'content': 'bridge | Transportation/Marketing, hospital | Health'},
+                    {'role': 'assistant', 'content': '{"extractions": [{"word": "bridge", "category": "Transportation/Marketing"}, {"word": "hospital", "category": "Health"}]}'},
                     
                     # Example 2: Multipurpose infrastructure
                     {'role': 'user', 'content': f"Context: The hydroelectric dam was targeted in the raid.\n\nQuestion: {question}"},
-                    {'role': 'assistant', 'content': 'hydroelectric dam | Energy/Water'},
+                    {'role': 'assistant', 'content': '{"extractions": [{"word": "hydroelectric dam", "category": "Energy/Water"}'},
                     
                     # Example 3: Using Safe Word
                     {'role': 'user', 'content': f"Context: The town was targeted in the raid.\n\nQuestion: {question}"},
-                    {'role': 'assistant', 'content': 'Losolnachtnuma'},
+                    {'role': 'assistant', 'content': '{"extractions": [{"word": "Losolnachtnuma", "category": "Other"}]}'},
                     
                     {'role': 'user', 'content': f"Context: {retrieved_context}\n\nQuestion: {question}"}   
                 ],
