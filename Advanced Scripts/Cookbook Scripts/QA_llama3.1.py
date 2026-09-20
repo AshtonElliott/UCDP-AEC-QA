@@ -12,7 +12,9 @@ from tqdm.asyncio import tqdm
 # Enforce the format
 class ExtractionQ1(BaseModel):
     word: str 
-    category: "Answer"
+    category: Literal[
+    "Answer"
+    ]
     
 class ExtractionResponse(BaseModel):
     extractions: List[ExtractionQ1]
