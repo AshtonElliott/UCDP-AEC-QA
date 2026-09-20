@@ -12,7 +12,9 @@ from tqdm.asyncio import tqdm
 # Enforce the format
 class ExtractionQ1(BaseModel):
     word: str 
-    category: "Answer"
+    category: Literal[
+    "Answer"
+    ]
     
 class ExtractionResponse(BaseModel):
     extractions: List[ExtractionQ1]
@@ -23,7 +25,7 @@ os.environ.pop("https_proxy", None)
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
 input_path = os.path.join(script_dir, 'train.json')
-output_path = os.path.join(script_dir, 'Invalid.json')
+output_path = os.path.join(script_dir, 'gpt-oss.20b_results_NT.json')
 
 # Load dataset
 with open(input_path, 'r') as f:
@@ -106,21 +108,21 @@ async def process_entry(idx, entry, ThinkingDet, Model):
 async def main():
     process = input("Select which process to Run (by number) \n 1. Non-Thinking \n 2. Thinking \n")
     # Change Model Here
-    Model = 'gpt-oss:20b'
+    Model = 'gemma3:4b'
     
     if process == "1":
         await tqdm.gather(*[
             process_entry(idx, entry, False, Model)
             for idx, entry in enumerate(dataset)
         ])
-        output_path = os.path.join(script_dir, 'gpt-oss.20b_results_NT.json')
+        output_path = os.path.join(script_dir, 'gemma3.4b_results_NT.json')
         
     elif process == "2": 
         await tqdm.gather(*[
             process_entry(idx, entry, True, Model)
             for idx, entry in enumerate(dataset)
         ])
-        output_path = os.path.join(script_dir, 'gpt-oss.20b_results_T.json')
+        output_path = os.path.join(script_dir, 'gemma3.4b_results_T.json')
         
     else:
         print("Invalid Selection")
