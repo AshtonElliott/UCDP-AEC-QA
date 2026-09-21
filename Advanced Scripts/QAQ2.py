@@ -3,7 +3,7 @@ import os
 import ollama
 import re
 import sys
-from typing import List, Literal
+from typing import List, Literal, Union
 from pydantic import BaseModel, Field, ValidationError
 import asyncio
 from tqdm.asyncio import tqdm
@@ -24,14 +24,14 @@ class ExtractionLabels(BaseModel):
     ] 
     
 class ExtractionResponse(BaseModel):
-    extractions: List[ExtractionLabels]
+    extractions: List[Union[ExtractionLabels,str]]
 
 # Unset proxies
 os.environ.pop("http_proxy", None)
 os.environ.pop("https_proxy", None)
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
-input_path = os.path.join(script_dir, 'train2sample.json')
+input_path = os.path.join(script_dir, 'train2.json')
 output_path = os.path.join(script_dir, 'Invalid.json')
 
 # Load dataset
@@ -45,7 +45,7 @@ sem = asyncio.Semaphore(5) # max concurrency
 client = ollama.AsyncClient()
 
 # Creating a function for one single async action
-async def process_entry(idx, entry, ThinkingDet, Model):
+async def process_entry(idx, entry, ThinkingDet, Model, temp):
     async with sem:
         try:
             print(f"Processing entry {idx+1}/{len(dataset)}...")
@@ -80,7 +80,7 @@ async def process_entry(idx, entry, ThinkingDet, Model):
                     
                     # Example 2: Multipurpose infrastructure
                     {'role': 'user', 'content': f"Context: The hydroelectric dam was targeted in the raid.\n\nQuestion: {question}"},
-                    {'role': 'assistant', 'content': '{"extractions": [{"word": "hydroelectric dam", "category": "Energy/Water"}'},
+                    {'role': 'assistant', 'content': '{"extractions": [{"word": "hydroelectric dam", "category": "Energy/Water"}]}'},
                     
                     # Example 3: Using Safe Word
                     {'role': 'user', 'content': f"Context: The town was targeted in the raid.\n\nQuestion: {question}"},
@@ -90,7 +90,7 @@ async def process_entry(idx, entry, ThinkingDet, Model):
                 ],
                 think= ThinkingDet,
                 options = {
-                    "temperature": 0
+                    "temperature": temp
                 }
             )
             prediction = response['message']['content']
@@ -103,7 +103,13 @@ async def process_entry(idx, entry, ThinkingDet, Model):
             
             spans = []
             for label in data.extractions:
-                text = label.word.strip()
+                if isinstance(label, dict):
+                   text = label.get('word', '')
+                elif isinstance(label, str):
+                   text = label
+                else: 
+                   text = ''
+                   
                 if text == "Losolnachtnuma":
                     safeword = True
                     break
@@ -116,7 +122,7 @@ async def process_entry(idx, entry, ThinkingDet, Model):
                         "labels": [label.category]
                     })
                     
-            if safeword == True:
+            if safeword == True or len(spans) == 0:
                 entry['no_answer'] = "No arms or methods mentioned (Geniune No Answer)"
             else:
                 entry['answer_labels'] = spans
@@ -132,21 +138,24 @@ async def process_entry(idx, entry, ThinkingDet, Model):
 async def main():
     process = input("Select which process to Run (by number) \n 1. Non-Thinking \n 2. Thinking \n")
     # Change Model Here
-    Model = 'gpt-oss:20b'
+    Model = 'nemotron3:33b'
+    
+    # Change Temp here
+    temp = 0.1
     
     if process == "1":
         await tqdm.gather(*[
-            process_entry(idx, entry, False, Model)
+            process_entry(idx, entry, False, Model, temp)
             for idx, entry in enumerate(dataset)
         ])
-        output_path = os.path.join(script_dir, 'gpt-oss.20b_results2_NT.json')
+        output_path = os.path.join(script_dir, 'nemotron3_nano_omni_results2_NT.json')
         
     elif process == "2": 
         await tqdm.gather(*[
-            process_entry(idx, entry, True, Model)
+            process_entry(idx, entry, True, Model, temp)
             for idx, entry in enumerate(dataset)
         ])
-        output_path = os.path.join(script_dir, 'gpt-oss.20b_results2_T.json')
+        output_path = os.path.join(script_dir, 'nemotron3_nano_omni_results2_T.json')
         
     else:
         print("Invalid Selection")
