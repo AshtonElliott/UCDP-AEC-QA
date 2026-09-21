@@ -93,23 +93,18 @@ async def process_entry(idx, entry, ThinkingDet, Model, temp):
                     "temperature": temp
                 }
             )
-            prediction = response['message']['content']
+            prediction = response['message']['content'].strip()
+            prediction = re.sub(r'\]\}\s*\}$', ']}', prediction)
             
             # Read in JSON with Pydantic
             data = ExtractionResponse.model_validate_json(prediction)
-                
+            
             # Boolean to catch abstaining answers
             safeword = False
             
             spans = []
             for label in data.extractions:
-                if isinstance(label, dict):
-                   text = label.get('word', '')
-                elif isinstance(label, str):
-                   text = label
-                else: 
-                   text = ''
-                   
+                text = label.word.strip()
                 if text == "Losolnachtnuma":
                     safeword = True
                     break
