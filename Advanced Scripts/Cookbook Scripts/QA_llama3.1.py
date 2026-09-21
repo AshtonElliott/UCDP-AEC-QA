@@ -3,21 +3,8 @@ import os
 import ollama
 import re
 import sys
-from typing import List, Literal
-from pydantic import BaseModel, Field, ValidationError
 import asyncio
 from tqdm.asyncio import tqdm
-
-# Pydantic Classes
-# Enforce the format
-class ExtractionQ1(BaseModel):
-    word: str 
-    category: Literal[
-    "Answer"
-    ]
-    
-class ExtractionResponse(BaseModel):
-    extractions: List[ExtractionQ1]
 
 # Unset proxies
 os.environ.pop("http_proxy", None)
