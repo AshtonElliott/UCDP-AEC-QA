@@ -98,7 +98,7 @@ class EvaluationEngine:
 
         Returns:
             prec, rec, set_text_f1: Precision, Recall, and F1 over exact normalized phrase multisets.
-            token_f1: max-mean official SQuAD token F1 across span pairs.
+            token_f1: Hungarian-matched official SQuAD token F1 across span pairs.
         """
         # 1. Fast-fail on empty lists (Return P, R, F1, TokenF1)
         if not g_texts and not p_texts: return 1.0, 1.0, 1.0, 1.0
@@ -144,7 +144,7 @@ class EvaluationEngine:
 
     @classmethod
     def evaluate_bertscore_f1_legacy(cls, g_texts, p_texts):
-        """Max-mean BERTScore F1 over pred×gold pairs. Returns a single F1."""
+        """Hungarian-matched BERTScore F1 over pred×gold pairs. Returns a single F1."""
         if not g_texts and not p_texts:
             return 1.0
         if not g_texts or not p_texts:

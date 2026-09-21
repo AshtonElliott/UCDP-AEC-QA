@@ -111,9 +111,9 @@ def run_comprehensive_evaluation():
         g_texts = [] if human_str in null_identifiers else [s.strip() for s in human_str.split(" | ") if s.strip()]
         p_texts = [] if llm_str in null_identifiers else [s.strip() for s in llm_str.split(" | ") if s.strip()]
 
-        set_text_f1, token_f1 = EvaluationEngine.evaluate_ie_squad_metrics(g_texts, p_texts)
+        _, _, set_text_f1, token_f1 = EvaluationEngine.evaluate_span_and_token_f1(g_texts, p_texts)
         set_text_f1_scores.append(set_text_f1)
-        _, _, bertscore_f1 = EvaluationEngine.evaluate_bipartite_bertscore(g_texts, p_texts)
+        _, _, bertscore_f1 = EvaluationEngine.evaluate_bertscore_legacy(g_texts, p_texts)
         f1_scores.append(bertscore_f1)
         
         token_f1_scores.append(token_f1)

@@ -157,14 +157,14 @@ def evaluate_models_globally(model_files, gt_map, q_num):
                 record["label_p"], record["label_r"], record["label_f1"] = 0.0, 0.0, 0.0
                 record["token_f1"], record["bertscore_f1"] = 0.0, 0.0
             else:
-                set_p, set_r, set_f1, tok_f1 = EvaluationEngine.evaluate_ie_squad_metrics(g_texts, p_texts)
+                set_p, set_r, set_f1, tok_f1 = EvaluationEngine.evaluate_span_and_token_f1(g_texts, p_texts)
                 record["set_text_p"] = set_p
                 record["set_text_r"] = set_r
                 record["set_text_f1"] = set_f1
                 record["token_f1"] = tok_f1
 
                 # Labeled Span metrics (text + category tuples)
-                lbl_p, lbl_r, lbl_f1 = EvaluationEngine.evaluate_strict_tuple_match(gold_spans, pred_spans)
+                lbl_p, lbl_r, lbl_f1 = EvaluationEngine.evaluate_label_f1(gold_spans, pred_spans)
                 record["label_p"] = lbl_p
                 record["label_r"] = lbl_r
                 record["label_f1"] = lbl_f1
