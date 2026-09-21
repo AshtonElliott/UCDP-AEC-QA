@@ -12,7 +12,7 @@ os.environ.pop("https_proxy", None)
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
 input_path = os.path.join(script_dir, 'train.json')
-output_path = os.path.join(script_dir, 'gemma3.4b_results_cb_NT.json')
+output_path = os.path.join(script_dir, 'Invalid.json')
 
 # Load dataset
 with open(input_path, 'r') as f:
@@ -25,7 +25,7 @@ sem = asyncio.Semaphore(5) # max concurrency
 client = ollama.AsyncClient()
 
 # Creating a function for one single async action
-async def process_entry(idx, entry):
+async def process_entry(idx, entry, ThinkingDet):
     async with sem:
         try:
             print(f"Processing entry {idx+1}/{len(dataset)}...")
@@ -34,21 +34,22 @@ async def process_entry(idx, entry):
             chunks = [context[i:i+1500] for i in range(0, len(context), 1500)]
             retrieved_context = "\n".join(chunks[:5])
             response = await client.chat(
-                model='gemma3:4b',
-                format= 'json',
+                model='nemotron3:33b',
                 messages=[
-                    {'role': 'system', 'content': ('Act as a document intelligence assistant.')}, 
-                    {'role': 'user', 'content': (
-                        f"Context: {retrieved_context}\n\n"
-                        f"Question: {question}\n\n"  
-                        'Identify the words that answer the question. Return only a comma-separated list of words found in the article. There can be more than one answer to the question in the text.'
-                        'Respond in JSON format with a list called "extractions" containing objects with the key "word".'
-                        'If there is no answer, return the word Losolnachtnuma in the "extractions" list.'
+                    {'role': 'system', 'content': (
+                    'Identify the words that answer the question. Return only a comma-separated list of words found in the article.'
+                    'There can be more than one answer to the question in the text.'
+                    'Respond in JSON format with a list called "extractions" containing objects with keys "word" and "category".'
+                    'If there is no answer, return the word Losolnachtnuma in the "extractions" list.'
                     )},
+                    {'role': 'user', 'content': f"Context: {retrieved_context}\n\nQuestion: {question}"}
                 ],
-                think= False,
+                
                 options = {
-                    "temperature": 1
+                    "enable_thinking": ThinkingDet,
+                    "reasoning_budget": 1024,
+                    "max_tokens": 4096,
+                    "temperature": 0.1,
                 }
             )
             prediction = response['message']['content']
@@ -98,10 +99,24 @@ async def process_entry(idx, entry):
 # Main function to use async later on. 
 # Use await instead of for loop for asyncio.
 async def main():
-    await tqdm.gather(*[
-        process_entry(idx, entry)
-        for idx, entry in enumerate(dataset)
-    ])
+    process = input("Select which process to Run (by number) \n 1. Non-Thinking \n 2. Thinking \n")
+        if process == "1":
+            await tqdm.gather(*[
+                process_entry(idx, entry, False)
+                for idx, entry in enumerate(dataset)
+            ])
+            output_path = os.path.join(script_dir, 'nemotron3_nano_omni_results_cb_NT.json')
+            
+        elif process == "2": 
+            await tqdm.gather(*[
+                process_entry(idx, entry, True)
+                for idx, entry in enumerate(dataset)
+            ])
+            output_path = os.path.join(script_dir, 'nemotron3_nano_omni_results_cb_T.json')
+            
+        else:
+            print("Invalid Selection")
+        
     # Write ONCE after all entries processed
     print("Writing results...")
     with open(output_path, 'w') as f:

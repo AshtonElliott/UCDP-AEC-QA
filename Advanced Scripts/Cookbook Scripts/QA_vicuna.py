@@ -12,7 +12,7 @@ os.environ.pop("https_proxy", None)
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
 input_path = os.path.join(script_dir, 'train.json')
-output_path = os.path.join(script_dir, 'gemma3.4b_results_cb_NT.json')
+output_path = os.path.join(script_dir, 'vicuna.13b_results_cb.json')
 
 # Load dataset
 with open(input_path, 'r') as f:
@@ -34,24 +34,28 @@ async def process_entry(idx, entry):
             chunks = [context[i:i+1500] for i in range(0, len(context), 1500)]
             retrieved_context = "\n".join(chunks[:5])
             response = await client.chat(
-                model='gemma3:4b',
-                format= 'json',
+                model='vicuna:13b',
                 messages=[
-                    {'role': 'system', 'content': ('Act as a document intelligence assistant.')}, 
-                    {'role': 'user', 'content': (
-                        f"Context: {retrieved_context}\n\n"
-                        f"Question: {question}\n\n"  
-                        'Identify the words that answer the question. Return only a comma-separated list of words found in the article. There can be more than one answer to the question in the text.'
-                        'Respond in JSON format with a list called "extractions" containing objects with the key "word".'
-                        'If there is no answer, return the word Losolnachtnuma in the "extractions" list.'
+                    {'role': 'system', 'content': (
+                        'A chat between a curious user and an artificial intelligence assistant. '
+                        'The assistant gives helpful, detailed, and polite answers to the user\'s questions.'
                     )},
+                    
+                    {'role': 'user', 'content': (
+                        f'Identify the words that answer the question. Return only a comma-separated list of words found in the article. There can be more than one answer to the question in the text.'
+                        f'Question: {question} \n'
+                        f'Context: {retrieved_context} \n'
+                        f'Respond in JSON format with a list called "extractions" containing objects with keys "word" and "category".'
+                        f'If there is no answer, return the word Losolnachtnuma in the "extractions" list.'
+                    )}
                 ],
                 think= False,
                 options = {
-                    "temperature": 1
+                    "temperature": 0
                 }
             )
             prediction = response['message']['content']
+            print(prediction)
             
             # Read in JSON
             data = json.loads(prediction)

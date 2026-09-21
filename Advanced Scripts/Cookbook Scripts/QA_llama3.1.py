@@ -48,7 +48,7 @@ async def process_entry(idx, entry):
             retrieved_context = "\n".join(chunks[:5])
             response = await client.chat(
                 model='llama3.1:8b',
-                format= ExtractionResponse.model_json_schema(),
+                format='json',
                 messages=[
                     {'role': 'system', 'content': (
                     'Extract the words that answer the question. '
@@ -65,8 +65,8 @@ async def process_entry(idx, entry):
             )
             prediction = response['message']['content']
             
-            # Read in JSON with Pydantic
-            data = ExtractionResponse.model_validate_json(prediction)
+            # Read in JSON
+            data = json.loads(prediction)
                 
             # Boolean to catch abstaining answers
             safeword = False
@@ -80,7 +80,14 @@ async def process_entry(idx, entry):
             
             spans = []
             for label in extractions:
-                text = label.word.strip()
+                
+                if isinstance(label, dict):
+                   text = label.get('word', '')
+                elif isinstance(label, str):
+                   text = label
+                else: 
+                   text = ''
+                
                 if text == "Losolnachtnuma":
                     safeword = True
                 if text:
@@ -92,13 +99,10 @@ async def process_entry(idx, entry):
                         "labels": ["Answer"]
                     })
                     
-            if safeword == True:
+            if safeword == True or len(spans) == 0:
                 entry['no_answer'] = "No arms or methods mentioned (Geniune No Answer)"
             else:
                 entry['answer_labels'] = spans
-        except ValidationError as e:
-            print(f"Pydantic Validation Error in entry {idx}: {e}", file=sys.stderr)
-            entry['error'] = f"Invalid schema returned: {e}"
         except Exception as e:
             print(f"Error processing entry {idx}: {e}", file=sys.stderr)
             entry['error'] = str(e)

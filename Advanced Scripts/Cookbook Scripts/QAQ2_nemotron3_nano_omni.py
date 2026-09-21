@@ -73,7 +73,7 @@ async def process_entry(idx, entry, ThinkingDet):
                     "enable_thinking": ThinkingDet,
                     "reasoning_budget": 1024,
                     "max_tokens": 4096,
-                    "temperature": 0,
+                    "temperature": 0.1,
                 }
             )
             prediction = response['message']['content']

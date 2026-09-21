@@ -81,9 +81,14 @@ async def process_entry(idx, entry):
                     # Example 3: Using Safe Word
                     {'role': 'user', 'content': f"Context: The town was targeted in the raid.\n\nQuestion: {question}"},
                     {'role': 'assistant', 'content': '{"extractions": [{"word": "Losolnachtnuma", "category": "Other"}]}'}
-                ]
+                ],
+                think= False,
+                options = {
+                    "temperature": 1
+                }
             )
             prediction = response['message']['content']
+            print(prediction)
             
             # Read in JSON with Pydantic
             data = ExtractionResponse.model_validate_json(prediction)
@@ -106,7 +111,7 @@ async def process_entry(idx, entry):
                         "labels": [label.category]
                     })
                     
-            if safeword == True:
+            if safeword == True or len(spans) == 0:
                 entry['no_answer'] = "No arms or methods mentioned (Geniune No Answer)"
             else:
                 entry['answer_labels'] = spans
