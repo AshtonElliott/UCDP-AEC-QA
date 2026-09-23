@@ -52,7 +52,7 @@ def load_ground_truth_map(filepath):
                     text = res.get('value', {}).get('text', '').strip()
                     if text:
                         gold_spans.append({'text': text, 'labels': res['value'].get('labels', [])})
-        gt_map[article_text] = {'answer_labels': gold_spans}
+        gt_map[article_text] = {'id': entry.get('id'), 'answer_labels': gold_spans}
     return gt_map
 
 def evaluate_models_globally(model_files, gt_map, q_num):
@@ -78,6 +78,7 @@ def evaluate_models_globally(model_files, gt_map, q_num):
             if article_text not in gt_map: continue
             
             gold_spans = gt_map[article_text].get('answer_labels', [])
+            event_id = gt_map[article_text].get('id')
             pred_spans = pred_entry.get('answer_labels', pred_entry.get('model_spans', [])) 
 
             def _get_text_str(span):
@@ -101,6 +102,7 @@ def evaluate_models_globally(model_files, gt_map, q_num):
             
             rec_id = len(master_records)
             record = {
+                "id": event_id,
                 "model": model_name, "strategy": strategy, "thinking": thinking, "question": q_num, "article": article_text,
                 "has_ans": has_ans, "has_pred": has_pred,
                 "g_texts": g_texts, "p_texts": p_texts,
