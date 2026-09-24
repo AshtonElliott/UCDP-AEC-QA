@@ -6,6 +6,8 @@ from bert_score import score
 from collections import Counter
 import warnings
 import torch
+from scipy.optimize import linear_sum_assignment
+
 
 warnings.filterwarnings("ignore")
 
@@ -33,7 +35,7 @@ class EvaluationEngine:
         return deduped
 
     @classmethod
-    def evaluate_strict_tuple_match(cls, gold_spans, pred_spans):
+    def evaluate_label_f1(cls, gold_spans, pred_spans):
         """
         Label F1 / Labeled Span F1: evaluates (text, label) pairs as inseparable units for one document.
         Returns document-level Precision, Recall, and F1.
@@ -45,7 +47,10 @@ class EvaluationEngine:
         def get_normalized_tuples(spans):
             tuples = []
             for s in spans:
-                text = cls.normalize_answer(s.get('text', ''))
+                raw_text = s.get('text', '')
+                if isinstance(raw_text, list):
+                    raw_text = " ".join(str(x) for x in raw_text) if raw_text else ""
+                text = cls.normalize_answer(raw_text)
                 if not text: 
                     continue
                 labels = s.get('labels', [])
@@ -70,13 +75,8 @@ class EvaluationEngine:
         return precision, recall, f1
 
     @classmethod
-    def compute_squad_exact(cls, a_gold, a_pred):
-        """Official SQuAD 2.0 Exact Match for a single gold/pred string pair."""
-        return int(cls.normalize_answer(a_gold) == cls.normalize_answer(a_pred))
-
-    @classmethod
-    def compute_squad_f1(cls, a_gold, a_pred):
-        """Official SQuAD 2.0 Token F1 for a single gold/pred string pair."""
+    def compute_single_token_f1(cls, a_gold, a_pred):
+        """Token F1 for a single gold/pred string pair."""
         gold_toks = cls.normalize_answer(a_gold).split()
         pred_toks = cls.normalize_answer(a_pred).split()
         common = Counter(gold_toks) & Counter(pred_toks)
@@ -92,13 +92,13 @@ class EvaluationEngine:
         return (2 * precision * recall) / (precision + recall)
 
     @classmethod
-    def evaluate_ie_squad_metrics(cls, g_texts, p_texts):
+    def evaluate_span_and_token_f1(cls, g_texts, p_texts):
         """
         Multi-span IE lexical scores after SQuAD normalization.
 
         Returns:
             prec, rec, set_text_f1: Precision, Recall, and F1 over exact normalized phrase multisets.
-            token_f1: max-mean official SQuAD token F1 across span pairs.
+            token_f1: Hungarian-matched official SQuAD token F1 across span pairs.
         """
         # 1. Fast-fail on empty lists (Return P, R, F1, TokenF1)
         if not g_texts and not p_texts: return 1.0, 1.0, 1.0, 1.0
@@ -126,19 +126,25 @@ class EvaluationEngine:
             rec = tp / (tp + fn)
             set_text_f1 = (2 * prec * rec) / (prec + rec)
 
-        # Token F1 (official SQuAD bag-of-tokens F1, max-mean over span pairs)
-        p_f1_scores = [max(cls.compute_squad_f1(g, p) for g in g_norm) for p in p_norm]
-        r_f1_scores = [max(cls.compute_squad_f1(g, p) for p in p_norm) for g in g_norm]
-
-        p_f1 = float(np.mean(p_f1_scores)) if p_f1_scores else 0.0
-        r_f1 = float(np.mean(r_f1_scores)) if r_f1_scores else 0.0
+        # Token F1 using Hungarian Algorithm for optimal 1-to-1 matching
+        num_p, num_g = len(p_norm), len(g_norm)
+        mat = np.zeros((num_p, num_g))
+        for i, p in enumerate(p_norm):
+            for j, g in enumerate(g_norm):
+                mat[i, j] = cls.compute_single_token_f1(g, p)
+                
+        row_ind, col_ind = linear_sum_assignment(mat, maximize=True)
+        soft_tp = mat[row_ind, col_ind].sum()
+        
+        p_f1 = float(soft_tp / num_p) if num_p > 0 else 0.0
+        r_f1 = float(soft_tp / num_g) if num_g > 0 else 0.0
         token_f1 = 2 * (p_f1 * r_f1) / (p_f1 + r_f1) if (p_f1 + r_f1) > 0 else 0.0
 
         return round(prec, 4), round(rec, 4), round(set_text_f1, 4), round(token_f1, 4)
 
     @classmethod
-    def _bipartite_bert_f1(cls, g_texts, p_texts):
-        """Max-mean BERTScore F1 over pred×gold pairs. Returns a single F1."""
+    def evaluate_bertscore_f1_legacy(cls, g_texts, p_texts):
+        """Hungarian-matched BERTScore F1 over pred×gold pairs. Returns a single F1."""
         if not g_texts and not p_texts:
             return 1.0
         if not g_texts or not p_texts:
@@ -158,21 +164,21 @@ class EvaluationEngine:
         flat = cls.run_global_bertscore_backend(cands, refs)
         num_p, num_g = len(norm_p), len(norm_g)
         mat = np.array([flat[r * num_g:(r + 1) * num_g] for r in range(num_p)])
-        mp = float(np.clip(mat.max(axis=1).mean(), 0.0, 1.0))
-        mr = float(np.clip(mat.max(axis=0).mean(), 0.0, 1.0))
+        
+        row_ind, col_ind = linear_sum_assignment(mat, maximize=True)
+        matched_scores = mat[row_ind, col_ind]
+        soft_tp = matched_scores[matched_scores > 0].sum()
+        
+        mp = float(np.clip(soft_tp / num_p if num_p > 0 else 0.0, 0.0, 1.0))
+        mr = float(np.clip(soft_tp / num_g if num_g > 0 else 0.0, 0.0, 1.0))
         return float(np.clip(round(2 * (mp * mr) / (mp + mr) if (mp + mr) > 0 else 0.0, 4), 0.0, 1.0))
 
     @classmethod
-    def evaluate_bipartite_bertscore(cls, g_texts, p_texts):
-        """Per-doc standard BERTScore. Returns (unused, unused, f1) for older callers."""
-        f1 = cls._bipartite_bert_f1(g_texts, p_texts)
-        return 0.0, 0.0, f1
+    def evaluate_bertscore_legacy(cls, g_texts, p_texts):
+        """Per-doc standard BERTScore. Returns (unused, unused, bertscore_f1) for older callers."""
+        bertscore_f1 = cls.evaluate_bertscore_f1_legacy(g_texts, p_texts)
+        return 0.0, 0.0, bertscore_f1
 
-    @classmethod
-    def evaluate_dedup_bertscore(cls, g_texts, p_texts):
-        """Per-doc deduped BERTScore. Returns (unused, unused, f1) for older callers."""
-        f1 = cls._bipartite_bert_f1(cls.deduplicate_texts(g_texts), cls.deduplicate_texts(p_texts))
-        return 0.0, 0.0, f1
 
     @classmethod
     def run_global_bertscore_backend(cls, cands, refs):

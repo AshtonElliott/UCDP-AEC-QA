@@ -6,11 +6,12 @@ import re
 from collections import Counter
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__))) if '__file__' in locals() else os.getcwd()
-RAW_DIR = os.path.join(BASE_DIR, "data", "raw_inputs")
+LS_EXPORT_DIR = os.path.join(BASE_DIR, "data", "label_studio_export")
+GROUNDTRUTH_DIR = os.path.join(BASE_DIR, "data", "groundtruth")
 
 TEXT_FIELD = "source_article"
 
-def build_scalable_consensus_dataset(input_path, output_path, conflicts_path):
+def build_scalable_consensus_dataset(input_path, output_path):
     if not os.path.exists(input_path):
         print(f"Error: Could not find input file at {input_path}")
         print("Please ensure your Label Studio export is named correctly.")
@@ -20,7 +21,6 @@ def build_scalable_consensus_dataset(input_path, output_path, conflicts_path):
         raw_data = json.load(f)
         
     consensus_dataset = []
-    conflicts_dataset = [] 
     skipped_count = 0
     conflict_count = 0
     
@@ -102,29 +102,17 @@ def build_scalable_consensus_dataset(input_path, output_path, conflicts_path):
             flattened_entry["answer_labels"] = final_answer_labels
             consensus_dataset.append(flattened_entry) 
         else:
-            flattened_entry["no_answer"] = "Conflict / No Agreement"
-            flattened_entry["conflict_flag"] = True
             conflict_count += 1
-            
-            flattened_entry["annotator_claims"] = [
-                {f"annotator_{i+1}": [f"'{t}' {list(l)} ({c}x)" for (t, l), c in fd.items()] if fd else "Voted No Answer"}
-                for i, fd in enumerate(annotator_freqs)
-            ]
-            
-            conflicts_dataset.append(flattened_entry) 
             
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     
     with open(output_path, 'w', encoding='utf-8') as f:
         json.dump(consensus_dataset, f, indent=4, ensure_ascii=False)
         
-    with open(conflicts_path, 'w', encoding='utf-8') as f:
-        json.dump(conflicts_dataset, f, indent=4, ensure_ascii=False)
-        
     print(f"Consensus Generation Complete for: {os.path.basename(output_path)}")
     print(f"  -> Total clean articles: {len(consensus_dataset)}")
     print(f"  -> Articles skipped (unannotated/cancelled): {skipped_count}")
-    print(f"  -> Articles exported to conflicts file: {conflict_count}")
+    print(f"  -> Articles skipped (conflicts/no agreement): {conflict_count}")
     print("-" * 60)
 
 if __name__ == "__main__":
@@ -133,8 +121,8 @@ if __name__ == "__main__":
     
     args = parser.parse_args()
     
-    if not os.path.exists(RAW_DIR):
-        print(f"[ERROR] Raw directory not found at: {RAW_DIR}")
+    if not os.path.exists(LS_EXPORT_DIR):
+        print(f"[ERROR] Label Studio export directory not found at: {LS_EXPORT_DIR}")
         sys.exit(1)
         
     qs_to_process = []
@@ -143,13 +131,13 @@ if __name__ == "__main__":
         qs_to_process.append(args.q)
     else:
         # Dynamically scan the directory for all label_studio_qX.json files
-        for filename in os.listdir(RAW_DIR):
+        for filename in os.listdir(LS_EXPORT_DIR):
             match = re.match(r"label_studio_q(\d+)\.json", filename, re.IGNORECASE)
             if match:
                 qs_to_process.append(int(match.group(1)))
                 
         if not qs_to_process:
-            print(f"[ERROR] Could not find any files matching 'label_studio_qX.json' in {RAW_DIR}")
+            print(f"[ERROR] Could not find any files matching 'label_studio_qX.json' in {LS_EXPORT_DIR}")
             sys.exit(1)
             
     # Sort them so they process in order (1, 2, 3...)
@@ -160,8 +148,7 @@ if __name__ == "__main__":
     print("=" * 60)
     
     for q in qs_to_process:
-        input_file = os.path.join(RAW_DIR, f"label_studio_q{q}.json")
-        output_file = os.path.join(RAW_DIR, f"ground_truth_q{q}.json")
-        conflicts_file = os.path.join(RAW_DIR, f"annotator_conflicts_q{q}.json")
+        input_file = os.path.join(LS_EXPORT_DIR, f"label_studio_q{q}.json")
+        output_file = os.path.join(GROUNDTRUTH_DIR, f"ground_truth_q{q}.json")
         
-        build_scalable_consensus_dataset(input_file, output_file, conflicts_file)
+        build_scalable_consensus_dataset(input_file, output_file)
