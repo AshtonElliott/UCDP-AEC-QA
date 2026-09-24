@@ -54,7 +54,6 @@ def get_evaluation_data():
     f1_scores = []
     set_text_f1_scores = []
     token_f1_scores = []
-    f1_dedup_scores = []
     
     for idx, row in df_master.iterrows():
         print(f"Processing article {idx + 1}/{len(df_master)}...", end="\r", file=sys.stderr)
@@ -65,21 +64,18 @@ def get_evaluation_data():
         g_texts = [] if human_str in ["", "nan", "NO ANSWER"] else [s.strip() for s in human_str.split(" | ") if s.strip()]
         p_texts = [] if llm_str in ["", "nan", "NO ANSWER"] else [s.strip() for s in llm_str.split(" | ") if s.strip()]
 
-        set_text_f1, token_f1 = EvaluationEngine.evaluate_ie_squad_metrics(g_texts, p_texts)
+        _, _, set_text_f1, token_f1 = EvaluationEngine.evaluate_span_and_token_f1(g_texts, p_texts)
         set_text_f1_scores.append(set_text_f1)
-        _, _, f1 = EvaluationEngine.evaluate_bipartite_bertscore(g_texts, p_texts)
-        f1_scores.append(f1)
+        _, _, bertscore_f1 = EvaluationEngine.evaluate_bertscore_legacy(g_texts, p_texts)
+        f1_scores.append(bertscore_f1)
 
         token_f1_scores.append(token_f1)
-        _, _, f1_dedup = EvaluationEngine.evaluate_dedup_bertscore(g_texts, p_texts)
-        f1_dedup_scores.append(f1_dedup)
 
     print("Model processing complete!        ", file=sys.stderr)
 
     df_master["Set_Text_F1"] = set_text_f1_scores
     df_master["BS_F1"] = f1_scores
     df_master["Token_F1"] = token_f1_scores
-    df_master["BS_F1_Dedup"] = f1_dedup_scores
 
     return df_master 
 
@@ -90,29 +86,25 @@ def run_correlation_pipeline():
     rho_set_text_f1, _ = spearmanr(df_master["Normalized_Human_Score"], df_master["Set_Text_F1"])
     rho_f, _ = spearmanr(df_master["Normalized_Human_Score"], df_master["BS_F1"])
     rho_token_f1, _ = spearmanr(df_master["Normalized_Human_Score"], df_master["Token_F1"])
-    rho_f_dedup, _ = spearmanr(df_master["Normalized_Human_Score"], df_master["BS_F1_Dedup"])
 
     model_summary = df_master.groupby("True_Model_Identity").agg(
         Samples_Evaluated=("Normalized_Human_Score", "count"),
         Avg_Norm_Human_Score=("Normalized_Human_Score", "mean"),
         Avg_Set_Text_F1=("Set_Text_F1", "mean"),
         Avg_BS_F1=("BS_F1", "mean"),
-        Avg_Token_F1=("Token_F1", "mean"),
-        Avg_BS_F1_Dedup=("BS_F1_Dedup", "mean")
+        Avg_Token_F1=("Token_F1", "mean")
     ).round(3)
 
     # sorting variables needed for the side-by-side Matrix
     human_sorted = model_summary.sort_values(by="Avg_Norm_Human_Score", ascending=False).reset_index()
     strict_machine_sorted = model_summary.sort_values(by="Avg_BS_F1", ascending=False).reset_index()
-    relaxed_machine_sorted = model_summary.sort_values(by="Avg_BS_F1_Dedup", ascending=False).reset_index()
 
     side_by_side_ranking = []
     for i in range(len(model_summary)):
         side_by_side_ranking.append({
             "Rank": f"#{i+1}",
             "Human Preference": f"{human_sorted.loc[i, 'True_Model_Identity']} ({human_sorted.loc[i, 'Avg_Norm_Human_Score']:.3f})",
-            "Strict Machine Preference (F1)": f"{strict_machine_sorted.loc[i, 'True_Model_Identity']} ({strict_machine_sorted.loc[i, 'Avg_BS_F1']:.3f})",
-            "Relaxed Machine Preference (Dedup F1)": f"{relaxed_machine_sorted.loc[i, 'True_Model_Identity']} ({relaxed_machine_sorted.loc[i, 'Avg_BS_F1_Dedup']:.3f})"
+            "Machine Preference (F1)": f"{strict_machine_sorted.loc[i, 'True_Model_Identity']} ({strict_machine_sorted.loc[i, 'Avg_BS_F1']:.3f})"
         })
     df_ranking_matrix = pd.DataFrame(side_by_side_ranking)
 
@@ -131,8 +123,8 @@ def run_correlation_pipeline():
     print("### Correlation Comparison: Strict vs. Relaxed Metrics\n")
     print("| Evaluation Dimension | Strict Metric | Relaxed Metric | Strict Spearman (ρ) | Relaxed Spearman (ρ) |")
     print("|---|---|---|---|---|")
-    print(f"| **Lexical Match** | Span F1 | SQuAD Token F1 | {rho_set_text_f1:.4f} | **{rho_token_f1:.4f}** |")
-    print(f"| **Semantic Match** | DeBERTa F1 | Deduped DeBERTa F1 | {rho_f:.4f} | **{rho_f_dedup:.4f}** |\n")
+    print(f"| **Lexical Match** | Span F1 | SQuAD Token F1 | {rho_set_text_f1:.4f} | {rho_token_f1:.4f} |")
+    print(f"| **Semantic Match** | BERTScore | BERTScore | {rho_f:.4f} | {rho_f:.4f} |\n")
     print("\n### Side-by-Side Ranking Comparison\n")
     print(df_ranking_matrix.to_markdown(index=False))
     

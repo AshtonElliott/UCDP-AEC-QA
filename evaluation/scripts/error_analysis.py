@@ -89,7 +89,7 @@ def run_error_analysis(records=None):
         has_ans = rec.get('has_ans', len(g_texts) > 0)
         has_pred = rec.get('has_pred', len(p_texts) > 0)
         set_text_f1 = rec.get('set_text_f1', 0.0)
-        dedup_f1 = rec.get('dedup_f1', 0.0)
+        bertscore_f1 = rec.get('bertscore_f1', 0.0)
         label_f1 = rec.get('label_f1', 0.0)
 
         # 1. Missed Extraction (answerable, but model abstained)
@@ -109,23 +109,23 @@ def run_error_analysis(records=None):
             })
 
         # 3. Over-Extraction (answerable, but too many noisy spans)
-        elif has_ans and has_pred and rec.get('spans_generated', len(p_texts)) >= 5 and dedup_f1 < 0.4:
+        elif has_ans and has_pred and rec.get('spans_generated', len(p_texts)) >= 5 and bertscore_f1 < 0.4:
             candidates[q_num]["over_extraction"].append({
                 "model": rec['model'],
                 "gt": g_text_str,
                 "pred": p_text_str,
                 "spans": rec.get('spans_generated', len(p_texts)),
-                "f1": dedup_f1,
+                "f1": bertscore_f1,
             })
 
         # 4. Valid Paraphrasing (no exact span match, high semantic score)
-        elif has_ans and has_pred and set_text_f1 == 0.0 and dedup_f1 > 0.70:
+        elif has_ans and has_pred and set_text_f1 == 0.0 and bertscore_f1 > 0.70:
             candidates[q_num]["paraphrase"].append({
                 "model": rec['model'],
                 "gt": g_text_str,
                 "pred": p_text_str,
                 "set_text_f1": set_text_f1,
-                "f1": dedup_f1,
+                "f1": bertscore_f1,
             })
 
         # 5. Label Mismatch (high text match, low labeled-span match)

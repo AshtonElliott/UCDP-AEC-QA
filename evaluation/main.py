@@ -2,11 +2,7 @@ import argparse
 import sys
 from pathlib import Path
 
-from scripts.calculate_correlation import run_correlation_pipeline
-from scripts.calculate_iaa import calculate_iaa
-from scripts.semantic_diagnostic import run_comprehensive_evaluation
-from scripts.run_eval import run_evaluation_pipeline
-from scripts.report_generator import generate_full_report  
+
 
 BASE_DIR = Path(__file__).resolve().parent
 RESULTS_DIR = BASE_DIR / 'data' / 'evaluation_results'
@@ -53,18 +49,23 @@ def main():
         sys.stdout = MarkdownLogger(report_path)
 
     if args.iaa or args.all:
+        from scripts.calculate_iaa import calculate_iaa
         calculate_iaa()
 
     if args.correlation or args.all:
+        from scripts.calculate_correlation import run_correlation_pipeline
         run_correlation_pipeline()
         
     if args.pipeline or args.all:
+        from scripts.run_eval import run_evaluation_pipeline
         run_evaluation_pipeline(question_filter=args.q)
 
     if args.report or args.all:
+        from scripts.report_generator import generate_full_report  
         generate_full_report()
 
     if args.semantic or args.all:
+        from scripts.semantic_diagnostic import run_comprehensive_evaluation
         run_comprehensive_evaluation()
 
     if isinstance(sys.stdout, MarkdownLogger):

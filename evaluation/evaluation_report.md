@@ -1,325 +1,113 @@
 # LLM Evaluation Report
-**Total Models Evaluated:** 9
+**Total Models Evaluated:** 8
 **Total Documents Processed:** 1860
-**Full Evaluation Compute Time:** 235.66 seconds
+**Full Evaluation Compute Time:** 1333.02 seconds
 
 ## Part 1: Global Benchmark Leaderboard (SQuAD 2.0 Evaluation)
 > *All text metrics formatted as (Overall / HasAns)*
 
-| Model            | Method    |   Doc Count |   Avg Spans |   Abstention (NoAns) |   Missed Answer Rate | Span F1 (Overall / HasAns)   | Labeled Span F1 (Overall / HasAns)   | SQuAD Token F1 (Overall / HasAns)   | BERTScore (Overall / HasAns)   | Deduped BERTScore (Overall / HasAns)   |
-|:-----------------|:----------|------------:|------------:|---------------------:|---------------------:|:-----------------------------|:-------------------------------------|:------------------------------------|:-------------------------------|:---------------------------------------|
-| Gpt Oss.20B      | Zero-Shot |        1860 |        3.34 |                 0.62 |                 0.04 | 0.53 / 0.44                  | 0.53 / 0.44                          | 0.60 / 0.58                         | 0.61 / 0.60                    | 0.61 / 0.60                            |
-|                  | Cookbook  |        1860 |        0.42 |                 0.97 |                 0.81 | 0.49 / 0.01                  | 0.49 / 0.01                          | 0.49 / 0.01                         | 0.50 / 0.01                    | 0.50 / 0.01                            |
-| Gemma4.E4B       | Zero-Shot |        1860 |        3.37 |                 0.6  |                 0.03 | 0.52 / 0.44                  | 0.51 / 0.43                          | 0.59 / 0.57                         | 0.59 / 0.58                    | 0.59 / 0.58                            |
-|                  | Cookbook  |        1860 |        3.58 |                 0.59 |                 0.05 | 0.51 / 0.42                  | 0.50 / 0.40                          | 0.57 / 0.55                         | 0.58 / 0.56                    | 0.58 / 0.56                            |
-| Qwen3.8B         | Zero-Shot |        1860 |        2.98 |                 0.56 |                 0.05 | 0.49 / 0.42                  | 0.49 / 0.42                          | 0.54 / 0.53                         | 0.55 / 0.55                    | 0.55 / 0.55                            |
-| Llama3.1.8B      | Zero-Shot |        1860 |        3.53 |                 0.37 |                 0.04 | 0.39 / 0.40                  | 0.38 / 0.38                          | 0.44 / 0.51                         | 0.45 / 0.53                    | 0.45 / 0.53                            |
-|                  | Cookbook  |        1860 |        4.62 |                 0.05 |                 0    | 0.22 / 0.39                  | 0.21 / 0.38                          | 0.30 / 0.55                         | 0.30 / 0.56                    | 0.30 / 0.55                            |
-| Mistral Nemo.12B | Zero-Shot |        1860 |        2.13 |                 0.57 |                 0.1  | 0.48 / 0.39                  | 0.48 / 0.39                          | 0.53 / 0.50                         | 0.55 / 0.52                    | 0.55 / 0.52                            |
-|                  | Cookbook  |        1860 |        2.24 |                 0.58 |                 0.09 | 0.48 / 0.39                  | 0.48 / 0.38                          | 0.54 / 0.49                         | 0.55 / 0.52                    | 0.55 / 0.52                            |
-| Gemma3.4B        | Zero-Shot |        1860 |        5.76 |                 0.17 |                 0.02 | 0.25 / 0.34                  | 0.24 / 0.32                          | 0.31 / 0.46                         | 0.32 / 0.48                    | 0.33 / 0.49                            |
-|                  | Cookbook  |        1860 |        3.59 |                 0.8  |                 0.18 | 0.56 / 0.32                  | 0.56 / 0.32                          | 0.61 / 0.42                         | 0.62 / 0.44                    | 0.62 / 0.44                            |
-| Mistral          | Zero-Shot |        1860 |        2.5  |                 0.73 |                 0.17 | 0.53 / 0.32                  | 0.53 / 0.32                          | 0.57 / 0.41                         | 0.58 / 0.43                    | 0.58 / 0.43                            |
-|                  | Cookbook  |        1860 |        2.16 |                 0.69 |                 0.16 | 0.51 / 0.33                  | 0.51 / 0.32                          | 0.56 / 0.43                         | 0.57 / 0.44                    | 0.56 / 0.44                            |
-| Vicuna.13B       | Zero-Shot |        1860 |        3.45 |                 0.65 |                 0.25 | 0.43 / 0.20                  | 0.42 / 0.19                          | 0.47 / 0.28                         | 0.46 / 0.27                    | 0.46 / 0.27                            |
-|                  | Cookbook  |        1860 |        2.5  |                 0.91 |                 0.67 | 0.47 / 0.02                  | 0.47 / 0.02                          | 0.48 / 0.04                         | 0.47 / 0.04                    | 0.47 / 0.03                            |
-| Llama2.13B       | Zero-Shot |        1860 |        1.45 |                 0.46 |                 0.45 | 0.30 / 0.14                  | 0.30 / 0.13                          | 0.32 / 0.18                         | 0.33 / 0.20                    | 0.33 / 0.20                            |
-
-## Part 2: Visual Insights (Zero-Shot Baseline)
-
-### 1. Abstention vs. Extraction Quality
-> *Evaluates whether models are 'Ideal Performers' (safe and accurate) or 'Hallucinators' (talkative but unsafe).*
-![Master Performance Quadrant](assets/master_quadrant.png)
-
-### 2. Strict vs. Relaxed Evaluation Shift
-> *Visualizing the performance penalty models take when evaluated strictly (Span F1) vs. relaxed (Token/Semantic).*
-![Strict vs Relaxed](assets/strict_vs_relaxed.png)
-
-### 3. Verbosity vs. Semantic Accuracy
-> *Tracking whether models artificially inflate their extraction scores by over-generating spans.*
-![Verbosity vs Semantic Accuracy](assets/verbosity_vs_accuracy.png)
-
+| Model           | Method        |   Doc Count |   Abstention (NoAns) |   Missed Answer Rate | Span F1 (Overall / HasAns)   | Labeled Span F1 (Overall / HasAns)   | SQuAD Token F1 (Overall / HasAns)   | BERTScore (Overall / HasAns)   |
+|:----------------|:--------------|------------:|---------------------:|---------------------:|:-----------------------------|:-------------------------------------|:------------------------------------|:-------------------------------|
+| Gemma4.E4B      | Raw (T)       |        1860 |                 0.68 |                 0.04 | 0.58 / 0.48                  | 0.57 / 0.46                          | 0.61 / 0.54                         | 0.61 / 0.54                    |
+|                 | Raw (NT)      |        1860 |                 0.4  |                 0.01 | 0.44 / 0.49                  | 0.43 / 0.47                          | 0.48 / 0.55                         | 0.48 / 0.55                    |
+|                 | Cookbook (T)  |        1860 |                 0.5  |                 0.02 | 0.47 / 0.44                  | 0.46 / 0.42                          | 0.50 / 0.50                         | 0.50 / 0.50                    |
+|                 | Cookbook (NT) |        1860 |                 0.48 |                 0.02 | 0.47 / 0.46                  | 0.46 / 0.45                          | 0.50 / 0.52                         | 0.50 / 0.52                    |
+| Nemotron3.33B   | Raw (T)       |        1860 |                 0.58 |                 0.01 | 0.52 / 0.45                  | 0.51 / 0.44                          | 0.55 / 0.53                         | 0.56 / 0.54                    |
+|                 | Raw (NT)      |        1860 |                 0.38 |                 0.01 | 0.42 / 0.46                  | 0.41 / 0.44                          | 0.45 / 0.53                         | 0.45 / 0.53                    |
+|                 | Cookbook (T)  |        1860 |                 0.67 |                 0.02 | 0.55 / 0.43                  | 0.54 / 0.42                          | 0.58 / 0.50                         | 0.58 / 0.50                    |
+|                 | Cookbook (NT) |        1860 |                 0.56 |                 0.01 | 0.51 / 0.45                  | 0.50 / 0.44                          | 0.54 / 0.53                         | 0.54 / 0.53                    |
+| GptOss.20B      | Raw (T)       |        1860 |                 0.65 |                 0.02 | 0.55 / 0.45                  | 0.55 / 0.45                          | 0.58 / 0.51                         | 0.59 / 0.54                    |
+|                 | Raw (NT)      |        1860 |                 0.63 |                 0.01 | 0.54 / 0.45                  | 0.54 / 0.44                          | 0.57 / 0.51                         | 0.58 / 0.54                    |
+|                 | Cookbook (T)  |        1860 |                 0.63 |                 0.02 | 0.36 / 0.08                  | 0.33 / 0.02                          | 0.36 / 0.10                         | 0.36 / 0.09                    |
+|                 | Cookbook (NT) |        1860 |                 0.65 |                 0.02 | 0.36 / 0.08                  | 0.33 / 0.02                          | 0.38 / 0.10                         | 0.37 / 0.10                    |
+| MistralNemo.12B | Raw (NT)      |        1860 |                 0.57 |                 0.04 | 0.50 / 0.43                  | 0.50 / 0.42                          | 0.52 / 0.47                         | 0.53 / 0.49                    |
+|                 | Cookbook (NT) |        1860 |                 0.55 |                 0.04 | 0.46 / 0.38                  | 0.46 / 0.37                          | 0.49 / 0.44                         | 0.50 / 0.45                    |
+| Llama3.1.8B     | Raw (NT)      |        1860 |                 0.02 |                 0    | 0.21 / 0.39                  | 0.20 / 0.38                          | 0.25 / 0.48                         | 0.25 / 0.48                    |
+|                 | Cookbook (NT) |        1860 |                 0.04 |                 0    | 0.21 / 0.39                  | 0.21 / 0.38                          | 0.26 / 0.48                         | 0.26 / 0.48                    |
+| Mistral.7B      | Raw (NT)      |        1860 |                 0.55 |                 0.06 | 0.46 / 0.38                  | 0.46 / 0.37                          | 0.49 / 0.43                         | 0.49 / 0.44                    |
+|                 | Cookbook (NT) |        1860 |                 0.52 |                 0.04 | 0.45 / 0.38                  | 0.44 / 0.37                          | 0.48 / 0.44                         | 0.48 / 0.45                    |
+| Gemma3.4B       | Raw (NT)      |        1860 |                 0.01 |                 0.03 | 0.18 / 0.34                  | 0.17 / 0.33                          | 0.21 / 0.42                         | 0.22 / 0.42                    |
+|                 | Cookbook (NT) |        1860 |                 0.1  |                 0.02 | 0.18 / 0.27                  | 0.18 / 0.27                          | 0.21 / 0.33                         | 0.23 / 0.36                    |
+| Vicuna.13B      | Raw (NT)      |        1860 |                 0.28 |                 0.03 | 0.28 / 0.29                  | 0.28 / 0.27                          | 0.31 / 0.34                         | 0.31 / 0.34                    |
+|                 | Cookbook (NT) |        1860 |                 0.01 |                 0    | 0.03 / 0.04                  | 0.02 / 0.03                          | 0.03 / 0.05                         | 0.03 / 0.05                    |
 
 ---
 
-## Part 3: Task Complexity Breakdown
-
-### Performance Degradation Heatmaps (Zero-Shot Baseline)
-> *Overall Score (includes easy abstentions) vs. HasAns Score (true extraction capability).*
-![Task Complexity (Overall)](assets/task_complexity_heatmap_overall.png)
-![Task Complexity (HasAns)](assets/task_complexity_heatmap_hasans.png)
-
+## Part 2: Task Complexity Breakdown
 
 ### Question 1 Leaderboard
-| Model            | Method    |   Doc Count |   Avg Spans |   Abstention (NoAns) |   Missed Answer Rate | Span F1 (Overall / HasAns)   | Labeled Span F1 (Overall / HasAns)   | SQuAD Token F1 (Overall / HasAns)   | BERTScore (Overall / HasAns)   | Deduped BERTScore (Overall / HasAns)   |
-|:-----------------|:----------|------------:|------------:|---------------------:|---------------------:|:-----------------------------|:-------------------------------------|:------------------------------------|:-------------------------------|:---------------------------------------|
-| Gpt Oss.20B      | Zero-Shot |         954 |        5.87 |                 0.02 |                 0.01 | 0.37 / 0.45                  | 0.37 / 0.45                          | 0.48 / 0.59                         | 0.50 / 0.62                    | 0.50 / 0.61                            |
-|                  | Cookbook  |         954 |        0.81 |                 0.88 |                 0.78 | 0.18 / 0.01                  | 0.18 / 0.01                          | 0.18 / 0.01                         | 0.19 / 0.02                    | 0.19 / 0.02                            |
-| Gemma4.E4B       | Zero-Shot |         954 |        6.01 |                 0.02 |                 0    | 0.36 / 0.44                  | 0.36 / 0.44                          | 0.47 / 0.58                         | 0.48 / 0.60                    | 0.48 / 0.59                            |
-|                  | Cookbook  |         954 |        6.45 |                 0    |                 0    | 0.35 / 0.43                  | 0.35 / 0.43                          | 0.46 / 0.57                         | 0.47 / 0.58                    | 0.47 / 0.59                            |
-| Mistral Nemo.12B | Zero-Shot |         954 |        3.53 |                 0.04 |                 0.04 | 0.35 / 0.43                  | 0.35 / 0.43                          | 0.43 / 0.53                         | 0.46 / 0.56                    | 0.46 / 0.56                            |
-|                  | Cookbook  |         954 |        3.73 |                 0.03 |                 0.03 | 0.35 / 0.43                  | 0.35 / 0.43                          | 0.43 / 0.53                         | 0.46 / 0.56                    | 0.46 / 0.57                            |
-| Qwen3.8B         | Zero-Shot |         954 |        4.88 |                 0.03 |                 0.03 | 0.35 / 0.43                  | 0.35 / 0.43                          | 0.43 / 0.53                         | 0.46 / 0.56                    | 0.45 / 0.56                            |
-| Llama3.1.8B      | Zero-Shot |         954 |        5.52 |                 0.02 |                 0.02 | 0.33 / 0.41                  | 0.33 / 0.41                          | 0.41 / 0.51                         | 0.43 / 0.54                    | 0.43 / 0.54                            |
-|                  | Cookbook  |         954 |        5.62 |                 0    |                 0    | 0.32 / 0.40                  | 0.32 / 0.40                          | 0.44 / 0.55                         | 0.45 / 0.57                    | 0.45 / 0.56                            |
-| Mistral          | Zero-Shot |         954 |        4.65 |                 0.06 |                 0.03 | 0.31 / 0.38                  | 0.31 / 0.38                          | 0.40 / 0.48                         | 0.41 / 0.50                    | 0.42 / 0.51                            |
-|                  | Cookbook  |         954 |        3.79 |                 0.13 |                 0.05 | 0.32 / 0.37                  | 0.32 / 0.37                          | 0.41 / 0.48                         | 0.43 / 0.50                    | 0.42 / 0.50                            |
-| Gemma3.4B        | Zero-Shot |         954 |        9.05 |                 0.01 |                 0.01 | 0.27 / 0.33                  | 0.27 / 0.33                          | 0.36 / 0.45                         | 0.38 / 0.47                    | 0.39 / 0.49                            |
-|                  | Cookbook  |         954 |        7    |                 0.01 |                 0    | 0.31 / 0.39                  | 0.31 / 0.39                          | 0.41 / 0.51                         | 0.43 / 0.53                    | 0.43 / 0.53                            |
-| Vicuna.13B       | Zero-Shot |         954 |        6.11 |                 0.29 |                 0.21 | 0.22 / 0.20                  | 0.22 / 0.20                          | 0.28 / 0.28                         | 0.28 / 0.27                    | 0.28 / 0.27                            |
-|                  | Cookbook  |         954 |        4.87 |                 0.54 |                 0.59 | 0.13 / 0.03                  | 0.13 / 0.03                          | 0.15 / 0.05                         | 0.14 / 0.04                    | 0.14 / 0.04                            |
-| Llama2.13B       | Zero-Shot |         954 |        1.67 |                 0.46 |                 0.49 | 0.18 / 0.11                  | 0.18 / 0.11                          | 0.20 / 0.14                         | 0.22 / 0.15                    | 0.22 / 0.16                            |
-
-#### Plot A: Text Extraction Precision & Recall (Q1 - Zero-Shot)
-> *This isolates reading comprehension: Did the model locate the correct phrases? HasAns-only bars at exact span match — one operating point per model.*
-![Plot A: Text Spans](assets/q1_pr_bars.png)
-
+| Model           | Method        |   Doc Count |   Abstention (NoAns) |   Missed Answer Rate | Span F1 (Overall / HasAns)   | Labeled Span F1 (Overall / HasAns)   | SQuAD Token F1 (Overall / HasAns)   | BERTScore (Overall / HasAns)   |
+|:----------------|:--------------|------------:|---------------------:|---------------------:|:-----------------------------|:-------------------------------------|:------------------------------------|:-------------------------------|
+| Gemma4.E4B      | Raw (T)       |         954 |                 0.27 |                 0    | 0.45 / 0.50                  | 0.45 / 0.50                          | 0.51 / 0.56                         | 0.50 / 0.56                    |
+|                 | Raw (NT)      |         954 |                 0.11 |                 0    | 0.42 / 0.49                  | 0.42 / 0.49                          | 0.47 / 0.56                         | 0.47 / 0.56                    |
+|                 | Cookbook (T)  |         954 |                 0.01 |                 0    | 0.36 / 0.44                  | 0.36 / 0.44                          | 0.40 / 0.50                         | 0.40 / 0.50                    |
+|                 | Cookbook (NT) |         954 |                 0.1  |                 0    | 0.40 / 0.48                  | 0.40 / 0.48                          | 0.45 / 0.54                         | 0.45 / 0.54                    |
+| Nemotron3.33B   | Raw (T)       |         954 |                 0.06 |                 0    | 0.37 / 0.45                  | 0.37 / 0.45                          | 0.43 / 0.52                         | 0.44 / 0.54                    |
+|                 | Raw (NT)      |         954 |                 0.01 |                 0    | 0.39 / 0.48                  | 0.39 / 0.48                          | 0.43 / 0.54                         | 0.43 / 0.54                    |
+|                 | Cookbook (T)  |         954 |                 0.02 |                 0    | 0.36 / 0.44                  | 0.36 / 0.44                          | 0.42 / 0.52                         | 0.42 / 0.52                    |
+|                 | Cookbook (NT) |         954 |                 0.01 |                 0    | 0.36 / 0.44                  | 0.36 / 0.44                          | 0.42 / 0.52                         | 0.42 / 0.52                    |
+| GptOss.20B      | Raw (T)       |         954 |                 0.12 |                 0    | 0.38 / 0.44                  | 0.38 / 0.44                          | 0.42 / 0.50                         | 0.45 / 0.53                    |
+|                 | Raw (NT)      |         954 |                 0.09 |                 0    | 0.37 / 0.44                  | 0.37 / 0.44                          | 0.41 / 0.49                         | 0.44 / 0.53                    |
+|                 | Cookbook (T)  |         954 |                 0    |                 0    | 0.00 / 0.01                  | 0.00 / 0.01                          | 0.01 / 0.01                         | 0.01 / 0.01                    |
+|                 | Cookbook (NT) |         954 |                 0    |                 0    | 0.01 / 0.01                  | 0.01 / 0.01                          | 0.01 / 0.01                         | 0.01 / 0.02                    |
+| MistralNemo.12B | Raw (NT)      |         954 |                 0.02 |                 0    | 0.36 / 0.45                  | 0.36 / 0.45                          | 0.40 / 0.50                         | 0.41 / 0.51                    |
+|                 | Cookbook (NT) |         954 |                 0    |                 0    | 0.31 / 0.39                  | 0.31 / 0.39                          | 0.37 / 0.46                         | 0.37 / 0.47                    |
+| Llama3.1.8B     | Raw (NT)      |         954 |                 0    |                 0    | 0.31 / 0.39                  | 0.31 / 0.39                          | 0.39 / 0.48                         | 0.38 / 0.48                    |
+|                 | Cookbook (NT) |         954 |                 0.01 |                 0    | 0.31 / 0.39                  | 0.31 / 0.39                          | 0.39 / 0.48                         | 0.38 / 0.48                    |
+| Mistral.7B      | Raw (NT)      |         954 |                 0.01 |                 0    | 0.33 / 0.41                  | 0.33 / 0.41                          | 0.37 / 0.46                         | 0.38 / 0.47                    |
+|                 | Cookbook (NT) |         954 |                 0    |                 0    | 0.33 / 0.41                  | 0.33 / 0.41                          | 0.37 / 0.47                         | 0.38 / 0.47                    |
+| Gemma3.4B       | Raw (NT)      |         954 |                 0.05 |                 0.04 | 0.28 / 0.33                  | 0.28 / 0.33                          | 0.33 / 0.41                         | 0.34 / 0.41                    |
+|                 | Cookbook (NT) |         954 |                 0    |                 0    | 0.26 / 0.32                  | 0.26 / 0.32                          | 0.32 / 0.40                         | 0.33 / 0.41                    |
+| Vicuna.13B      | Raw (NT)      |         954 |                 0.01 |                 0.01 | 0.24 / 0.29                  | 0.24 / 0.29                          | 0.27 / 0.34                         | 0.28 / 0.34                    |
+|                 | Cookbook (NT) |         954 |                 0    |                 0    | 0.02 / 0.03                  | 0.02 / 0.03                          | 0.03 / 0.04                         | 0.03 / 0.04                    |
 
 ### Question 2 Leaderboard
-| Model            | Method    |   Doc Count |   Avg Spans |   Abstention (NoAns) |   Missed Answer Rate | Span F1 (Overall / HasAns)   | Labeled Span F1 (Overall / HasAns)   | SQuAD Token F1 (Overall / HasAns)   | BERTScore (Overall / HasAns)   | Deduped BERTScore (Overall / HasAns)   |
-|:-----------------|:----------|------------:|------------:|---------------------:|---------------------:|:-----------------------------|:-------------------------------------|:------------------------------------|:-------------------------------|:---------------------------------------|
-| Gpt Oss.20B      | Zero-Shot |         906 |        0.67 |                 0.77 |                 0.21 | 0.70 / 0.39                  | 0.70 / 0.36                          | 0.73 / 0.53                         | 0.73 / 0.52                    | 0.73 / 0.52                            |
-|                  | Cookbook  |         906 |        0.02 |                 1    |                 0.97 | 0.82 / 0.00                  | 0.82 / 0.00                          | 0.82 / 0.00                         | 0.82 / 0.00                    | 0.82 / 0.00                            |
-| Gemma4.E4B       | Zero-Shot |         906 |        0.58 |                 0.75 |                 0.17 | 0.69 / 0.40                  | 0.68 / 0.34                          | 0.71 / 0.52                         | 0.71 / 0.51                    | 0.71 / 0.51                            |
-|                  | Cookbook  |         906 |        0.55 |                 0.75 |                 0.24 | 0.67 / 0.35                  | 0.66 / 0.27                          | 0.70 / 0.46                         | 0.69 / 0.46                    | 0.69 / 0.46                            |
-| Gemma3.4B        | Zero-Shot |         906 |        2.29 |                 0.21 |                 0.08 | 0.24 / 0.38                  | 0.22 / 0.25                          | 0.26 / 0.48                         | 0.26 / 0.49                    | 0.26 / 0.50                            |
-|                  | Cookbook  |         906 |        0    |                 1    |                 1    | 0.82 / 0.00                  | 0.82 / 0.00                          | 0.82 / 0.00                         | 0.82 / 0.00                    | 0.82 / 0.00                            |
-| Llama3.1.8B      | Zero-Shot |         906 |        1.43 |                 0.46 |                 0.13 | 0.45 / 0.39                  | 0.42 / 0.26                          | 0.47 / 0.49                         | 0.47 / 0.50                    | 0.47 / 0.49                            |
-|                  | Cookbook  |         906 |        3.57 |                 0.06 |                 0.02 | 0.12 / 0.37                  | 0.10 / 0.28                          | 0.14 / 0.52                         | 0.14 / 0.51                    | 0.14 / 0.50                            |
-| Qwen3.8B         | Zero-Shot |         906 |        0.98 |                 0.69 |                 0.13 | 0.63 / 0.36                  | 0.62 / 0.33                          | 0.66 / 0.51                         | 0.65 / 0.49                    | 0.65 / 0.49                            |
-| Llama2.13B       | Zero-Shot |         906 |        1.22 |                 0.47 |                 0.26 | 0.44 / 0.30                  | 0.42 / 0.21                          | 0.45 / 0.39                         | 0.45 / 0.41                    | 0.45 / 0.41                            |
-| Mistral Nemo.12B | Zero-Shot |         906 |        0.64 |                 0.71 |                 0.35 | 0.62 / 0.22                  | 0.61 / 0.18                          | 0.64 / 0.33                         | 0.64 / 0.32                    | 0.64 / 0.32                            |
-|                  | Cookbook  |         906 |        0.68 |                 0.72 |                 0.38 | 0.63 / 0.20                  | 0.62 / 0.17                          | 0.65 / 0.30                         | 0.65 / 0.29                    | 0.65 / 0.30                            |
-| Vicuna.13B       | Zero-Shot |         906 |        0.65 |                 0.75 |                 0.44 | 0.65 / 0.20                  | 0.63 / 0.13                          | 0.66 / 0.28                         | 0.66 / 0.27                    | 0.66 / 0.27                            |
-|                  | Cookbook  |         906 |        0    |                 1    |                 1    | 0.82 / 0.00                  | 0.82 / 0.00                          | 0.82 / 0.00                         | 0.82 / 0.00                    | 0.82 / 0.00                            |
-| Mistral          | Zero-Shot |         906 |        0.23 |                 0.91 |                 0.82 | 0.76 / 0.07                  | 0.75 / 0.05                          | 0.76 / 0.09                         | 0.76 / 0.09                    | 0.76 / 0.09                            |
-|                  | Cookbook  |         906 |        0.44 |                 0.83 |                 0.68 | 0.70 / 0.12                  | 0.70 / 0.08                          | 0.71 / 0.16                         | 0.71 / 0.16                    | 0.71 / 0.16                            |
-
-#### Plot A: Text Extraction Precision & Recall (Q2 - Zero-Shot)
-> *This isolates reading comprehension: Did the model locate the correct phrases? HasAns-only bars at exact span match — one operating point per model.*
-![Plot A: Text Spans](assets/q2_pr_bars.png)
-
-#### Plot B: Category Mislabeling Breakdown (Q2 - Zero-Shot)
-> *Macro-averages hide class-level failures. This 8-panel grid isolates which specific event labels models confuse after extracting the text.*
-![Plot B: Category Grid](assets/q2_category_pr_grid.png)
-
-
-### Question 2: The Classification Penalty (Zero-Shot)
-> **Classification Dropoff = set_text_f1 - label_f1**
-> *A large gap indicates the model successfully acts as a search engine (finding the correct evidence text) but fails as a classifier (assigning the wrong event label).*
-![Classification Dropoff](assets/q2_classification_dropoff.png)
-
+| Model           | Method        |   Doc Count |   Abstention (NoAns) |   Missed Answer Rate | Span F1 (Overall / HasAns)   | Labeled Span F1 (Overall / HasAns)   | SQuAD Token F1 (Overall / HasAns)   | BERTScore (Overall / HasAns)   |
+|:----------------|:--------------|------------:|---------------------:|---------------------:|:-----------------------------|:-------------------------------------|:------------------------------------|:-------------------------------|
+| GptOss.20B      | Raw (T)       |         906 |                 0.79 |                 0.09 | 0.73 / 0.50                  | 0.73 / 0.48                          | 0.75 / 0.58                         | 0.75 / 0.58                    |
+|                 | Raw (NT)      |         906 |                 0.77 |                 0.08 | 0.72 / 0.49                  | 0.71 / 0.46                          | 0.73 / 0.58                         | 0.73 / 0.57                    |
+|                 | Cookbook (T)  |         906 |                 0.79 |                 0.1  | 0.72 / 0.41                  | 0.67 / 0.08                          | 0.74 / 0.51                         | 0.74 / 0.49                    |
+|                 | Cookbook (NT) |         906 |                 0.82 |                 0.12 | 0.74 / 0.38                  | 0.68 / 0.05                          | 0.76 / 0.50                         | 0.75 / 0.46                    |
+| Nemotron3.33B   | Raw (T)       |         906 |                 0.71 |                 0.08 | 0.67 / 0.47                  | 0.66 / 0.42                          | 0.68 / 0.56                         | 0.68 / 0.55                    |
+|                 | Raw (NT)      |         906 |                 0.47 |                 0.05 | 0.46 / 0.39                  | 0.43 / 0.25                          | 0.48 / 0.48                         | 0.47 / 0.47                    |
+|                 | Cookbook (T)  |         906 |                 0.83 |                 0.13 | 0.75 / 0.36                  | 0.74 / 0.31                          | 0.76 / 0.41                         | 0.75 / 0.40                    |
+|                 | Cookbook (NT) |         906 |                 0.7  |                 0.07 | 0.67 / 0.50                  | 0.65 / 0.41                          | 0.68 / 0.58                         | 0.68 / 0.57                    |
+| Llama3.1.8B     | Raw (NT)      |         906 |                 0.03 |                 0    | 0.10 / 0.42                  | 0.08 / 0.34                          | 0.11 / 0.49                         | 0.11 / 0.49                    |
+|                 | Cookbook (NT) |         906 |                 0.05 |                 0.01 | 0.11 / 0.42                  | 0.10 / 0.32                          | 0.12 / 0.48                         | 0.13 / 0.49                    |
+| Gemma3.4B       | Raw (NT)      |         906 |                 0    |                 0    | 0.07 / 0.39                  | 0.05 / 0.29                          | 0.09 / 0.46                         | 0.08 / 0.46                    |
+|                 | Cookbook (NT) |         906 |                 0.12 |                 0.12 | 0.10 / 0.00                  | 0.10 / 0.00                          | 0.10 / 0.00                         | 0.12 / 0.12                    |
+| Gemma4.E4B      | Raw (T)       |         906 |                 0.78 |                 0.23 | 0.71 / 0.39                  | 0.69 / 0.29                          | 0.72 / 0.43                         | 0.72 / 0.43                    |
+|                 | Raw (NT)      |         906 |                 0.48 |                 0.04 | 0.47 / 0.46                  | 0.45 / 0.34                          | 0.48 / 0.50                         | 0.49 / 0.53                    |
+|                 | Cookbook (T)  |         906 |                 0.63 |                 0.13 | 0.60 / 0.43                  | 0.58 / 0.32                          | 0.61 / 0.48                         | 0.61 / 0.48                    |
+|                 | Cookbook (NT) |         906 |                 0.57 |                 0.1  | 0.54 / 0.40                  | 0.52 / 0.30                          | 0.55 / 0.44                         | 0.55 / 0.46                    |
+| MistralNemo.12B | Raw (NT)      |         906 |                 0.72 |                 0.25 | 0.65 / 0.32                  | 0.64 / 0.27                          | 0.65 / 0.37                         | 0.65 / 0.36                    |
+|                 | Cookbook (NT) |         906 |                 0.69 |                 0.25 | 0.62 / 0.31                  | 0.61 / 0.26                          | 0.63 / 0.36                         | 0.63 / 0.36                    |
+| Vicuna.13B      | Raw (NT)      |         906 |                 0.35 |                 0.12 | 0.33 / 0.27                  | 0.32 / 0.18                          | 0.34 / 0.33                         | 0.34 / 0.32                    |
+|                 | Cookbook (NT) |         906 |                 0.01 |                 0.01 | 0.03 / 0.09                  | 0.01 / 0.02                          | 0.03 / 0.11                         | 0.03 / 0.12                    |
+| Mistral.7B      | Raw (NT)      |         906 |                 0.69 |                 0.35 | 0.61 / 0.25                  | 0.60 / 0.19                          | 0.62 / 0.30                         | 0.62 / 0.30                    |
+|                 | Cookbook (NT) |         906 |                 0.65 |                 0.24 | 0.58 / 0.27                  | 0.57 / 0.21                          | 0.59 / 0.33                         | 0.59 / 0.32                    |
 
 ---
 
+## Part 3: Graphical Diagnostics
 
-## Part 4: Error Analysis & SQuAD 2.0 Edge Cases
-> *Automated extraction of specific failure modes across the IE pipeline (Zero-Shot baseline only).*
+Generating Figure 1: Prompt Engineering Impact...
+> This dumbbell plot shows if using prompt engineering (Cookbook) actually improves a model's extraction accuracy compared to its raw baseline.
 
-### Analysis: Question 1
+![Figure 1: Prompt Engineering Impact](./assets/fig1_prompt_engineering_impact.png)
 
-#### A. Missed Extractions (Failed to extract an existing answer)
-* **Total cases:** 644
-* **By model:** Llama2.13B: 375, Vicuna.13B: 163, Mistral Nemo.12B: 32, Qwen3.8B: 26, Mistral: 24, Llama3.1.8B: 12, Gemma3.4B: 5, Gpt Oss.20B: 4, Gemma4.E4B: 3
+Generating Figure 2: Hallucination and Verbosity...
+> These two panels show whether models fail by hallucinating on empty texts, and how their verbosity directly links to those errors.
 
-**Edge Case #1 (Llama2.13B)**
-* **Ground Truth:** `mine | shelled | shelling | shelling | shelling | shelling | shelling | shelling | shelling | aerial and ground shelling | aerial and ground shelling | ground shelling | ground shelling | bomb | aerial and ground bombardment | airstrikes | airstrikes | airstrikes | airstrikes | airstrikes | airstrikes | airstrikes | shells | shells | barrel bombs | barrel bombs | barrel bombs | bombardment by warplanes | aerial bombardment | aerial bombardment | aerial bombardment | rocket shelling | warplanes | warplanes | warplanes | warplanes | warplanes | warplanes | warplanes | warplanes`
-* **Model Prediction:** `[ABSTAINED - Predicted Nothing]`
----
+![Figure 2: Hallucination and Verbosity](./assets/fig2_hallucination_and_verbosity.png)
 
-**Edge Case #2 (Vicuna.13B)**
-* **Ground Truth:** `shelled | shelled | shelled | shelled | shelled | shelled | shelled | shelled | shelled | barrel bombs | mortars | shelling | shelling | shells | shells | shells | shells | shells | snipers | snipers | snipers | guided missile | drone | mortar shells | bombed | sniper shot | sniper shot | sniper shot | rocket shelling | warplanes | warplanes | warplanes | airstrikes | aerial bombardment | aerial bombardment | aerial bombardment | aerial bombardment | rocket shells`
-* **Model Prediction:** `[ABSTAINED - Predicted Nothing]`
----
+Generating Figure 3: Classification Accuracy Drop...
+> This bar chart focuses on Question 2 to show the performance penalty when a model successfully extracts the correct text but assigns the wrong category.
 
-**Edge Case #3 (Mistral Nemo.12B)**
-* **Ground Truth:** `AK-47 assault rifle | gunfire | shot | shot | shot | shot | shot | shot | shot | shot | shooting`
-* **Model Prediction:** `[ABSTAINED - Predicted Nothing]`
----
+![Figure 3: Classification Accuracy Drop](./assets/fig3_classification_accuracy_drop.png)
 
+Generating Figure 4: Reasoning vs. Prompting Comparison...
+> This faceted bar chart compares only the thinking-capable models to see whether adding reasoning tokens or prompt engineering provides the bigger boost.
 
-#### B. Hallucinations (Generated text on an unanswerable article)
-* **Total cases:** 1539
-* **By model:** Gemma3.4B: 190, Gemma4.E4B: 188, Gpt Oss.20B: 187, Llama3.1.8B: 187, Qwen3.8B: 185, Mistral Nemo.12B: 183, Mistral: 180, Vicuna.13B: 136, Llama2.13B: 103
-
-**Edge Case #1 (Gemma3.4B)**
-* **Ground Truth:** `[EMPTY ARTICLE - Should have abstained]`
-* **Model Prediction:** `Officer | Officer | officer | Officer | officer | Sergeant | sergeant | Sergeant | Terrorists | terrorists | terrorists | terrorists | terrorists | armed | armed | Armed | armed | armed | Armed | armed | armed | Armed | armed | armed | armed | armed | armed | armed | Armed | armed | armed | group | group | group | group | group | Group | group | group | Group | group | group | group | group | group | group | group | group | group | machineguns | RPGs | RPGs | RPGs | RPGs | launchers | night vision binoculars | sniper rifles | explosive | explosive | explosive | explosive | remote control | ambulance | ambulance`
-* **Spans Generated:** 64
----
-
-**Edge Case #2 (Vicuna.13B)**
-* **Ground Truth:** `[EMPTY ARTICLE - Should have abstained]`
-* **Model Prediction:** `Iraqi armed forces | Iraqi armed forces | military statement | military statement | military statement | Old City center | three adjacent districts | Tigris river | Desperate civilians | little food and water | no electricity | limited access to hospitals | Iraqi air force | humanitarian groups | safety of those trying to escape | landmark leaning minaret | black flag | next few days | United Nations | deep concern | hundreds of thousands of civilians | behind Islamic State lines | behind Islamic State lines | disturbing reports | children being deliberately targeted by snipers | residents | Residents | Residents | millet | cooked like rice | wild mallow plants | mulberry leaves | operations launched | MOSUL | Mosul | Mosul | Mosul | Mosul | Mosul | surrounding Nineveh province | senior commander | senior commander | Mashregh | Iranian news website | Popular Mobilisation | Syrian army | significant advantage`
-* **Spans Generated:** 47
----
-
-**Edge Case #3 (Llama2.13B)**
-* **Ground Truth:** `[EMPTY ARTICLE - Should have abstained]`
-* **Model Prediction:** `operation | operation | operation | operation | operation | armed oppositions | terrorists | terrorists | Killed | killed | killed | killed | Afghan National Army | Afghan National Police | operation | operation | operation | operation | operation | armed oppositions | terrorists | terrorists | Killed | killed | killed | killed | wounded | wounded`
-* **Spans Generated:** 28
----
-
-
-#### C. Over-Extraction (High Verbosity, Low Precision)
-* **Total cases:** 894
-* **By model:** Gemma3.4B: 216, Vicuna.13B: 185, Llama3.1.8B: 102, Mistral: 87, Gemma4.E4B: 73, Gpt Oss.20B: 73, Qwen3.8B: 70, Mistral Nemo.12B: 48, Llama2.13B: 40
-
-**Edge Case #1 (Vicuna.13B)**
-* **Ground Truth:** `shot | shot`
-* **Model Prediction:** `crossfire | crossfire | army | army | army | rebels | rebels | rebels | rebels | rebels | attacked | town | town | Beni | Beni | Beni | Beni | North Kivu | civilians | civilians | civilians | civilians | civilians | civilians | civilians | civilians | soldier | soldier | ADF fighter | ADF fighter | shot dead | shot dead | Gilbert Kambale | civil society leader | Mak Hazukay | civilians and soldiers | killed | killed | killed | exchanges of fire | Human rights violations | independent observers | deadly attacks against civilians | Beni area | massacres | October 2014 | more than 700 civilians dead | Human Rights Watch | government | failing to protect | people | Beni region | authorities | DRC President Joseph Kabila | Museveni | Museveni | talks | Uganda | Uganda | coordinated military strategy | ADF fighters | rebels | rebels | rebels | rebels | rebels | 20 years | human rights abuses | criminal networks | funded | kidnappings | smuggling | illegal logging`
-* **Scores:** Spans Generated = 73 | Deduped BERTScore = 0.0000
----
-
-**Edge Case #2 (Gemma3.4B)**
-* **Ground Truth:** `airstrikes`
-* **Model Prediction:** `UN | un | UN | UN | un | un | un | UN | UN | un | peace plan | peace plan | peace plan | heavy weapons | airstrikes | militant activity | forces | Forces | forces | forces | forces | forces | forces | Forces | forces | forces | forces | coalition | coalition | coalition | coalition | engineering college | port city | military | operation | operation | operation | fighters | soldiers`
-* **Scores:** Spans Generated = 39 | Deduped BERTScore = 0.0000
----
-
-**Edge Case #3 (Gemma4.E4B)**
-* **Ground Truth:** `shell`
-* **Model Prediction:** `ballistic missiles | artillery | clash | clash | clash | clash | clash | Clash | clash | troops | troops | troops | troops | troops | troops | militant activity`
-* **Scores:** Spans Generated = 16 | Deduped BERTScore = 0.0000
----
-
-
-#### D. Valid Paraphrasing (High Semantic Match, Zero Exact Match)
-* **Total cases:** 6
-* **By model:** Mistral Nemo.12B: 3, Mistral: 1, Qwen3.8B: 1, Vicuna.13B: 1
-
-**Edge Case #1 (Vicuna.13B)**
-* **Ground Truth:** `bullets`
-* **Model Prediction:** `bullet`
-* **Scores:** Span F1 = 0.0000 | Deduped BERTScore = 0.7694
----
-
-**Edge Case #2 (Mistral Nemo.12B)**
-* **Ground Truth:** `gun`
-* **Model Prediction:** `guns`
-* **Scores:** Span F1 = 0.0000 | Deduped BERTScore = 0.7508
----
-
-**Edge Case #3 (Mistral)**
-* **Ground Truth:** `gun`
-* **Model Prediction:** `guns`
-* **Scores:** Span F1 = 0.0000 | Deduped BERTScore = 0.7508
----
-
-
-### Analysis: Question 2
-
-#### A. Missed Extractions (Failed to extract an existing answer)
-* **Total cases:** 427
-* **By model:** Mistral: 135, Vicuna.13B: 72, Mistral Nemo.12B: 57, Llama2.13B: 43, Gpt Oss.20B: 35, Gemma4.E4B: 28, Llama3.1.8B: 22, Qwen3.8B: 22, Gemma3.4B: 13
-
-**Edge Case #1 (Gemma3.4B)**
-* **Ground Truth:** `house | farmlands | Churches | crops | houses | houses | houses | houses | churches`
-* **Model Prediction:** `[ABSTAINED - Predicted Nothing]`
----
-
-**Edge Case #2 (Llama2.13B)**
-* **Ground Truth:** `house | farmlands | Churches | crops | houses | houses | houses | houses | churches`
-* **Model Prediction:** `[ABSTAINED - Predicted Nothing]`
----
-
-**Edge Case #3 (Mistral Nemo.12B)**
-* **Ground Truth:** `house | farmlands | Churches | crops | houses | houses | houses | houses | churches`
-* **Model Prediction:** `[ABSTAINED - Predicted Nothing]`
----
-
-
-#### B. Hallucinations (Generated text on an unanswerable article)
-* **Total cases:** 2440
-* **By model:** Gemma3.4B: 587, Llama3.1.8B: 401, Llama2.13B: 397, Qwen3.8B: 230, Mistral Nemo.12B: 215, Vicuna.13B: 189, Gemma4.E4B: 182, Gpt Oss.20B: 169, Mistral: 70
-
-**Edge Case #1 (Llama3.1.8B)**
-* **Ground Truth:** `[EMPTY ARTICLE - Should have abstained]`
-* **Model Prediction:** `areas | areas | areas | areas | areas | areas | areas | areas | areas | areas | areas | areas | areas | areas | areas | areas | areas | areas | areas | areas | areas | Douma city | Zamalka city | Zamalka city | Ein Tarma town | AlMotahalik AlJanobi (the Southern Bypass)`
-* **Spans Generated:** 26
----
-
-**Edge Case #2 (Qwen3.8B)**
-* **Ground Truth:** `[EMPTY ARTICLE - Should have abstained]`
-* **Model Prediction:** `tunnels | tunnels | tunnels | tunnels | tunnels | trenches | trenches | trenches | trenches | trenches | Baghuz farms | Baghuz farms | Baghuz farms | Baghuz farms | Baghuz farms | Baghuz farms | Baghuz farms | Baghuz farms | Baghuz farms | Baghuz farms | Baghuz farms`
-* **Spans Generated:** 21
----
-
-**Edge Case #3 (Gemma3.4B)**
-* **Ground Truth:** `[EMPTY ARTICLE - Should have abstained]`
-* **Model Prediction:** `road of Damascus | road of Damascus | Brigade 137 | Brigade 137 | Brigade 137 | Brigade 137 | Brigade 137 | gap | gap | gap | gap | gap | gap | gap | gap | booby-trapped cars`
-* **Spans Generated:** 16
----
-
-
-#### C. Over-Extraction (High Verbosity, Low Precision)
-* **Total cases:** 59
-* **By model:** Gemma3.4B: 17, Llama3.1.8B: 9, Qwen3.8B: 9, Llama2.13B: 6, Gpt Oss.20B: 4, Mistral: 4, Mistral Nemo.12B: 4, Vicuna.13B: 4, Gemma4.E4B: 2
-
-**Edge Case #1 (Llama3.1.8B)**
-* **Ground Truth:** `house | house`
-* **Model Prediction:** `University housing units | University housing units | University housing units | University housing units | car in Al-Fahama area | car in Al-Fahama area | Madaya town | Madaya town | Kafr Al-Zair village | Kafr Al-Zair village | Ghassan Abboud roundabout | Ghassan Abboud roundabout | Al-Sena’a roundabout | Al-Sena’a roundabout`
-* **Scores:** Spans Generated = 14 | Deduped BERTScore = 0.0000
----
-
-**Edge Case #2 (Mistral)**
-* **Ground Truth:** `market`
-* **Model Prediction:** `car | car | car | car | car | vehicle | motorcycle | motorcycle | motorcycle | old market in al-Bab city | al-Awasi area | Kafrkalbin junction | Sharan Township | checkpoint of the Corps on the outskirts of Deir Ballut village`
-* **Scores:** Spans Generated = 14 | Deduped BERTScore = 0.0000
----
-
-**Edge Case #3 (Llama2.13B)**
-* **Ground Truth:** `ISIL headquarters | civilian houses`
-* **Model Prediction:** `school | school | School | school | market | market | coach station | swimming pool | health industry School`
-* **Scores:** Spans Generated = 9 | Deduped BERTScore = 0.0000
----
-
-
-#### D. Valid Paraphrasing (High Semantic Match, Zero Exact Match)
-* **Total cases:** 4
-* **By model:** Gpt Oss.20B: 2, Gemma3.4B: 1, Vicuna.13B: 1
-
-**Edge Case #1 (Gpt Oss.20B)**
-* **Ground Truth:** `Thermal Power plant`
-* **Model Prediction:** `Thermal Power plant area`
-* **Scores:** Span F1 = 0.0000 | Deduped BERTScore = 0.8119
----
-
-**Edge Case #2 (Gemma3.4B)**
-* **Ground Truth:** `militant hideout`
-* **Model Prediction:** `militants' hideout`
-* **Scores:** Span F1 = 0.0000 | Deduped BERTScore = 0.7191
----
-
-**Edge Case #3 (Vicuna.13B)**
-* **Ground Truth:** `militant hideout`
-* **Model Prediction:** `militants' hideout`
-* **Scores:** Span F1 = 0.0000 | Deduped BERTScore = 0.7191
----
-
-
-#### E. Label Mismatch (High Text Match, Wrong Category)
-* **Total cases:** 35
-* **By model:** Llama3.1.8B: 9, Gemma3.4B: 5, Gemma4.E4B: 4, Llama2.13B: 4, Mistral Nemo.12B: 4, Vicuna.13B: 4, Gpt Oss.20B: 3, Mistral: 1, Qwen3.8B: 1
-
-**Edge Case #1 (Gemma3.4B)**
-* **Extracted Text:** `car | car` == `car | car`
-* **Target Label:** `['Transportation/Marketing'] | ['Transportation/Marketing']`
-* **Predicted Label:** `['Other'] | ['Other']`
-* **Scores:** Span F1 = 1.0000 | Labeled Span F1 = 0.0000
----
-
-**Edge Case #2 (Gemma4.E4B)**
-* **Extracted Text:** `wine store` == `wine store`
-* **Target Label:** `['Transportation/Marketing']`
-* **Predicted Label:** `['Other']`
-* **Scores:** Span F1 = 1.0000 | Labeled Span F1 = 0.0000
----
-
-**Edge Case #3 (Gpt Oss.20B)**
-* **Extracted Text:** `wine store` == `wine store`
-* **Target Label:** `['Transportation/Marketing']`
-* **Predicted Label:** `['Other']`
-* **Scores:** Span F1 = 1.0000 | Labeled Span F1 = 0.0000
----
+![Figure 4: Reasoning vs. Prompting Comparison](./assets/fig4_reasoning_vs_prompting.png)
 
