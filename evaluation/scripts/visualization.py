@@ -133,8 +133,8 @@ def plot_hallucination_and_verbosity(g_agg, raw_df, filename="fig2_hallucination
         ax1.set_xlim(0, 1)
         ax1.set_ylim(0, 1)
         ax1.set_xlabel('Gatekeeping / Abstention Accuracy (NoAns Acc)')
-        ax1.set_ylabel('Extraction Quality (HasAns BERTScore)')
-        ax1.set_title('Extraction Accuracy vs. Abstention Safety')
+        ax1.set_ylabel('Extraction Accuracy (HasAns BERTScore)')
+        ax1.set_title('Extraction Quality vs. Abstention Accuracy')
         ax1.grid(True, linestyle=':', alpha=0.6)
         
         bbox_props = dict(boxstyle="round,pad=0.3", fc="white", ec="gray", alpha=0.8)
