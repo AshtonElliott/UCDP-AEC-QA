@@ -17,6 +17,26 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / 'data'
 RESULTS_DIR = DATA_DIR / 'evaluation_results'
 
+# Event fields copied from the UCDP metadata onto each evaluation row.
+UCDP_EVENT_FIELDS = (
+    "id",
+    "end_date",
+    "deaths_low",
+    "start_date",
+    "deaths_high",
+    "side_a_name",
+    "side_b_name",
+    "source_date",
+    "deaths_side_a",
+    "deaths_side_b",
+    "deaths_unknown",
+    "deaths_civilian",
+    "location_adm1_name",
+    "location_adm2_name",
+    "location_root_name",
+    "location_where_name",
+)
+
 def discover_llm_files(data_dir):
     llm_files_by_question = defaultdict(dict)
     
@@ -52,7 +72,10 @@ def load_ground_truth_map(filepath):
                     text = res.get('value', {}).get('text', '').strip()
                     if text:
                         gold_spans.append({'text': text, 'labels': res['value'].get('labels', [])})
-        gt_map[article_text] = {'id': entry.get('id'), 'answer_labels': gold_spans}
+        gt_map[article_text] = {
+            "answer_labels": gold_spans,
+            "event": {field: entry.get(field) for field in UCDP_EVENT_FIELDS},
+        }
     return gt_map
 
 def evaluate_models_globally(model_files, gt_map, q_num):
@@ -77,8 +100,8 @@ def evaluate_models_globally(model_files, gt_map, q_num):
             # Rigorous match check - Skip extra inferences that don't belong in the consensus GT set
             if article_text not in gt_map: continue
             
-            gold_spans = gt_map[article_text].get('answer_labels', [])
-            event_id = gt_map[article_text].get('id')
+            gt_entry = gt_map[article_text]
+            gold_spans = gt_entry["answer_labels"]
             pred_spans = pred_entry.get('answer_labels', pred_entry.get('model_spans', [])) 
 
             def _get_text_str(span):
@@ -102,7 +125,7 @@ def evaluate_models_globally(model_files, gt_map, q_num):
             
             rec_id = len(master_records)
             record = {
-                "id": event_id,
+                **gt_entry["event"],
                 "model": model_name, "strategy": strategy, "thinking": thinking, "question": q_num, "article": article_text,
                 "has_ans": has_ans, "has_pred": has_pred,
                 "g_texts": g_texts, "p_texts": p_texts,
@@ -223,9 +246,10 @@ def run_evaluation_pipeline(question_filter=None):
         print(f"\n--- Computing Metrics for Question {q_num} ---", file=sys.stderr)
         
         gt_paths = [
-            DATA_DIR / 'groundtruth' / f'ground_truth_q{q_num}.json', 
-            DATA_DIR / 'groundtruth' / f'groundtruth_q{q_num}.json', 
-            DATA_DIR / 'groundtruth' / 'groundtruth.json'
+            DATA_DIR / 'raw_inputs' / f'ground_truth_q{q_num}.json',
+            DATA_DIR / 'groundtruth' / f'ground_truth_q{q_num}.json',
+            DATA_DIR / 'groundtruth' / f'groundtruth_q{q_num}.json',
+            DATA_DIR / 'groundtruth' / 'groundtruth.json',
         ]
         
         found_path = next((p for p in gt_paths if p.exists()), None)
