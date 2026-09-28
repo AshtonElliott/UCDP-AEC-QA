@@ -19,7 +19,7 @@ os.environ.pop("http_proxy", None)
 os.environ.pop("https_proxy", None)
 
 # Load HuggingFace Token
-os.environ["HF_TOKEN"] = "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"
+os.environ["HF_TOKEN"] = "<Insert Token Here>"
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
 input_path = os.path.join(script_dir, 'trainsample.json')
