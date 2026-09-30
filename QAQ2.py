@@ -3,8 +3,28 @@ import os
 import ollama
 import re
 import sys
+from typing import List, Literal, Union
+from pydantic import BaseModel, Field, ValidationError
 import asyncio
 from tqdm.asyncio import tqdm
+
+# Pydantic Classes
+# Enforce the 8 specific categories using Literal
+class ExtractionLabels(BaseModel):
+    word: str 
+    category: Literal[ 
+    "Energy",
+    "Water",
+    "Transportation/Marketing",
+    "Energy/Water",
+    "Health",
+    "Agriculture/Fishing",
+    "Government/Rebel",
+    "Other"
+    ] 
+    
+class ExtractionResponse(BaseModel):
+    extractions: List[Union[ExtractionLabels,str]]
 
 # Unset proxies
 os.environ.pop("http_proxy", None)
@@ -12,7 +32,7 @@ os.environ.pop("https_proxy", None)
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
 input_path = os.path.join(script_dir, 'train2.json')
-output_path = os.path.join(script_dir, 'mistral_results2.json')
+output_path = os.path.join(script_dir, 'temp_results2.json')
 
 # Load dataset
 with open(input_path, 'r') as f:
@@ -35,6 +55,7 @@ async def process_entry(idx, entry):
             retrieved_context = "\n".join(chunks[:5])
             response = await client.chat(
                 model='mistral:latest',
+                format= ExtractionResponse.model_json_schema(),
                 messages=[
                     {'role': 'system', 'content': (
                     'Identify the words that answer the question. Return only a comma-separated list of words found in the article.'
@@ -49,70 +70,56 @@ async def process_entry(idx, entry):
                     'The category should be Agriculture/Fishing when the infrastructure is related to crop cultivation and harvesting, and infrastructure related to fisheries'
                     'The category should be Government/Rebel when the infrastructure is related to Government or Public Based Buildings such as Schools, Admin Buildings, and Military Bases'
                     'The category should be Other when the infrastructure is not related to any of the previous categories.'
-                    'For every identified item, return only: "Text | Category". '
-                    'If there is no answer, return the word Losolnachtnuma.'
+                    'Respond in JSON format with a list called "extractions" containing objects with keys "word" and "category".'
+                    'If there is no answer, return the word Losolnachtnuma in the "extractions" list.'
                     )},
                 
                     # Example 1: Standard infrastructure
                     {'role': 'user', 'content': f"Context: Rebels bombed the local bridge and the central hospital.\n\nQuestion: {question}"},
-                    {'role': 'assistant', 'content': 'bridge | Transportation/Marketing, hospital | Health'},
+                    {'role': 'assistant', 'content': '{"extractions": [{"word": "bridge", "category": "Transportation/Marketing"}, {"word": "hospital", "category": "Health"}]}'},
                     
                     # Example 2: Multipurpose infrastructure
                     {'role': 'user', 'content': f"Context: The hydroelectric dam was targeted in the raid.\n\nQuestion: {question}"},
-                    {'role': 'assistant', 'content': 'hydroelectric dam | Energy/Water'},
+                    {'role': 'assistant', 'content': '{"extractions": [{"word": "hydroelectric dam", "category": "Energy/Water"}]}'},
+                    
+                    # Example 3: Using Safe Word
+                    {'role': 'user', 'content': f"Context: The town was targeted in the raid.\n\nQuestion: {question}"},
+                    {'role': 'assistant', 'content': '{"extractions": [{"word": "Losolnachtnuma", "category": "Other"}]}'},
                     
                     {'role': 'user', 'content': f"Context: {retrieved_context}\n\nQuestion: {question}"}   
                 ]
             )
-            prediction = response['message']['content']
-            labels = prediction.split(',')
+            prediction = response['message']['content'].strip()
+            prediction = re.sub(r'\]\}\s*\}$', ']}', prediction)
+            
+            # Read in JSON with Pydantic
+            data = ExtractionResponse.model_validate_json(prediction)
+            
+            # Boolean to catch abstaining answers
+            safeword = False
+            
             spans = []
-            for label in labels:
-                clean_label = label.strip(' ".\' ')
-                if '|' in clean_label:
-                    # Separate Text and Label
-                    parts = clean_label.split('|', 1)
-                    text = parts[0]
+            for label in data.extractions:
+                text = label.word.strip()
+                if text == "Losolnachtnuma":
+                    safeword = True
+                    break
+                if text:
+                    # Apply Text & Label
+                    spans.append({
+                        "end": "N/A",
+                        "text": [text],
+                        "start": "N/A",
+                        "labels": [label.category]
+                    })
                     
-                    # Filter Out for Label
-                    QAlabel = parts[1]
-                        
-                    if "Energy" in QAlabel:
-                        QAlabel = "Energy"
-                    elif "Water" in QAlabel:
-                        QAlabel = "Water"
-                    elif "Transportation/Marketing" in QAlabel:
-                        QAlabel = "Transportation/Marketing"
-                    elif "Energy/Water" in QAlabel:
-                        QAlabel = "Energy/Water"
-                    elif "Health" in QAlabel:
-                        QAlabel = "Health"
-                    elif "Agriculture/Fishing" in QAlabel:
-                        QAlabel = "Agriculture/Fishing"
-                    elif "Government/Rebel" in QAlabel:
-                        QAlabel = "Government/Rebel"
-                    else:
-                        QAlabel = "Other"
-                    
-                    if "" in text:
-                        # Filter out blanks-positives
-                        continue
-                    else:
-                        # Apply Text & Label
-                        for match in re.finditer(re.escape(text), context, re.IGNORECASE):
-                            spans.append({
-                                "end": match.end(),
-                                "text": context[match.start():match.end()],
-                                "start": match.start(),
-                                "labels": [QAlabel]
-                            })
-            if len(spans) == 0:
-                if prediction == "Losolnachtnuma":
-                    entry['no_answer'] = "No arms or methods mentioned (Geniune No Answer)"
-                else:
-                    entry['no_answer'] = "No arms or methods mentioned (Non-Geniune No Answer)"
+            if safeword == True or len(spans) == 0:
+                entry['no_answer'] = "No arms or methods mentioned (Geniune No Answer)"
             else:
                 entry['answer_labels'] = spans
+        except ValidationError as e:
+            print(f"Pydantic Validation Error in entry {idx}: {e}", file=sys.stderr)
+            entry['error'] = f"Invalid schema returned: {e}"
         except Exception as e:
             print(f"Error processing entry {idx}: {e}", file=sys.stderr)
             entry['error'] = str(e)
@@ -120,10 +127,17 @@ async def process_entry(idx, entry):
 # Main function to use async later on. 
 # Use await instead of for loop for asyncio.
 async def main():
+    # Change Model Here
+    Model = 'nemotron3:33b'
+    
+    # Run LLM Function
     await tqdm.gather(*[
-        process_entry(idx, entry)
+        process_entry(idx, entry, Model)
         for idx, entry in enumerate(dataset)
     ])
+    # Change Output Filename Here
+    output_path = os.path.join(script_dir, 'gemma3.4b_results2.json')
+        
     # Write ONCE after all entries processed
     print("Writing results...")
     with open(output_path, 'w') as f:
