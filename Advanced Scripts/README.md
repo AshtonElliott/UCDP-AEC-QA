@@ -2,4 +2,4 @@ This set contains more complex scripts (i.e. Thinking turned on & Thinking turne
 
 However, they can be plugged and played with the basic scripts seen in the main README.md.
 
-Also, not every model supports "Thinking". Because of this, expect to find more Non-Thinking Scripts than Thinking Scripts.
+Also, most of the models we ran did not support "Thinking". As such, expect a difference in the number of non-thinking results to thinking results.
