@@ -38,26 +38,26 @@ The manual Annoation can be done any way you prefer. For us, it was using Label 
 
 For LLMs, we have a script that can be ran locally (using Ollama) to output to a new JSON file that holds the LLM's response in a similiar structure to the one found in the exported Label Studio Json Format. The new JSON File can be found where the script is located.
 
-The Script will require a version of Python and the Ollama Python Package. We recommend Python 3.12 as this is what it's built on.
-For the package, use pip to install it in your local terminal:
+The Script will require a version of Python as well as both the Ollama and TQDM Python Package. We recommend Python 3.12 as this is what it's built on.
+For the packages, use pip to install it in your local terminal:
 ```bash
   pip install ollama tqdm
 ```
 
-Within the script, you can change the source JSON file location, the LLM model, and the name newly created JSON file. It can be found at the following lines:
-- Source JSON file location:
+Within the script, you can change the source JSON file location, the LLM model, and the name newly created JSON file. In their respective order:
+- Source JSON file location (Line 27 in QA and Line 34 in QAQ2):
 ```bash
   input_path = os.path.join(script_dir, 'train.json')
 ```
 
-- New JSON file name:
+- New JSON file name (Line 113 in QA and Line 139 in QAQ2):
 ```bash
   output_path = os.path.join(script_dir, 'mistral_results.json')
 ```
 
-- LLM Model:
+- LLM Model (Line 105 in QA and Line 131 in QAQ2):
 ```bash
-  model='mistral',
+  Model = 'mistral',
 ```
 
 ---
@@ -76,27 +76,7 @@ Then, you run the scripts with the following command:
 ---
 ## HPC LLM Annotation
 
-For those that have HPC access, we have two scripts, one for each question, that can be ran on HPCs.
-
-Within either script, you can change the source JSON file location, the LLM model, and the name newly created JSON file. It can be found at the following lines:
-- Source JSON file location:
-```bash
-  input_path = os.path.join(script_dir, 'train.json')
-```
-
-- New JSON file name:
-```bash
-  output_path = os.path.join(script_dir, 'mistral_results.json')
-```
-
-- LLM Model:
-```bash
-  model='mistral',
-```
-
----
-
-To utilize either script, you will need at least two running HPC terminals.
+For those that have HPC access, the scripts above can also be ran on HPCs. To utilize either script, you will need at least two running HPC terminals.
 
 ### Ollama CLI Installation and serving on Terminal 1
 
