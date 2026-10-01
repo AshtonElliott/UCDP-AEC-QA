@@ -3,8 +3,28 @@ import os
 import ollama
 import re
 import sys
+from typing import List, Literal, Union
+from pydantic import BaseModel, Field, ValidationError
 import asyncio
 from tqdm.asyncio import tqdm
+
+# Pydantic Classes
+# Enforce the 8 specific categories using Literal
+class ExtractionLabels(BaseModel):
+    word: str 
+    category: Literal[ 
+    "Energy",
+    "Water",
+    "Transportation/Marketing",
+    "Energy/Water",
+    "Health",
+    "Agriculture/Fishing",
+    "Government/Rebel",
+    "Other"
+    ] 
+    
+class ExtractionResponse(BaseModel):
+    extractions: List[Union[ExtractionLabels,str]]
 
 # Unset proxies
 os.environ.pop("http_proxy", None)
@@ -35,7 +55,7 @@ async def process_entry(idx, entry):
             retrieved_context = "\n".join(chunks[:5])
             response = await client.chat(
                 model='llama3.1:8b',
-                format='json',
+                format=ExtractionResponse.model_json_schema(),
                 messages=[
                     {'role': 'system', 'content': (
                     'Extract words answering the question and classify them into these 8 categories: '
@@ -62,43 +82,37 @@ async def process_entry(idx, entry):
                     {'role': 'user', 'content': f"Context: {retrieved_context}\n\nQuestion: {question}"}   
                 ]
             )
-            prediction = response['message']['content']
+            prediction = response['message']['content'].strip()
+            prediction = re.sub(r'\]\}\s*\}$', ']}', prediction)
             
-            # Read in JSON Produced by Llama3.1
-            data = json.loads(prediction)
+            # Read in JSON with Pydantic
+            data = ExtractionResponse.model_validate_json(prediction)
             
-            if isinstance(data, dict):
-                extractions = data.get('extractions', [])
-            elif isinstance(data, list):
-                extractions = data
-            else:
-                extractions = []
+            # Boolean to catch abstaining answers
+            safeword = False
             
             spans = []
-            for label in extractions:
-                text = ""
-                QALabel = ""
-                if isinstance(label, dict):
-                    text = label.get('word', '')
-                    QALabel = label.get('category', 'Other')
-                
-                if "" in text:
-                        # Filter out blanks-positives
-                        continue
-                    else:
-                        # Apply Text & Label
-                        for match in re.finditer(re.escape(text), context, re.IGNORECASE):
-                            spans.append({
-                                "end": match.end(),
-                                "text": context[match.start():match.end()],
-                                "start": match.start(),
-                                "labels": [QAlabel]
-                            })
-            if len(spans) == 0 or QALabel == "":
-                entry['no_answer'] = "No Damage Detected"
+            for label in data.extractions:
+                text = label.word.strip()
+                if text == "Losolnachtnuma":
+                    safeword = True
+                    break
+                if text:
+                    # Apply Text & Label
+                    spans.append({
+                        "end": "N/A",
+                        "text": [text],
+                        "start": "N/A",
+                        "labels": [label.category]
+                    })
+                    
+            if safeword == True or len(spans) == 0:
+                entry['no_answer'] = "No arms or methods mentioned (Geniune No Answer)"
             else:
                 entry['answer_labels'] = spans
-            entry.pop('extractions', None)
+        except ValidationError as e:
+            print(f"Pydantic Validation Error in entry {idx}: {e}", file=sys.stderr)
+            entry['error'] = f"Invalid schema returned: {e}"
         except Exception as e:
             print(f"Error processing entry {idx}: {e}", file=sys.stderr)
             entry['error'] = str(e)

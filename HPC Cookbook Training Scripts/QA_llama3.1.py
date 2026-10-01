@@ -3,8 +3,21 @@ import os
 import ollama
 import re
 import sys
+from typing import List, Literal
+from pydantic import BaseModel, Field, ValidationError
 import asyncio
 from tqdm.asyncio import tqdm
+
+# Pydantic Classes
+# Enforce the format
+class ExtractionQ1(BaseModel):
+    word: str 
+    category: Literal[
+    "Answer"
+    ]
+
+class ExtractionResponse(BaseModel):
+    extractions: List[ExtractionQ1]
 
 # Unset proxies
 os.environ.pop("http_proxy", None)
@@ -35,7 +48,7 @@ async def process_entry(idx, entry):
             retrieved_context = "\n".join(chunks[:5])
             response = await client.chat(
                 model='llama3.1:8b',
-                format = 'json',
+                format = ExtractionResponse.model_json_schema(),
                 messages=[
                     {'role': 'system', 'content': (
                     'Extract the words that answer the question. '
@@ -47,8 +60,11 @@ async def process_entry(idx, entry):
             )
             prediction = response['message']['content']
             
-            # Read in JSON Produced by Llama3.1
-            data = json.loads(prediction)
+            # Read in JSON with Pydantic
+            data = ExtractionResponse.model_validate_json(prediction)
+                
+            # Boolean to catch abstaining answers
+            safeword = False
             
             if isinstance(data, dict):
                 extractions = data.get('extractions', [])
@@ -57,23 +73,28 @@ async def process_entry(idx, entry):
             else:
                 extractions = []
             
+            # Read Each Article and Answer into a span
             spans = []
             for label in extractions:
-                text = label.get('word', '')
-                
-                # Apply Text & Label
-                for match in re.finditer(re.escape(text), context, re.IGNORECASE):
+                text = label.word.strip()
+                if text == "Losolnachtnuma":
+                    safeword = True
+                if text:
+                    # Apply Text & Label
                     spans.append({
-                        "end": match.end(),
-                        "text": context[match.start():match.end()],
-                        "start": match.start(),
+                        "end": "N/A",
+                        "text": [text],
+                        "start": "N/A",
                         "labels": ["Answer"]
                     })
-            if len(spans) == 0 or data.get('extractions', []) == "None found":
-                entry['no_answer'] = "No Damage Detected"
+                    
+            if safeword == True:
+                entry['no_answer'] = "No arms or methods mentioned (Geniune No Answer)"
             else:
                 entry['answer_labels'] = spans
-            entry.pop('extractions', None)
+        except ValidationError as e:
+            print(f"Pydantic Validation Error in entry {idx}: {e}", file=sys.stderr)
+            entry['error'] = f"Invalid schema returned: {e}"
         except Exception as e:
             print(f"Error processing entry {idx}: {e}", file=sys.stderr)
             entry['error'] = str(e)

@@ -3,8 +3,28 @@ import os
 import ollama
 import re
 import sys
+from typing import List, Literal, Union
+from pydantic import BaseModel, Field, ValidationError
 import asyncio
 from tqdm.asyncio import tqdm
+
+# Pydantic Classes
+# Enforce the 8 specific categories using Literal
+class ExtractionLabels(BaseModel):
+    word: str 
+    category: Literal[ 
+    "Energy",
+    "Water",
+    "Transportation/Marketing",
+    "Energy/Water",
+    "Health",
+    "Agriculture/Fishing",
+    "Government/Rebel",
+    "Other"
+    ] 
+    
+class ExtractionResponse(BaseModel):
+    extractions: List[Union[ExtractionLabels,str]]
 
 # Unset proxies
 os.environ.pop("http_proxy", None)
@@ -35,6 +55,7 @@ async def process_entry(idx, entry):
             retrieved_context = "\n".join(chunks[:5])
             response = await client.chat(
                 model='mistral:7b',
+                format=ExtractionResponse.model_json_schema(),
                 messages=[
                     {'role': 'system', 'content': (
                     ' f"""" '
@@ -70,52 +91,37 @@ async def process_entry(idx, entry):
                     {'role': 'user', 'content': f"Context: {retrieved_context}\n\nQuestion: {question}"}   
                 ]
             )
-            prediction = response['message']['content']
-            labels = prediction.split(',')
+            prediction = response['message']['content'].strip()
+            prediction = re.sub(r'\]\}\s*\}$', ']}', prediction)
+            
+            # Read in JSON with Pydantic
+            data = ExtractionResponse.model_validate_json(prediction)
+            
+            # Boolean to catch abstaining answers
+            safeword = False
+            
             spans = []
-            for label in labels:
-                clean_label = label.strip(' ".\' ')
-                if '|' in clean_label:
-                    # Separate Text and Label
-                    parts = clean_label.split('|', 1)
-                    text = parts[0]
+            for label in data.extractions:
+                text = label.word.strip()
+                if text == "Losolnachtnuma":
+                    safeword = True
+                    break
+                if text:
+                    # Apply Text & Label
+                    spans.append({
+                        "end": "N/A",
+                        "text": [text],
+                        "start": "N/A",
+                        "labels": [label.category]
+                    })
                     
-                    # Filter Out for Label
-                    QAlabel = parts[1]
-                        
-                    if "Energy" in QAlabel:
-                        QAlabel = "Energy"
-                    elif "Water" in QAlabel:
-                        QAlabel = "Water"
-                    elif "Transportation/Marketing" in QAlabel:
-                        QAlabel = "Transportation/Marketing"
-                    elif "Energy/Water" in QAlabel:
-                        QAlabel = "Energy/Water"
-                    elif "Health" in QAlabel:
-                        QAlabel = "Health"
-                    elif "Agriculture/Fishing" in QAlabel:
-                        QAlabel = "Agriculture/Fishing"
-                    elif "Government/Rebel" in QAlabel:
-                        QAlabel = "Government/Rebel"
-                    else:
-                        QAlabel = "Other"
-                    
-                    if "" in text:
-                        # Filter out blanks-positives
-                        continue
-                    else:
-                        # Apply Text & Label
-                        for match in re.finditer(re.escape(text), context, re.IGNORECASE):
-                            spans.append({
-                                "end": match.end(),
-                                "text": context[match.start():match.end()],
-                                "start": match.start(),
-                                "labels": [QAlabel]
-                            })
-            if len(spans) == 0:
-                entry['no_answer'] = "No Damage Detected"
+            if safeword == True or len(spans) == 0:
+                entry['no_answer'] = "No arms or methods mentioned (Geniune No Answer)"
             else:
                 entry['answer_labels'] = spans
+        except ValidationError as e:
+            print(f"Pydantic Validation Error in entry {idx}: {e}", file=sys.stderr)
+            entry['error'] = f"Invalid schema returned: {e}"
         except Exception as e:
             print(f"Error processing entry {idx}: {e}", file=sys.stderr)
             entry['error'] = str(e)
