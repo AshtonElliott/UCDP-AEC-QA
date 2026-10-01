@@ -1,14 +1,6 @@
----
-title: ConfliBERT GUI v3
-emoji: '🔥'
-colorFrom: red
-colorTo: yellow
-sdk: gradio
-sdk_version: "5.20.0"
-app_file: app.py
-pinned: false
----
+As BERT architectures aren't supported on Ollama, we will instead utilized the ConfliBERT GUI v3 on Huggingface found here:
+https://huggingface.co/spaces/eventdata-utd/ConfliBERT-GUI-v3
 
-# ConfliBERT GUI v3
+The one found in this repo has had its QA modified specifically for our needs.
 
-A browser-based NLP toolkit for conflict and political violence text analysis. Fine-tune classifiers with LoRA/QLoRA support and active learning.
+# Utilization of the Modified GUI
