@@ -62,3 +62,9 @@ Then, navigate to the this folder on your cloned repo and run the following:
 After that's finish, you now have a working environment for the GUI.
 
 ## Utilization of the Modified GUI
+
+To start the GUI, run either the appQA.py (for Question 1) or appQAQ2.py (for Question 2). After running either script, it should provide you a local URL you can access.
+
+After accessing, head to the "Question Answering" tab and then open the "Batch Processing (CSV)" tab. In this tab, you can add the CSV files we created earlier.
+
+It is highly recommended to use each script for their respective question as appQAQ2.py was specifically altered towards answering our 2nd question.
