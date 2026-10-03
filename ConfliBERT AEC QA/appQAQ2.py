@@ -878,8 +878,10 @@ def process_csv_qa(file):
 
     df['answer'] = answers
     df['label'] = labels
-    df['label_confidence'] = confidences
-    df['label_method'] = methods
+    
+    # Optional Details, Uncomment to View
+    #df['label_confidence'] = confidences
+    #df['label_method'] = methods
 
     out = tempfile.NamedTemporaryFile(suffix='_qa_results.csv', delete=False)
     df.to_csv(out.name, index=False)

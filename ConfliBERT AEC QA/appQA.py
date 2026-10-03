@@ -681,8 +681,11 @@ def process_csv_qa(file):
         counts.append(len(found))
 
     df['answer'] = answers
-    df['answer_confidence'] = confidences
-    df['answer_count'] = counts
+    df['label'] = "Answer"
+    
+    # Optional Details, Uncomment to View
+    # df['answer_confidence'] = confidences
+    # df['answer_count'] = counts
 
     out = tempfile.NamedTemporaryFile(suffix='_qa_results.csv', delete=False)
     df.to_csv(out.name, index=False)
