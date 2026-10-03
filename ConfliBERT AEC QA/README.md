@@ -43,6 +43,22 @@ ResultsConversion.py (Lines 17 & 18):
  # Change FileNames and Number here
 names = ['train', 'train2']
 ```
-Once there changes are made (if you had to), run the CSVConversion script.
+Once there changes are made (if you had to), run the CSVConversion script. You should now have the CSV scripts that you need.
+
+Lastly, you need the proper python/conda environment to run the GUI. To do so, first install torch with either to use your cpu or gpu.
+
+For CPU, run this command:
+```bash
+ pip install torch
+```
+For GPU, run this command:
+```bash
+ pip install torch --index-url https://download.pytorch.org/whl/cu124
+```
+Then, navigate to the this folder on your cloned repo and run the following:
+```bash
+ pip install -r requirements.txt
+```
+After that's finish, you now have a working environment for the GUI.
 
 ## Utilization of the Modified GUI
