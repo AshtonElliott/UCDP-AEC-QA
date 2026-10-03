@@ -65,6 +65,10 @@ After that's finish, you now have a working environment for the GUI.
 
 To start the GUI, run either the appQA.py (for Question 1) or appQAQ2.py (for Question 2). After running either script, it should provide you a local URL you can access.
 
+<img width="574" height="574" src="https://github.com/AshtonElliott/UCDP-AEC-QA/blob/main/ConfliBERT%20AEC%20QA/LocalURLSample.png" />
+
 After accessing, head to the "Question Answering" tab and then open the "Batch Processing (CSV)" tab. In this tab, you can add the CSV files we created earlier.
+
+<img width="1000" height="1000" src="https://github.com/AshtonElliott/UCDP-AEC-QA/blob/main/ConfliBERT%20AEC%20QA/QAGuiLocation.png" />
 
 It is highly recommended to use each script for their respective question as appQAQ2.py was specifically altered towards answering our 2nd question.
