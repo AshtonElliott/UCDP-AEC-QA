@@ -97,15 +97,13 @@ MAX_TOKEN_LENGTH = 4096
 QA_WINDOW = 512
 QA_STRIDE = 128
 QA_MAX_ANSWER_LENGTH = 50
-
-# Multi-answer extraction. The model assigns a probability to every possible
-# span, so it has no notion of "finding" a fixed number of answers: the length
-# of the returned list is governed by QA_ANSWER_MIN_RATIO and by overlap
-# suppression, not by a top-k cutoff. Lower the ratio to retrieve more.
-QA_ANSWER_MIN_RATIO = 0.10      # keep answers scoring >= this fraction of the best
-QA_MAX_ANSWERS = 0              # 0 = unlimited; positive values cap the list
-QA_CANDIDATES_PER_WINDOW = 200  # spans pulled from each window before merging
-QA_CSV_SEPARATOR = ' | '
+# A window needs room for at least this much context. Below it the overlap would
+# consume the whole window, the slide would stop advancing, and the tokenizer
+# aborts with a Rust panic that does not inherit from Exception.
+QA_MIN_CONTEXT = 128
+# Windows scored per forward pass, so a long context cannot put hundreds of
+# sequences through the model at once.
+QA_MAX_BATCH = 8
 
 
 def get_system_info():
@@ -281,8 +279,8 @@ INFRA_ZEROSHOT_MODEL = 'MoritzLaurer/deberta-v3-base-zeroshot-v2.0'
 INFRA_ZEROSHOT_HYPOTHESIS = 'This text describes {}.'
 # Below this top score the zero-shot stage abstains and the answer gets 'Other'.
 INFRA_MIN_CONFIDENCE = 0.40
-# Characters of surrounding context handed to the classifier on each side of the span.
-INFRA_CONTEXT_RADIUS = 300
+# Tokens of surrounding context handed to the classifier on each side of the span.
+INFRA_CONTEXT_RADIUS = 60
 
 
 # ============================================================================
@@ -460,35 +458,29 @@ def classify_infrastructure(answer, window=None):
     return label, score, 'zero-shot'
 
 
-def _masked_softmax(logits, mask):
-    """Softmax restricted to mask; positions outside it receive probability 0."""
-    scores = np.where(mask, logits, -np.inf)
-    scores = scores - scores.max()
-    probs = np.exp(scores)
-    total = probs.sum()
-    return probs / total if total > 0 else probs
+def _qa_extract_span(context, question):
+    """Run windowed QA and return (answer, surrounding_context) or (None, None)."""
+    n_special = qa_tokenizer.num_special_tokens_to_add(pair=True)
+    n_question = len(qa_tokenizer(question, add_special_tokens=False)['input_ids'])
+    room = QA_WINDOW - n_question - n_special
+    if room < QA_MIN_CONTEXT:
+        raise ValueError(
+            f"Question is too long ({n_question} tokens): it leaves only "
+            f"{max(room, 0)} of {QA_WINDOW} tokens per window for the context. "
+            f"Shorten it to at most {QA_WINDOW - n_special - QA_MIN_CONTEXT} tokens."
+        )
+    # The overlap has to stay well below the per-window context room, otherwise
+    # each window advances by a token or two and the window count explodes.
+    stride = min(QA_STRIDE, room // 2)
 
-
-def qa_extract_answers(context, question):
-    """Extract every sufficiently-confident answer span, best first.
-
-    Candidate spans are scored as P(start) * P(end), pooled across all sliding
-    windows, then deduplicated by character offset so the overlap between
-    adjacent windows cannot yield the same mention twice. Overlapping and
-    repeated spans are suppressed, since the runners-up of a strong answer are
-    otherwise just off-by-one variants of it. Each answer carries a surrounding
-    context window, which the infrastructure classifier needs to judge function
-    rather than name.
-    """
     # 'only_second' keeps the question intact and windows the context alone.
     inputs = qa_tokenizer(
         question, context,
         return_tensors='tf' if _USE_TF_QA else 'pt',
         truncation='only_second',
         max_length=QA_WINDOW,
-        stride=QA_STRIDE,
+        stride=stride,
         return_overflowing_tokens=True,
-        return_offsets_mapping=True,
         padding='max_length',
     )
     model_inputs = {
@@ -496,93 +488,71 @@ def qa_extract_answers(context, question):
         if k in ('input_ids', 'attention_mask', 'token_type_ids')
     }
 
-    if _USE_TF_QA:
-        outputs = qa_model(model_inputs)
-    else:
-        with torch.no_grad():
-            outputs = qa_model(**model_inputs)
-    start_logits = np.asarray(outputs.start_logits)
-    end_logits = np.asarray(outputs.end_logits)
     input_ids = np.asarray(model_inputs['input_ids'])
     attention_mask = np.asarray(model_inputs['attention_mask'])
-    offsets = np.asarray(inputs['offset_mapping'])
+    n_windows, width = input_ids.shape
 
     # Restrict spans to end >= start and no longer than QA_MAX_ANSWER_LENGTH.
-    width = input_ids.shape[1]
     ones = np.ones((width, width), dtype=bool)
     span_band = np.triu(ones) & np.tril(ones, QA_MAX_ANSWER_LENGTH - 1)
 
-    candidates = []
-    for i in range(input_ids.shape[0]):
-        mask = _qa_context_mask(inputs, i, input_ids, attention_mask)
-        if not mask.any():
-            continue
-        starts = _masked_softmax(start_logits[i], mask)
-        ends = _masked_softmax(end_logits[i], mask)
-        scores = np.where(span_band, starts[:, None] * ends[None, :], 0.0)
+    best_score, best_chunk, best_start, best_end = -np.inf, None, 0, 0
+    best_mask = None
+    for batch_start in range(0, n_windows, QA_MAX_BATCH):
+        batch_end = min(batch_start + QA_MAX_BATCH, n_windows)
+        batch = {k: v[batch_start:batch_end] for k, v in model_inputs.items()}
+        if _USE_TF_QA:
+            outputs = qa_model(batch)
+        else:
+            with torch.no_grad():
+                outputs = qa_model(**batch)
+        start_logits = np.asarray(outputs.start_logits)
+        end_logits = np.asarray(outputs.end_logits)
 
-        flat = scores.ravel()
-        keep = min(QA_CANDIDATES_PER_WINDOW, flat.size)
-        for idx in np.argpartition(flat, -keep)[-keep:]:
-            score = float(flat[idx])
-            if score <= 0.0:
+        for j in range(batch_end - batch_start):
+            i = batch_start + j
+            mask = _qa_context_mask(inputs, i, input_ids, attention_mask)
+            if not mask.any():
                 continue
-            start, end = divmod(int(idx), width)
-            # Character offsets make spans comparable across overlapping windows.
-            char_start, char_end = int(offsets[i][start][0]), int(offsets[i][end][1])
-            if char_end <= char_start:
-                continue
-            candidates.append((score, char_start, char_end))
+            starts = np.where(mask, start_logits[j], -np.inf)
+            ends = np.where(mask, end_logits[j], -np.inf)
+            scores = np.where(span_band, starts[:, None] + ends[None, :], -np.inf)
+            flat = int(np.argmax(scores))
+            start, end = divmod(flat, width)
+            if scores[start, end] > best_score:
+                best_score = scores[start, end]
+                best_chunk, best_start, best_end = i, start, end
+                best_mask = mask
 
-    if not candidates:
-        return []
+    if best_chunk is None or not np.isfinite(best_score):
+        return None, None
 
-    candidates.sort(key=lambda c: -c[0])
-    cutoff = candidates[0][0] * QA_ANSWER_MIN_RATIO
-
-    answers, spans, seen = [], [], set()
-    for score, char_start, char_end in candidates:
-        if score < cutoff:
-            break
-        if any(char_start < e and s < char_end for s, e in spans):
-            continue
-        text = context[char_start:char_end].strip()
-        key = text.lower()
-        if not text or key in seen:
-            continue
-        spans.append((char_start, char_end))
-        seen.add(key)
-        answers.append({
-            'answer': text,
-            'score': score,
-            'start': char_start,
-            'end': char_end,
-            'window': context[
-                max(0, char_start - INFRA_CONTEXT_RADIUS):
-                char_end + INFRA_CONTEXT_RADIUS
-            ],
-        })
-        if QA_MAX_ANSWERS and len(answers) >= QA_MAX_ANSWERS:
-            break
-    return answers
-
-
-def _infra_badge(label):
-    color = INFRA_LABEL_COLORS.get(label, '#6b7280')
-    return (
-        f"<span style='background: {color}; color: #ffffff; font-weight: 600; "
-        f"padding: 0.1rem 0.5rem; border-radius: 6px; font-size: 0.8rem;'>"
-        f"{label}</span>"
+    chunk_ids = input_ids[best_chunk]
+    answer = qa_tokenizer.convert_tokens_to_string(
+        qa_tokenizer.convert_ids_to_tokens(chunk_ids[best_start:best_end + 1])
     )
 
+    # Widen to a context window so the classifier can judge function, not just name.
+    valid = np.flatnonzero(best_mask)
+    lo = max(int(valid[0]), best_start - INFRA_CONTEXT_RADIUS)
+    hi = min(int(valid[-1]), best_end + INFRA_CONTEXT_RADIUS)
+    window = qa_tokenizer.decode(chunk_ids[lo:hi + 1], skip_special_tokens=True)
+    return answer, window
 
-def qa_answers_with_labels(context, question):
-    """Extract every answer span and attach an infrastructure label to each."""
-    answers = qa_extract_answers(context, question)
-    for a in answers:
-        label, score, method = classify_infrastructure(a['answer'], a['window'])
-        a['label'], a['label_confidence'], a['label_method'] = label, score, method
-    return answers
+
+def _infra_label_html(label, score, method):
+    color = INFRA_LABEL_COLORS.get(label, '#6b7280')
+    return (
+        "<div>"
+        f"<span style='background: {color}; color: #ffffff; font-weight: 600; "
+        f"padding: 0.25rem 0.6rem; border-radius: 6px; font-size: 0.9rem;'>"
+        f"{label}</span>"
+        f"<span style='color: #6b7280; font-size: 0.8rem; margin-left: 0.5rem;'>"
+        f"{score:.0%} confidence &middot; {method}</span>"
+        f"<div style='color: #6b7280; font-size: 0.8rem; margin-top: 0.4rem;'>"
+        f"{INFRA_LABELS[label]}</div>"
+        "</div>"
+    )
 
 
 def question_answering(context, question):
@@ -590,32 +560,17 @@ def question_answering(context, question):
     if not context or not question:
         return "Please provide both context and question.", ""
     try:
-        answers = qa_answers_with_labels(context, question)
-        if not answers:
+        answer, window = _qa_extract_span(context, question)
+        if answer is None:
             return (
                 "<span style='color: #ef4444; font-weight: 600;'>"
                 "No answer found in the provided context.</span>",
                 "",
             )
-        answer_rows = [
-            "<div style='margin-bottom: 0.4rem;'>"
-            f"<span style='color: #6b7280; font-size: 0.8rem;'>{n}.</span> "
-            f"<span style='color: #10b981; font-weight: 600;'>{a['answer']}</span> "
-            f"<span style='color: #6b7280; font-size: 0.8rem;'>"
-            f"({a['score']:.1%})</span></div>"
-            for n, a in enumerate(answers, 1)
-        ]
-        label_rows = [
-            "<div style='margin-bottom: 0.4rem;'>"
-            f"<span style='color: #6b7280; font-size: 0.8rem;'>{n}.</span> "
-            f"{_infra_badge(a['label'])} "
-            f"<span style='color: #6b7280; font-size: 0.8rem;'>"
-            f"{a['label_confidence']:.0%} &middot; {a['label_method']}</span></div>"
-            for n, a in enumerate(answers, 1)
-        ]
+        label, score, method = classify_infrastructure(answer, window)
         return (
-            "<div>" + "".join(answer_rows) + "</div>",
-            "<div>" + "".join(label_rows) + "</div>",
+            f"<span style='color: #10b981; font-weight: 600;'>{answer}</span>",
+            _infra_label_html(label, score, method),
         )
     except Exception as e:
         return handle_error(e), ""
@@ -893,37 +848,38 @@ def process_csv_qa(file):
     if 'context' not in df.columns or 'question' not in df.columns:
         raise ValueError("CSV must contain 'context' and 'question' columns")
 
-    sep = QA_CSV_SEPARATOR
-    answers, scores, labels, confidences, methods, counts = [], [], [], [], [], []
+    answers, labels, confidences, methods = [], [], [], []
     for _, row in df.iterrows():
         if pd.isna(row['context']) or pd.isna(row['question']):
-            found = []
-        else:
-            try:
-                found = qa_answers_with_labels(
-                    str(row['context']), str(row['question'])
-                )
-            except Exception as e:
-                answers.append(re.sub(r'<[^>]+>', '', handle_error(e)).strip())
-                scores.append("")
-                labels.append("")
-                confidences.append("")
-                methods.append("")
-                counts.append(0)
-                continue
-        answers.append(sep.join(a['answer'] for a in found))
-        scores.append(sep.join(f"{a['score']:.4f}" for a in found))
-        labels.append(sep.join(a['label'] for a in found))
-        confidences.append(sep.join(f"{a['label_confidence']:.4f}" for a in found))
-        methods.append(sep.join(a['label_method'] for a in found))
-        counts.append(len(found))
+            answers.append("")
+            labels.append("")
+            confidences.append("")
+            methods.append("")
+            continue
+        try:
+            answer, window = _qa_extract_span(str(row['context']), str(row['question']))
+        except Exception as e:
+            answers.append(re.sub(r'<[^>]+>', '', handle_error(e)).strip())
+            labels.append("")
+            confidences.append("")
+            methods.append("")
+            continue
+        if answer is None:
+            answers.append("")
+            labels.append('Other')
+            confidences.append(0.0)
+            methods.append('no-answer')
+            continue
+        label, score, method = classify_infrastructure(answer, window)
+        answers.append(answer)
+        labels.append(label)
+        confidences.append(round(score, 4))
+        methods.append(method)
 
     df['answer'] = answers
-    df['answer_confidence'] = scores
     df['label'] = labels
     df['label_confidence'] = confidences
     df['label_method'] = methods
-    df['answer_count'] = counts
 
     out = tempfile.NamedTemporaryFile(suffix='_qa_results.csv', delete=False)
     df.to_csv(out.name, index=False)
@@ -2257,8 +2213,8 @@ with gr.Blocks(theme=theme, css=custom_css, title="ConfliBERT") as demo:
         with gr.Tab("Question Answering"):
             gr.Markdown(info_callout(
                 "Extract answers from a context passage. Provide a paragraph of "
-                "text and ask a question about it. Every sufficiently-confident "
-                "answer span is returned, ranked by confidence and labelled."
+                "text and ask a question about it. The model will highlight the "
+                "most relevant span and assign it an infrastructure label."
             ))
             with gr.Row(equal_height=True):
                 with gr.Column():
