@@ -72,3 +72,8 @@ After accessing, head to the "Question Answering" tab and then open the "Batch P
 <img width="1000" height="1000" src="https://github.com/AshtonElliott/UCDP-AEC-QA/blob/main/ConfliBERT%20AEC%20QA/QAGuiLocation.png" />
 
 It is highly recommended to use each script for their respective question as appQAQ2.py was specifically altered towards answering our 2nd question.
+
+Once the process is complete, you can download and rename it. To reconvert back to json, use the ResultsConversion.py.
+It is advised to perform both QAs first and then run the conversion as the script was designed around converting both at once.
+
+After that final conversion, you should now have your own results for ConfliBERTQA.
