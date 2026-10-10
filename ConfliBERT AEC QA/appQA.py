@@ -28,6 +28,7 @@ except Exception:
 import torch
 from transformers import (
     AutoTokenizer,
+    AutoModelForQuestionAnswering,
     AutoModelForSequenceClassification,
     AutoModelForTokenClassification,
     TrainingArguments,
@@ -35,17 +36,6 @@ from transformers import (
     EarlyStoppingCallback,
     TrainerCallback,
 )
-
-# QA model uses TensorFlow (transformers <5) or PyTorch fallback (transformers >=5)
-_USE_TF_QA = False
-try:
-    import tensorflow as tf  # noqa: F401
-    import tf_keras   # noqa: F401
-    import keras      # noqa: F401
-    from transformers import TFAutoModelForQuestionAnswering
-    _USE_TF_QA = True
-except (ImportError, ModuleNotFoundError):
-    from transformers import AutoModelForQuestionAnswering
 import gradio as gr
 import numpy as np
 import pandas as pd
@@ -77,7 +67,6 @@ try:
 except ImportError:
     BNB_AVAILABLE = False
 
-
 # ============================================================================
 # CONFIGURATION
 # ============================================================================
@@ -106,6 +95,12 @@ QA_ANSWER_MIN_RATIO = 0.10      # keep answers scoring >= this fraction of the b
 QA_MAX_ANSWERS = 0              # 0 = unlimited; positive values cap the list
 QA_CANDIDATES_PER_WINDOW = 200  # spans pulled from each window before merging
 QA_CSV_SEPARATOR = ' | '
+
+# SQuAD 2.0 abstention. The model signals "no answer" by scoring the [CLS] token
+# highly. A question is abstained on when the [CLS] logit sum exceeds the best
+# span's logit sum by more than this margin. Raise it to abstain less often,
+# lower it (negative values allowed) to abstain more often.
+QA_NULL_THRESHOLD = 0.0
 
 
 def get_system_info():
@@ -173,11 +168,9 @@ MULTI_CLASS_NAMES = ["Armed Assault", "Bombing or Explosion", "Kidnapping", "Oth
 # PRETRAINED MODEL LOADING
 # ============================================================================
 
-qa_model_name = 'salsarra/ConfliBERT-QA'
-if _USE_TF_QA:
-    qa_model = TFAutoModelForQuestionAnswering.from_pretrained(qa_model_name)
-else:
-    qa_model = AutoModelForQuestionAnswering.from_pretrained(qa_model_name, from_tf=True)
+qa_model_name = 'shreyasmeher/ConfliBERT-cont-uncased-squad2'
+qa_model = AutoModelForQuestionAnswering.from_pretrained(qa_model_name).to(device)
+qa_model.eval()
 qa_tokenizer = AutoTokenizer.from_pretrained(qa_model_name)
 
 ner_model_name = 'eventdata-utd/conflibert-named-entity-recognition'
@@ -191,7 +184,6 @@ clf_tokenizer = AutoTokenizer.from_pretrained(clf_model_name)
 multi_clf_model_name = 'eventdata-utd/conflibert-satp-relevant-multilabel'
 multi_clf_model = AutoModelForSequenceClassification.from_pretrained(multi_clf_model_name).to(device)
 multi_clf_tokenizer = AutoTokenizer.from_pretrained(multi_clf_model_name)
-
 
 # ============================================================================
 # UTILITY FUNCTIONS
@@ -281,11 +273,14 @@ def qa_extract_answers(context, question):
     adjacent windows cannot yield the same mention twice. Overlapping and
     repeated spans are suppressed, since the runners-up of a strong answer are
     otherwise just off-by-one variants of it.
+
+    Returns an empty list when the model judges the question unanswerable,
+    i.e. when the [CLS] score beats the best span by more than QA_NULL_THRESHOLD.
     """
     # 'only_second' keeps the question intact and windows the context alone.
     inputs = qa_tokenizer(
         question, context,
-        return_tensors='tf' if _USE_TF_QA else 'pt',
+        return_tensors='pt',
         truncation='only_second',
         max_length=QA_WINDOW,
         stride=QA_STRIDE,
@@ -294,31 +289,37 @@ def qa_extract_answers(context, question):
         padding='max_length',
     )
     model_inputs = {
-        k: v for k, v in inputs.items()
+        k: v.to(device) for k, v in inputs.items()
         if k in ('input_ids', 'attention_mask', 'token_type_ids')
     }
 
-    if _USE_TF_QA:
-        outputs = qa_model(model_inputs)
-    else:
-        with torch.no_grad():
-            outputs = qa_model(**model_inputs)
-    start_logits = np.asarray(outputs.start_logits)
-    end_logits = np.asarray(outputs.end_logits)
-    input_ids = np.asarray(model_inputs['input_ids'])
-    attention_mask = np.asarray(model_inputs['attention_mask'])
-    offsets = np.asarray(inputs['offset_mapping'])
+    with torch.no_grad():
+        outputs = qa_model(**model_inputs)
+    start_logits = outputs.start_logits.float().cpu().numpy()
+    end_logits = outputs.end_logits.float().cpu().numpy()
+    input_ids = inputs['input_ids'].numpy()
+    attention_mask = inputs['attention_mask'].numpy()
+    offsets = inputs['offset_mapping'].numpy()
 
     # Restrict spans to end >= start and no longer than QA_MAX_ANSWER_LENGTH.
     width = input_ids.shape[1]
     ones = np.ones((width, width), dtype=bool)
     span_band = np.triu(ones) & np.tril(ones, QA_MAX_ANSWER_LENGTH - 1)
 
+    # Following the SQuAD 2.0 convention, the null score is the lowest [CLS]
+    # score over all windows: one window confidently containing the answer is
+    # enough, even if the windows that miss it all vote for "no answer".
+    min_null, best_span = np.inf, -np.inf
     candidates = []
     for i in range(input_ids.shape[0]):
         mask = _qa_context_mask(inputs, i, input_ids, attention_mask)
         if not mask.any():
             continue
+        min_null = min(min_null, float(start_logits[i][0] + end_logits[i][0]))
+        valid = span_band & mask[:, None] & mask[None, :]
+        pair = start_logits[i][:, None] + end_logits[i][None, :]
+        best_span = max(best_span, float(pair[valid].max()))
+
         starts = _masked_softmax(start_logits[i], mask)
         ends = _masked_softmax(end_logits[i], mask)
         scores = np.where(span_band, starts[:, None] * ends[None, :], 0.0)
@@ -336,7 +337,7 @@ def qa_extract_answers(context, question):
                 continue
             candidates.append((score, char_start, char_end))
 
-    if not candidates:
+    if not candidates or min_null - best_span > QA_NULL_THRESHOLD:
         return []
 
     candidates.sort(key=lambda c: -c[0])
@@ -652,7 +653,7 @@ def process_csv_multilabel(file):
     return out.name
 
 
-def process_csv_qa(file):
+def process_csv_qa(file, progress=gr.Progress()):
     path = get_path(file)
     if path is None:
         return None
@@ -661,7 +662,7 @@ def process_csv_qa(file):
         raise ValueError("CSV must contain 'context' and 'question' columns")
 
     answers, confidences, counts = [], [], []
-    for _, row in df.iterrows():
+    for _, row in progress.tqdm(df.iterrows(), total=len(df), desc="Answering"):
         if pd.isna(row['context']) or pd.isna(row['question']):
             answers.append("")
             confidences.append("")

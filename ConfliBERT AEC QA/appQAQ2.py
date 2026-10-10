@@ -28,6 +28,7 @@ except Exception:
 import torch
 from transformers import (
     AutoTokenizer,
+    AutoModelForQuestionAnswering,
     AutoModelForSequenceClassification,
     AutoModelForTokenClassification,
     TrainingArguments,
@@ -35,17 +36,6 @@ from transformers import (
     EarlyStoppingCallback,
     TrainerCallback,
 )
-
-# QA model uses TensorFlow (transformers <5) or PyTorch fallback (transformers >=5)
-_USE_TF_QA = False
-try:
-    import tensorflow as tf  # noqa: F401
-    import tf_keras   # noqa: F401
-    import keras      # noqa: F401
-    from transformers import TFAutoModelForQuestionAnswering
-    _USE_TF_QA = True
-except (ImportError, ModuleNotFoundError):
-    from transformers import AutoModelForQuestionAnswering
 import gradio as gr
 import numpy as np
 import pandas as pd
@@ -104,6 +94,12 @@ QA_MIN_CONTEXT = 128
 # Windows scored per forward pass, so a long context cannot put hundreds of
 # sequences through the model at once.
 QA_MAX_BATCH = 8
+
+# SQuAD 2.0 abstention. The model signals "no answer" by scoring the [CLS] token
+# highly. A question is abstained on when the [CLS] logit sum exceeds the best
+# span's logit sum by more than this margin. Raise it to abstain less often,
+# lower it (negative values allowed) to abstain more often.
+QA_NULL_THRESHOLD = 0.0
 
 
 def get_system_info():
@@ -287,11 +283,9 @@ INFRA_CONTEXT_RADIUS = 60
 # PRETRAINED MODEL LOADING
 # ============================================================================
 
-qa_model_name = 'salsarra/ConfliBERT-QA'
-if _USE_TF_QA:
-    qa_model = TFAutoModelForQuestionAnswering.from_pretrained(qa_model_name)
-else:
-    qa_model = AutoModelForQuestionAnswering.from_pretrained(qa_model_name, from_tf=True)
+qa_model_name = 'shreyasmeher/ConfliBERT-cont-uncased-squad2'
+qa_model = AutoModelForQuestionAnswering.from_pretrained(qa_model_name).to(device)
+qa_model.eval()
 qa_tokenizer = AutoTokenizer.from_pretrained(qa_model_name)
 
 ner_model_name = 'eventdata-utd/conflibert-named-entity-recognition'
@@ -476,11 +470,12 @@ def _qa_extract_span(context, question):
     # 'only_second' keeps the question intact and windows the context alone.
     inputs = qa_tokenizer(
         question, context,
-        return_tensors='tf' if _USE_TF_QA else 'pt',
+        return_tensors='pt',
         truncation='only_second',
         max_length=QA_WINDOW,
         stride=stride,
         return_overflowing_tokens=True,
+        return_offsets_mapping=True,
         padding='max_length',
     )
     model_inputs = {
@@ -488,32 +483,35 @@ def _qa_extract_span(context, question):
         if k in ('input_ids', 'attention_mask', 'token_type_ids')
     }
 
-    input_ids = np.asarray(model_inputs['input_ids'])
-    attention_mask = np.asarray(model_inputs['attention_mask'])
+    input_ids = inputs['input_ids'].numpy()
+    attention_mask = inputs['attention_mask'].numpy()
+    offsets = inputs['offset_mapping'].numpy()
     n_windows, width = input_ids.shape
 
     # Restrict spans to end >= start and no longer than QA_MAX_ANSWER_LENGTH.
     ones = np.ones((width, width), dtype=bool)
     span_band = np.triu(ones) & np.tril(ones, QA_MAX_ANSWER_LENGTH - 1)
 
+    # Following the SQuAD 2.0 convention, the null score is the lowest [CLS]
+    # score over all windows: one window confidently containing the answer is
+    # enough, even if the windows that miss it all vote for "no answer".
+    min_null = np.inf
     best_score, best_chunk, best_start, best_end = -np.inf, None, 0, 0
     best_mask = None
     for batch_start in range(0, n_windows, QA_MAX_BATCH):
         batch_end = min(batch_start + QA_MAX_BATCH, n_windows)
-        batch = {k: v[batch_start:batch_end] for k, v in model_inputs.items()}
-        if _USE_TF_QA:
-            outputs = qa_model(batch)
-        else:
-            with torch.no_grad():
-                outputs = qa_model(**batch)
-        start_logits = np.asarray(outputs.start_logits)
-        end_logits = np.asarray(outputs.end_logits)
+        batch = {k: v[batch_start:batch_end].to(device) for k, v in model_inputs.items()}
+        with torch.no_grad():
+            outputs = qa_model(**batch)
+        start_logits = outputs.start_logits.float().cpu().numpy()
+        end_logits = outputs.end_logits.float().cpu().numpy()
 
         for j in range(batch_end - batch_start):
             i = batch_start + j
             mask = _qa_context_mask(inputs, i, input_ids, attention_mask)
             if not mask.any():
                 continue
+            min_null = min(min_null, float(start_logits[j][0] + end_logits[j][0]))
             starts = np.where(mask, start_logits[j], -np.inf)
             ends = np.where(mask, end_logits[j], -np.inf)
             scores = np.where(span_band, starts[:, None] + ends[None, :], -np.inf)
@@ -526,17 +524,19 @@ def _qa_extract_span(context, question):
 
     if best_chunk is None or not np.isfinite(best_score):
         return None, None
+    if min_null - best_score > QA_NULL_THRESHOLD:
+        return None, None
 
-    chunk_ids = input_ids[best_chunk]
-    answer = qa_tokenizer.convert_tokens_to_string(
-        qa_tokenizer.convert_ids_to_tokens(chunk_ids[best_start:best_end + 1])
-    )
+    # Slice the original text rather than decoding tokens: the tokenizer is
+    # uncased, so decoded spans would come back lowercased.
+    chunk_offsets = offsets[best_chunk]
+    answer = context[chunk_offsets[best_start][0]:chunk_offsets[best_end][1]].strip()
 
     # Widen to a context window so the classifier can judge function, not just name.
     valid = np.flatnonzero(best_mask)
     lo = max(int(valid[0]), best_start - INFRA_CONTEXT_RADIUS)
     hi = min(int(valid[-1]), best_end + INFRA_CONTEXT_RADIUS)
-    window = qa_tokenizer.decode(chunk_ids[lo:hi + 1], skip_special_tokens=True)
+    window = context[chunk_offsets[lo][0]:chunk_offsets[hi][1]].strip()
     return answer, window
 
 
@@ -840,7 +840,7 @@ def process_csv_multilabel(file):
     return out.name
 
 
-def process_csv_qa(file):
+def process_csv_qa(file, progress=gr.Progress()):
     path = get_path(file)
     if path is None:
         return None
@@ -849,7 +849,7 @@ def process_csv_qa(file):
         raise ValueError("CSV must contain 'context' and 'question' columns")
 
     answers, labels, confidences, methods = [], [], [], []
-    for _, row in df.iterrows():
+    for _, row in progress.tqdm(df.iterrows(), total=len(df), desc="Answering"):
         if pd.isna(row['context']) or pd.isna(row['question']):
             answers.append("")
             labels.append("")
