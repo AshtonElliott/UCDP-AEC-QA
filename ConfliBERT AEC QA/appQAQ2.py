@@ -387,10 +387,13 @@ def _get_infra_zeroshot():
     if _infra_zeroshot is None:
         try:
             from transformers import pipeline
+            # The checkpoint is stored in float16, which CPUs without native
+            # half-precision support run roughly 10x slower than float32.
             _infra_zeroshot = pipeline(
                 'zero-shot-classification',
                 model=INFRA_ZEROSHOT_MODEL,
                 device=0 if device.type == 'cuda' else -1,
+                torch_dtype='auto' if device.type == 'cuda' else torch.float32,
             )
         except Exception:
             _infra_zeroshot = False
@@ -444,6 +447,7 @@ def classify_infrastructure(answer, window=None):
         window or answer,
         candidate_labels=list(candidates),
         hypothesis_template=INFRA_ZEROSHOT_HYPOTHESIS,
+        batch_size=len(candidates),
     )
     label = candidates[result['labels'][0]]
     score = float(result['scores'][0])
@@ -476,7 +480,7 @@ def _qa_extract_span(context, question):
         stride=stride,
         return_overflowing_tokens=True,
         return_offsets_mapping=True,
-        padding='max_length',
+        padding='longest',
     )
     model_inputs = {
         k: v for k, v in inputs.items()
