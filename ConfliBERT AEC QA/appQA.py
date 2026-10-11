@@ -168,7 +168,7 @@ MULTI_CLASS_NAMES = ["Armed Assault", "Bombing or Explosion", "Kidnapping", "Oth
 # PRETRAINED MODEL LOADING
 # ============================================================================
 
-qa_model_name = 'shreyasmeher/ConfliBERT-cont-uncased-squad2'
+qa_model_name = 'shreyasmeher/ConfliBERT-scr-uncased-squad2'
 qa_model = AutoModelForQuestionAnswering.from_pretrained(qa_model_name).to(device)
 qa_model.eval()
 qa_tokenizer = AutoTokenizer.from_pretrained(qa_model_name)

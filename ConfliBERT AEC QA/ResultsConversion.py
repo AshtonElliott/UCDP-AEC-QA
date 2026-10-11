@@ -34,7 +34,7 @@ def build_answer_labels(record):
 
     texts = [text for text in str(answer).split(ANSWER_SEPARATOR) if text != '']
     if not texts:
-        record['answer_labels'] = []
+        record['no_answer'] = "No arms or methods mentioned (Geniune No Answer)"
         return record
 
     label_text = str(label)
@@ -75,7 +75,7 @@ def build_answer_labels(record):
     return record
 
 # Change FileNames and Number here
-names = ['ConfliBERT_results', 'ConfliBERT_results2']
+names = ['ConfliBERT_cont-uncased_results', 'ConfliBERT_results2']
 
 for name in names:
     input_path = os.path.join(script_dir, name + '.csv')
