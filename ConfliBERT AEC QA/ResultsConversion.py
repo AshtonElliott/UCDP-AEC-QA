@@ -7,7 +7,12 @@ script_dir = os.path.dirname(os.path.abspath(__file__))
 column_names = {'context': 'source_article'}
 # Change/Add Extra Question Headers here.
 column_names_by_file = {
-    'ConfliBERT_results2': {'question': 'question2'},
+    'ConfliBERT-cont-uncased-squad2_results2': {'question': 'question2'},
+    'ConfliBERT-cont-cased-squad2_results2': {'question': 'question2'},
+    'ConfliBERT-scr-uncased-squad2_results2': {'question': 'question2'},
+    'ConfliBERT-scr-cased-squad2_results2': {'question': 'question2'},
+    'BERT-base-uncased-squad2_results2': {'question': 'question2'},
+    'BERT-base-cased-squad2_results2': {'question': 'question2'},
 }
 
 # CSV stores everything as text; these fields are integers in the source JSON.
@@ -75,7 +80,12 @@ def build_answer_labels(record):
     return record
 
 # Change FileNames and Number here
-names = ['ConfliBERT_cont-uncased_results', 'ConfliBERT_results2']
+names = [
+           'ConfliBERT-cont-uncased-squad2_results', 'ConfliBERT-cont-cased-squad2_results', 'ConfliBERT-scr-uncased-squad2_results',
+           'ConfliBERT-scr-cased-squad2_results', 'BERT-base-uncased-squad2_results', 'BERT-base-cased-squad2_results',
+           'ConfliBERT-cont-uncased-squad2_results2', 'ConfliBERT-cont-cased-squad2_results2', 'ConfliBERT-scr-uncased-squad2_results2',
+           'ConfliBERT-scr-cased-squad2_results2', 'BERT-base-uncased-squad2_results2', 'BERT-base-cased-squad2_results2'
+        ]
 
 for name in names:
     input_path = os.path.join(script_dir, name + '.csv')
