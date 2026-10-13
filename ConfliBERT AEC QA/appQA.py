@@ -42,6 +42,8 @@ import pandas as pd
 import re
 import csv
 import tempfile
+import threading
+from collections import OrderedDict
 from sklearn.metrics import (
     accuracy_score as sk_accuracy,
     precision_score as sk_precision,
@@ -147,6 +149,20 @@ FINETUNE_MODELS = {
     "DistilBERT Base Uncased": "distilbert-base-uncased",
 }
 
+# SQuAD 2.0 fine-tunes selectable in the QA tab. All are BERT-base, so the
+# QA_WINDOW / abstention settings apply to every one of them.
+QA_MODELS = {
+    "ConfliBERT scr-cased (SQuAD 2.0)": "shreyasmeher/ConfliBERT-scr-cased-squad2",
+    "ConfliBERT scr-uncased (SQuAD 2.0)": "shreyasmeher/ConfliBERT-scr-uncased-squad2",
+    "ConfliBERT cont-cased (SQuAD 2.0)": "shreyasmeher/ConfliBERT-cont-cased-squad2",
+    "ConfliBERT cont-uncased (SQuAD 2.0)": "shreyasmeher/ConfliBERT-cont-uncased-squad2",
+    "BERT Base Cased (SQuAD 2.0)": "shreyasmeher/BERT-base-cased-squad2",
+    "BERT Base Uncased (SQuAD 2.0)": "shreyasmeher/BERT-base-uncased-squad2",
+}
+QA_DEFAULT_MODEL = "ConfliBERT scr-uncased (SQuAD 2.0)"
+# Each model is ~420 MB; older ones are evicted beyond this many.
+QA_MODEL_CACHE_SIZE = 2
+
 NER_LABELS = {
     'Organisation': '#3b82f6',
     'Person': '#ef4444',
@@ -168,10 +184,33 @@ MULTI_CLASS_NAMES = ["Armed Assault", "Bombing or Explosion", "Kidnapping", "Oth
 # PRETRAINED MODEL LOADING
 # ============================================================================
 
-qa_model_name = 'shreyasmeher/ConfliBERT-scr-cased-squad2'
-qa_model = AutoModelForQuestionAnswering.from_pretrained(qa_model_name).to(device)
-qa_model.eval()
-qa_tokenizer = AutoTokenizer.from_pretrained(qa_model_name)
+# QA models are loaded on first selection in the QA tab and kept in an LRU cache.
+_qa_model_cache = OrderedDict()
+_qa_model_lock = threading.Lock()
+
+
+def get_qa_model(display_name):
+    """Return (model, tokenizer) for a QA_MODELS key, loading it if needed."""
+    if display_name not in QA_MODELS:
+        display_name = QA_DEFAULT_MODEL
+    with _qa_model_lock:
+        if display_name in _qa_model_cache:
+            _qa_model_cache.move_to_end(display_name)
+            return _qa_model_cache[display_name]
+        model_id = QA_MODELS[display_name]
+        model = AutoModelForQuestionAnswering.from_pretrained(model_id).to(device)
+        model.eval()
+        tokenizer = AutoTokenizer.from_pretrained(model_id)
+        _qa_model_cache[display_name] = (model, tokenizer)
+        while len(_qa_model_cache) > QA_MODEL_CACHE_SIZE:
+            _qa_model_cache.popitem(last=False)
+            gc.collect()
+            if device.type == 'cuda':
+                torch.cuda.empty_cache()
+        return model, tokenizer
+
+
+get_qa_model(QA_DEFAULT_MODEL)
 
 ner_model_name = 'eventdata-utd/conflibert-named-entity-recognition'
 ner_model = AutoModelForTokenClassification.from_pretrained(ner_model_name).to(device)
@@ -238,7 +277,7 @@ def handle_error(e, default_limit=512):
 # INFERENCE FUNCTIONS
 # ============================================================================
 
-def _qa_context_mask(encoding, index, input_ids, attention_mask):
+def _qa_context_mask(encoding, index, input_ids, attention_mask, tokenizer):
     """Boolean mask of positions that belong to the context, not the question."""
     try:
         seq_ids = encoding.sequence_ids(index)
@@ -252,7 +291,7 @@ def _qa_context_mask(encoding, index, input_ids, attention_mask):
         return attention_mask[index].astype(bool)
     types = np.asarray(token_type_ids[index])
     mask = (types == 1) & attention_mask[index].astype(bool)
-    mask &= input_ids[index] != qa_tokenizer.sep_token_id
+    mask &= input_ids[index] != tokenizer.sep_token_id
     return mask
 
 
@@ -265,7 +304,7 @@ def _masked_softmax(logits, mask):
     return probs / total if total > 0 else probs
 
 
-def qa_extract_answers(context, question):
+def qa_extract_answers(context, question, qa_model, qa_tokenizer):
     """Extract every sufficiently-confident answer span, best first.
 
     Candidate spans are scored as P(start) * P(end), pooled across all sliding
@@ -312,7 +351,7 @@ def qa_extract_answers(context, question):
     min_null, best_span = np.inf, -np.inf
     candidates = []
     for i in range(input_ids.shape[0]):
-        mask = _qa_context_mask(inputs, i, input_ids, attention_mask)
+        mask = _qa_context_mask(inputs, i, input_ids, attention_mask, qa_tokenizer)
         if not mask.any():
             continue
         min_null = min(min_null, float(start_logits[i][0] + end_logits[i][0]))
@@ -337,7 +376,16 @@ def qa_extract_answers(context, question):
                 continue
             candidates.append((score, char_start, char_end))
 
-    if not candidates or min_null - best_span > QA_NULL_THRESHOLD:
+    if not candidates:
+        return []
+
+    # Check for ConfliBERT cont-cased-squad2 model
+    if qa_model.name_or_path == "shreyasmeher/ConfliBERT-cont-cased-squad2":
+        null_threshold = -5.8
+    else:
+        null_threshold = QA_NULL_THRESHOLD
+
+    if min_null - best_span > null_threshold:
         return []
 
     candidates.sort(key=lambda c: -c[0])
@@ -366,11 +414,12 @@ def qa_extract_answers(context, question):
     return answers
 
 
-def question_answering(context, question):
+def question_answering(context, question, model_display_name=QA_DEFAULT_MODEL):
     if not context or not question:
         return "Please provide both context and question."
     try:
-        answers = qa_extract_answers(context, question)
+        qa_model, qa_tokenizer = get_qa_model(model_display_name)
+        answers = qa_extract_answers(context, question, qa_model, qa_tokenizer)
         if not answers:
             return (
                 "<span style='color: #ef4444; font-weight: 600;'>"
@@ -653,13 +702,14 @@ def process_csv_multilabel(file):
     return out.name
 
 
-def process_csv_qa(file, progress=gr.Progress()):
+def process_csv_qa(file, model_display_name=QA_DEFAULT_MODEL, progress=gr.Progress()):
     path = get_path(file)
     if path is None:
         return None
     df = pd.read_csv(path)
     if 'context' not in df.columns or 'question' not in df.columns:
         raise ValueError("CSV must contain 'context' and 'question' columns")
+    qa_model, qa_tokenizer = get_qa_model(model_display_name)
 
     answers, confidences, counts = [], [], []
     for _, row in progress.tqdm(df.iterrows(), total=len(df), desc="Answering"):
@@ -669,7 +719,9 @@ def process_csv_qa(file, progress=gr.Progress()):
             counts.append(0)
             continue
         try:
-            found = qa_extract_answers(str(row['context']), str(row['question']))
+            found = qa_extract_answers(
+                str(row['context']), str(row['question']), qa_model, qa_tokenizer,
+            )
         except Exception as e:
             answers.append(re.sub(r'<[^>]+>', '', handle_error(e)).strip())
             confidences.append("")
@@ -2023,6 +2075,13 @@ with gr.Blocks(theme=theme, css=custom_css, title="ConfliBERT") as demo:
                 "text and ask a question about it. Every sufficiently-confident "
                 "answer span is returned, ranked by confidence."
             ))
+            qa_model_choice = gr.Dropdown(
+                choices=list(QA_MODELS.keys()),
+                value=QA_DEFAULT_MODEL,
+                label="QA Model",
+                info="Applies to single questions and CSV batches. "
+                     "A model not used yet is downloaded on first use.",
+            )
             with gr.Row(equal_height=True):
                 with gr.Column():
                     qa_context = gr.Textbox(
@@ -2438,11 +2497,13 @@ with gr.Blocks(theme=theme, css=custom_css, title="ConfliBERT") as demo:
     # Question Answering
     qa_btn.click(
         fn=question_answering,
-        inputs=[qa_context, qa_question],
+        inputs=[qa_context, qa_question, qa_model_choice],
         outputs=[qa_output],
     )
     qa_csv_btn.click(
-        fn=process_csv_qa, inputs=[qa_csv_in], outputs=[qa_csv_out],
+        fn=process_csv_qa,
+        inputs=[qa_csv_in, qa_model_choice],
+        outputs=[qa_csv_out],
     )
 
     # Fine-tuning: example dataset loaders
