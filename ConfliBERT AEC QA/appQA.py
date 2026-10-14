@@ -1961,8 +1961,10 @@ with gr.Blocks(theme=theme, css=custom_css, title="ConfliBERT") as demo:
 
             with gr.Accordion("Batch Processing (CSV)", open=False):
                 gr.Markdown(
-                    "Upload a CSV file with a `text` column to process "
-                    "multiple texts at once."
+                    "Upload a CSV file with `context` and `question` columns "
+                    "to process multiple questions at once. Rows answered with "
+                    "several spans join them with `|` in the `answer` and "
+                    "`label` columns."
                 )
                 with gr.Row():
                     ner_csv_in = gr.File(
