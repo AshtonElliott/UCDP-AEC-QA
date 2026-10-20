@@ -34,12 +34,24 @@ def main():
     parser.add_argument('--report', action='store_true', help='Generate markdown and visuals from saved JSON artifact')
     parser.add_argument('--all', action='store_true', help='Run all compute and reporting pipelines')
     parser.add_argument('--q', type=int, default=None, help='Filter pipeline to a specific question (e.g. 1 or 2)')
+    parser.add_argument('--bert', action='store_true', help='Filter to BERT and ConfliBERT models only')
+    parser.add_argument('--generative', '--llm', dest='generative', action='store_true', help='Filter to Generative LLMs only')
 
     args = parser.parse_args()
 
     if not any([args.correlation, args.iaa, args.semantic, args.pipeline, args.report, args.all]):
         parser.print_help()
         return
+
+    if args.bert and args.generative:
+        print("[Notice] Both --bert and --generative flags provided. Defaulting to all models combined.", file=sys.stderr)
+        mode = "all"
+    elif args.bert:
+        mode = "bert"
+    elif args.generative:
+        mode = "generative"
+    else:
+        mode = "all"
 
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
     report_path = BASE_DIR / "evaluation_report.md"
@@ -58,11 +70,11 @@ def main():
         
     if args.pipeline or args.all:
         from scripts.run_eval import run_evaluation_pipeline
-        run_evaluation_pipeline(question_filter=args.q)
+        run_evaluation_pipeline(question_filter=args.q, model_filter=mode)
 
     if args.report or args.all:
         from scripts.report_generator import generate_full_report  
-        generate_full_report()
+        generate_full_report(mode=mode)
 
     if args.semantic or args.all:
         from scripts.semantic_diagnostic import run_comprehensive_evaluation

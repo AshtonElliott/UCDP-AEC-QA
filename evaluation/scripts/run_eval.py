@@ -37,25 +37,46 @@ UCDP_EVENT_FIELDS = (
     "location_where_name",
 )
 
-def discover_llm_files(data_dir):
+def discover_llm_files(data_dir, model_filter="all"):
     llm_files_by_question = defaultdict(dict)
     
-    subdirs = ["raw_NT", "raw_T", "cookbook_NT", "cookbook_T"]
-    for subdir in subdirs:
-        dir_path = data_dir / subdir
-        if not dir_path.exists(): continue
-        
-        for filepath in dir_path.glob("*.json"):
-            match = re.search(r"^(.*?)_results(\d*)(_cb)?(_NT|_T)?\.json$", filepath.name, re.IGNORECASE)
-            if match:
-                raw_model_name = match.group(1).replace("_", " ").replace("-", " ").title() 
-                q_num = int(match.group(2)) if match.group(2) else 1 
-                
-                strategy = "cookbook" if "cookbook" in subdir else "raw"
-                thinking = "T" if subdir.endswith("_T") else "NT"
-                
-                llm_files_by_question[q_num][(raw_model_name, strategy, thinking)] = filepath
-                
+    # Check generative LLM files
+    if model_filter in ["generative", "all"]:
+        subdirs = ["raw_NT", "raw_T", "cookbook_NT", "cookbook_T"]
+        for subdir in subdirs:
+            dir_path = data_dir / subdir
+            if not dir_path.exists(): continue
+            
+            for filepath in sorted(dir_path.glob("*.json")):
+                match = re.search(r"^(.*?)_results(\d*)(_cb)?(_NT|_T)?\.json$", filepath.name, re.IGNORECASE)
+                if match:
+                    raw_model_name = match.group(1).replace("_", " ").replace("-", " ").title() 
+                    q_num = int(match.group(2)) if match.group(2) else 1 
+                    
+                    strategy = "cookbook" if "cookbook" in subdir else "raw"
+                    thinking = "T" if subdir.endswith("_T") else "NT"
+                    model_type = "generative"
+                    
+                    llm_files_by_question[q_num][(raw_model_name, strategy, thinking, model_type)] = filepath
+
+    # Check BERT model files
+    if model_filter in ["bert", "all"]:
+        bert_dir = data_dir / "ConfliBERT Results"
+        if bert_dir.exists():
+            for filepath in sorted(bert_dir.glob("*.json")):
+                match = re.search(r"^(BERT|ConfliBERT)[-_](.*?)[-_]squad2_results(\d*)\.json$", filepath.name, re.IGNORECASE)
+                if match:
+                    prefix = "ConfliBERT" if "confli" in match.group(1).lower() else "BERT"
+                    variant = match.group(2).lower().replace("_", "-")
+                    canonical_model_name = f"{prefix}-{variant}"
+                    q_num = int(match.group(3)) if match.group(3) else 1
+                    
+                    strategy = "extractive"
+                    thinking = "N/A"
+                    model_type = "bert"
+                    
+                    llm_files_by_question[q_num][(canonical_model_name, strategy, thinking, model_type)] = filepath
+                    
     return llm_files_by_question
 
 def load_ground_truth_map(filepath):
@@ -84,8 +105,11 @@ def evaluate_models_globally(model_files, gt_map, q_num):
     bert_queue_std = []
     std_cross_pairs = []
     
-    for (model_name, strategy, thinking), filepath in model_files.items():
+    for key, filepath in model_files.items():
         if not filepath.exists(): continue
+        
+        model_name, strategy, thinking = key[0], key[1], key[2]
+        model_type = key[3] if len(key) > 3 else ("bert" if any(b in model_name.lower() for b in ['bert', 'confli']) else "generative")
         
         try:
             with filepath.open('r', encoding='utf-8') as f: 
@@ -126,7 +150,7 @@ def evaluate_models_globally(model_files, gt_map, q_num):
             rec_id = len(master_records)
             record = {
                 **gt_entry["event"],
-                "model": model_name, "strategy": strategy, "thinking": thinking, "question": q_num, "article": article_text,
+                "model": model_name, "strategy": strategy, "thinking": thinking, "model_type": model_type, "question": q_num, "article": article_text,
                 "has_ans": has_ans, "has_pred": has_pred,
                 "g_texts": g_texts, "p_texts": p_texts,
                 "g_labels": [str(g.get('labels', [])) for g in gold_spans],
@@ -232,9 +256,9 @@ def evaluate_models_globally(model_files, gt_map, q_num):
             
     return master_records
 
-def run_evaluation_pipeline(question_filter=None):
+def run_evaluation_pipeline(question_filter=None, model_filter="all"):
     pipeline_start_time = time.time()
-    llm_files = discover_llm_files(DATA_DIR)
+    llm_files = discover_llm_files(DATA_DIR, model_filter=model_filter)
     
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
     (BASE_DIR / "assets").mkdir(parents=True, exist_ok=True)
@@ -243,7 +267,7 @@ def run_evaluation_pipeline(question_filter=None):
     
     for q_num, model_files in sorted(llm_files.items()):
         if question_filter is not None and q_num != question_filter: continue
-        print(f"\n--- Computing Metrics for Question {q_num} ---", file=sys.stderr)
+        print(f"\n--- Computing Metrics for Question {q_num} (Mode: {model_filter}) ---", file=sys.stderr)
         
         gt_paths = [
             DATA_DIR / 'raw_inputs' / f'ground_truth_q{q_num}.json',
@@ -267,6 +291,21 @@ def run_evaluation_pipeline(question_filter=None):
         return
 
     artifact_path = RESULTS_DIR / "master_evaluation_artifact.json"
+    
+    # If evaluating a filtered subset, merge new evaluations with existing artifact records
+    if artifact_path.exists() and model_filter in ["bert", "generative"]:
+        try:
+            with artifact_path.open("r", encoding="utf-8") as f:
+                existing_records = json.load(f)
+            if model_filter == "bert":
+                kept_records = [r for r in existing_records if not any(b in str(r.get('model','')).lower() for b in ['bert', 'confli'])]
+            else:
+                kept_records = [r for r in existing_records if any(b in str(r.get('model','')).lower() for b in ['bert', 'confli'])]
+            all_records = kept_records + all_records
+            print(f"  [Merge Info] Preserved {len(kept_records)} existing records and merged {len(all_records) - len(kept_records)} newly evaluated records.", file=sys.stderr)
+        except Exception as e:
+            print(f"  [Warning] Could not merge with existing artifact: {e}", file=sys.stderr)
+
     with artifact_path.open("w", encoding="utf-8") as f:
         json.dump(all_records, f, indent=4)
         
