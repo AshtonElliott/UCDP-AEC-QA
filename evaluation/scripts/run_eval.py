@@ -293,14 +293,17 @@ def run_evaluation_pipeline(question_filter=None, model_filter="all"):
     artifact_path = RESULTS_DIR / "master_evaluation_artifact.json"
     
     # If evaluating a filtered subset, merge new evaluations with existing artifact records
-    if artifact_path.exists() and model_filter in ["bert", "generative"]:
+    if artifact_path.exists() and (model_filter in ["bert", "generative"] or question_filter is not None):
         try:
             with artifact_path.open("r", encoding="utf-8") as f:
                 existing_records = json.load(f)
-            if model_filter == "bert":
-                kept_records = [r for r in existing_records if not any(b in str(r.get('model','')).lower() for b in ['bert', 'confli'])]
-            else:
-                kept_records = [r for r in existing_records if any(b in str(r.get('model','')).lower() for b in ['bert', 'confli'])]
+            kept_records = []
+            for record in existing_records:
+                record_type = "bert" if any(b in str(record.get('model', '')).lower() for b in ['bert', 'confli']) else "generative"
+                matches_model = model_filter == "all" or record_type == model_filter
+                matches_question = question_filter is None or str(record.get('question')) == str(question_filter)
+                if not (matches_model and matches_question):
+                    kept_records.append(record)
             all_records = kept_records + all_records
             print(f"  [Merge Info] Preserved {len(kept_records)} existing records and merged {len(all_records) - len(kept_records)} newly evaluated records.", file=sys.stderr)
         except Exception as e:
