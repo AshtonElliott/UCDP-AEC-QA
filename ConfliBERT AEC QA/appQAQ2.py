@@ -4,6 +4,7 @@
 # ============================================================================
 
 import os
+import time
 os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
 
 # Patch gradio_client bug: bool JSON sub-schemas crash schema parsing
@@ -1003,6 +1004,7 @@ def process_csv_multilabel(file):
 
 def process_csv_qa(file, model_display_name=QA_DEFAULT_MODEL,
                    max_answers=QA_MAX_ANSWERS, progress=gr.Progress()):
+    start = time.perf_counter()
     path = get_path(file)
     if path is None:
         return None
@@ -1063,6 +1065,10 @@ def process_csv_qa(file, model_display_name=QA_DEFAULT_MODEL,
 
     out = tempfile.NamedTemporaryFile(suffix='_qa_results.csv', delete=False)
     df.to_csv(out.name, index=False)
+
+    # Print finshing time
+    runtime = time.perf_counter() - start
+    print(f"QA finished: {runtime:.1f}s ({runtime / 60:.1f} min)",flush=True)
     return out.name
 
 

@@ -742,6 +742,10 @@ def process_csv_qa(file, model_display_name=QA_DEFAULT_MODEL, progress=gr.Progre
 
     out = tempfile.NamedTemporaryFile(suffix='_qa_results.csv', delete=False)
     df.to_csv(out.name, index=False)
+
+    # Print finshing time
+    runtime = time.perf_counter() - start
+    print(f"QA finished: {runtime:.1f}s ({runtime / 60:.1f} min)",flush=True)
     return out.name
 
 
