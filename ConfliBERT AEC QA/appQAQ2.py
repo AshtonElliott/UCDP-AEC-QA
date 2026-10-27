@@ -37,6 +37,18 @@ from transformers import (
     EarlyStoppingCallback,
     TrainerCallback,
 )
+
+# QA model uses TensorFlow (transformers <5) or PyTorch fallback (transformers >=5)
+_USE_TF_QA = False
+try:
+    import tensorflow as tf
+    import tf_keras   # noqa: F401
+    import keras      # noqa: F401
+    from transformers import TFAutoModelForQuestionAnswering
+    _USE_TF_QA = True
+except (ImportError, ModuleNotFoundError):
+    print("Using PyTorch for QA model")
+
 import gradio as gr
 import numpy as np
 import pandas as pd
@@ -164,7 +176,9 @@ FINETUNE_MODELS = {
 
 # SQuAD 2.0 fine-tunes selectable in the QA tab. All are BERT-base, so the
 # QA_WINDOW / abstention settings apply to every one of them.
+Salsarra_QA_model_name = "salsarra/ConfliBERT-QA"
 QA_MODELS = {
+    "ConfliBERT QA (Trained on SQuAD 1.0)": Salsarra_QA_model_name,
     "ConfliBERT scr-cased (SQuAD 2.0)": "shreyasmeher/ConfliBERT-scr-cased-squad2",
     "ConfliBERT scr-uncased (SQuAD 2.0)": "shreyasmeher/ConfliBERT-scr-uncased-squad2",
     "ConfliBERT cont-cased (SQuAD 2.0)": "shreyasmeher/ConfliBERT-cont-cased-squad2",
@@ -172,7 +186,7 @@ QA_MODELS = {
     "BERT Base Cased (SQuAD 2.0)": "shreyasmeher/BERT-base-cased-squad2",
     "BERT Base Uncased (SQuAD 2.0)": "shreyasmeher/BERT-base-uncased-squad2",
 }
-QA_DEFAULT_MODEL = "ConfliBERT scr-uncased (SQuAD 2.0)"
+QA_DEFAULT_MODEL = "ConfliBERT QA (Trained on SQuAD 1.0)"
 # Each model is ~420 MB; older ones are evicted beyond this many.
 QA_MODEL_CACHE_SIZE = 2
 
@@ -327,8 +341,15 @@ def get_qa_model(display_name):
             _qa_model_cache.move_to_end(display_name)
             return _qa_model_cache[display_name]
         model_id = QA_MODELS[display_name]
-        model = AutoModelForQuestionAnswering.from_pretrained(model_id).to(device)
-        model.eval()
+        # salsarra/ConfliBERT-QA only ships TensorFlow weights.
+        if model_id == Salsarra_QA_model_name and _USE_TF_QA:
+            model = TFAutoModelForQuestionAnswering.from_pretrained(model_id)
+        elif model_id == Salsarra_QA_model_name:
+            model = AutoModelForQuestionAnswering.from_pretrained(model_id, from_tf=True).to(device)
+            model.eval()
+        else:
+            model = AutoModelForQuestionAnswering.from_pretrained(model_id).to(device)
+            model.eval()
         tokenizer = AutoTokenizer.from_pretrained(model_id)
         _qa_model_cache[display_name] = (model, tokenizer)
         while len(_qa_model_cache) > QA_MODEL_CACHE_SIZE:
@@ -547,10 +568,11 @@ def _qa_extract_spans(context, question, qa_model, qa_tokenizer,
     # each window advances by a token or two and the window count explodes.
     stride = min(QA_STRIDE, room // 2)
 
+    is_tf = not isinstance(qa_model, torch.nn.Module)
     # 'only_second' keeps the question intact and windows the context alone.
     inputs = qa_tokenizer(
         question, context,
-        return_tensors='pt',
+        return_tensors='tf' if is_tf else 'pt',
         truncation='only_second',
         max_length=QA_WINDOW,
         stride=stride,
@@ -563,9 +585,9 @@ def _qa_extract_spans(context, question, qa_model, qa_tokenizer,
         if k in ('input_ids', 'attention_mask', 'token_type_ids')
     }
 
-    input_ids = inputs['input_ids'].numpy()
-    attention_mask = inputs['attention_mask'].numpy()
-    offsets = inputs['offset_mapping'].numpy()
+    input_ids = np.asarray(inputs['input_ids'])
+    attention_mask = np.asarray(inputs['attention_mask'])
+    offsets = np.asarray(inputs['offset_mapping'])
     n_windows, width = input_ids.shape
 
     # Restrict spans to end >= start and no longer than QA_MAX_ANSWER_LENGTH.
@@ -580,11 +602,17 @@ def _qa_extract_spans(context, question, qa_model, qa_tokenizer,
     masks = {}
     for batch_start in range(0, n_windows, QA_MAX_BATCH):
         batch_end = min(batch_start + QA_MAX_BATCH, n_windows)
-        batch = {k: v[batch_start:batch_end].to(device) for k, v in model_inputs.items()}
-        with torch.no_grad():
-            outputs = qa_model(**batch)
-        start_logits = outputs.start_logits.float().cpu().numpy()
-        end_logits = outputs.end_logits.float().cpu().numpy()
+        batch = {k: v[batch_start:batch_end] for k, v in model_inputs.items()}
+        if is_tf:
+            outputs = qa_model(batch)
+            start_logits = np.asarray(outputs.start_logits)
+            end_logits = np.asarray(outputs.end_logits)
+        else:
+            batch = {k: v.to(device) for k, v in batch.items()}
+            with torch.no_grad():
+                outputs = qa_model(**batch)
+            start_logits = outputs.start_logits.float().cpu().numpy()
+            end_logits = outputs.end_logits.float().cpu().numpy()
 
         for j in range(batch_end - batch_start):
             i = batch_start + j
@@ -616,16 +644,18 @@ def _qa_extract_spans(context, question, qa_model, qa_tokenizer,
     if not candidates:
         return []
 
-    # Check for ConfliBERT cont-cased-squad2 model
-    if qa_model.name_or_path == "shreyasmeher/ConfliBERT-cont-cased-squad2":
-        null_threshold = -5.8
-    else:
-        null_threshold = QA_NULL_THRESHOLD
+    # SQuAD 1.0 models were never trained to abstain, so their [CLS] score is meaningless.
+    if qa_model.name_or_path != Salsarra_QA_model_name:
+        # Check for ConfliBERT cont-cased-squad2 model
+        if qa_model.name_or_path == "shreyasmeher/ConfliBERT-cont-cased-squad2":
+            null_threshold = -5.8
+        else:
+            null_threshold = QA_NULL_THRESHOLD
 
-    # Abstention is a single verdict on the question: either the best span in
-    # the whole context beats the null option or none of them do.
-    if min_null - best_logit > null_threshold:
-        return []
+        # Abstention is a single verdict on the question: either the best span in
+        # the whole context beats the null option or none of them do.
+        if min_null - best_logit > null_threshold:
+            return []
 
     candidates.sort(key=lambda c: -c[0])
     cutoff = candidates[0][0] * QA_ANSWER_MIN_RATIO

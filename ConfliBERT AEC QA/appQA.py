@@ -4,6 +4,7 @@
 # ============================================================================
 
 import os
+import time
 os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
 
 # Patch gradio_client bug: bool JSON sub-schemas crash schema parsing
@@ -36,6 +37,18 @@ from transformers import (
     EarlyStoppingCallback,
     TrainerCallback,
 )
+
+# QA model uses TensorFlow (transformers <5) or PyTorch fallback (transformers >=5)
+_USE_TF_QA = False
+try:
+    import tensorflow as tf
+    import tf_keras   # noqa: F401
+    import keras      # noqa: F401
+    from transformers import TFAutoModelForQuestionAnswering
+    _USE_TF_QA = True
+except (ImportError, ModuleNotFoundError):
+    print("Using PyTorch for QA model")
+
 import gradio as gr
 import numpy as np
 import pandas as pd
@@ -151,7 +164,9 @@ FINETUNE_MODELS = {
 
 # SQuAD 2.0 fine-tunes selectable in the QA tab. All are BERT-base, so the
 # QA_WINDOW / abstention settings apply to every one of them.
+Salsarra_QA_model_name = "salsarra/ConfliBERT-QA"
 QA_MODELS = {
+    "ConfliBERT QA (Trained on SQuAD 1.0)": Salsarra_QA_model_name,
     "ConfliBERT scr-cased (SQuAD 2.0)": "shreyasmeher/ConfliBERT-scr-cased-squad2",
     "ConfliBERT scr-uncased (SQuAD 2.0)": "shreyasmeher/ConfliBERT-scr-uncased-squad2",
     "ConfliBERT cont-cased (SQuAD 2.0)": "shreyasmeher/ConfliBERT-cont-cased-squad2",
@@ -159,9 +174,10 @@ QA_MODELS = {
     "BERT Base Cased (SQuAD 2.0)": "shreyasmeher/BERT-base-cased-squad2",
     "BERT Base Uncased (SQuAD 2.0)": "shreyasmeher/BERT-base-uncased-squad2",
 }
-QA_DEFAULT_MODEL = "ConfliBERT scr-uncased (SQuAD 2.0)"
+QA_DEFAULT_MODEL = "ConfliBERT QA (Trained on SQuAD 1.0)"
 # Each model is ~420 MB; older ones are evicted beyond this many.
 QA_MODEL_CACHE_SIZE = 2
+
 
 NER_LABELS = {
     'Organisation': '#3b82f6',
@@ -198,8 +214,15 @@ def get_qa_model(display_name):
             _qa_model_cache.move_to_end(display_name)
             return _qa_model_cache[display_name]
         model_id = QA_MODELS[display_name]
-        model = AutoModelForQuestionAnswering.from_pretrained(model_id).to(device)
-        model.eval()
+        # salsarra/ConfliBERT-QA only ships TensorFlow weights.
+        if model_id == Salsarra_QA_model_name and _USE_TF_QA:
+            model = TFAutoModelForQuestionAnswering.from_pretrained(model_id)
+        elif model_id == Salsarra_QA_model_name:
+            model = AutoModelForQuestionAnswering.from_pretrained(model_id, from_tf=True).to(device)
+            model.eval()
+        else:
+            model = AutoModelForQuestionAnswering.from_pretrained(model_id).to(device)
+            model.eval()
         tokenizer = AutoTokenizer.from_pretrained(model_id)
         _qa_model_cache[display_name] = (model, tokenizer)
         while len(_qa_model_cache) > QA_MODEL_CACHE_SIZE:
@@ -316,10 +339,11 @@ def qa_extract_answers(context, question, qa_model, qa_tokenizer):
     Returns an empty list when the model judges the question unanswerable,
     i.e. when the [CLS] score beats the best span by more than QA_NULL_THRESHOLD.
     """
+    is_tf = not isinstance(qa_model, torch.nn.Module)
     # 'only_second' keeps the question intact and windows the context alone.
     inputs = qa_tokenizer(
         question, context,
-        return_tensors='pt',
+        return_tensors='tf' if is_tf else 'pt',
         truncation='only_second',
         max_length=QA_WINDOW,
         stride=QA_STRIDE,
@@ -328,17 +352,23 @@ def qa_extract_answers(context, question, qa_model, qa_tokenizer):
         padding='max_length',
     )
     model_inputs = {
-        k: v.to(device) for k, v in inputs.items()
+        k: v for k, v in inputs.items()
         if k in ('input_ids', 'attention_mask', 'token_type_ids')
     }
 
-    with torch.no_grad():
-        outputs = qa_model(**model_inputs)
-    start_logits = outputs.start_logits.float().cpu().numpy()
-    end_logits = outputs.end_logits.float().cpu().numpy()
-    input_ids = inputs['input_ids'].numpy()
-    attention_mask = inputs['attention_mask'].numpy()
-    offsets = inputs['offset_mapping'].numpy()
+    if is_tf:
+        outputs = qa_model(model_inputs)
+        start_logits = np.asarray(outputs.start_logits)
+        end_logits = np.asarray(outputs.end_logits)
+    else:
+        model_inputs = {k: v.to(device) for k, v in model_inputs.items()}
+        with torch.no_grad():
+            outputs = qa_model(**model_inputs)
+        start_logits = outputs.start_logits.float().cpu().numpy()
+        end_logits = outputs.end_logits.float().cpu().numpy()
+    input_ids = np.asarray(inputs['input_ids'])
+    attention_mask = np.asarray(inputs['attention_mask'])
+    offsets = np.asarray(inputs['offset_mapping'])
 
     # Restrict spans to end >= start and no longer than QA_MAX_ANSWER_LENGTH.
     width = input_ids.shape[1]
@@ -379,14 +409,16 @@ def qa_extract_answers(context, question, qa_model, qa_tokenizer):
     if not candidates:
         return []
 
-    # Check for ConfliBERT cont-cased-squad2 model
-    if qa_model.name_or_path == "shreyasmeher/ConfliBERT-cont-cased-squad2":
-        null_threshold = -5.8
-    else:
-        null_threshold = QA_NULL_THRESHOLD
+    # SQuAD 1.0 models were never trained to abstain, so their [CLS] score is meaningless.
+    if qa_model.name_or_path != Salsarra_QA_model_name:
+        # Check for ConfliBERT cont-cased-squad2 model
+        if qa_model.name_or_path == "shreyasmeher/ConfliBERT-cont-cased-squad2":
+            null_threshold = -5.8
+        else:
+            null_threshold = QA_NULL_THRESHOLD
 
-    if min_null - best_span > null_threshold:
-        return []
+        if min_null - best_span > null_threshold:
+            return []
 
     candidates.sort(key=lambda c: -c[0])
     cutoff = candidates[0][0] * QA_ANSWER_MIN_RATIO
@@ -412,8 +444,7 @@ def qa_extract_answers(context, question, qa_model, qa_tokenizer):
         if QA_MAX_ANSWERS and len(answers) >= QA_MAX_ANSWERS:
             break
     return answers
-
-
+        
 def question_answering(context, question, model_display_name=QA_DEFAULT_MODEL):
     if not context or not question:
         return "Please provide both context and question."
@@ -703,6 +734,7 @@ def process_csv_multilabel(file):
 
 
 def process_csv_qa(file, model_display_name=QA_DEFAULT_MODEL, progress=gr.Progress()):
+    start = time.perf_counter()
     path = get_path(file)
     if path is None:
         return None
