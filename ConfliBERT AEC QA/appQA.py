@@ -106,7 +106,7 @@ QA_MAX_ANSWER_LENGTH = 50
 # span, so it has no notion of "finding" a fixed number of answers: the length
 # of the returned list is governed by QA_ANSWER_MIN_RATIO and by overlap
 # suppression, not by a top-k cutoff. Lower the ratio to retrieve more.
-QA_ANSWER_MIN_RATIO = 0.10      # keep answers scoring >= this fraction of the best
+QA_ANSWER_MIN_RATIO = 0.0      # keep answers scoring >= this fraction of the best
 QA_MAX_ANSWERS = 0              # 0 = unlimited; positive values cap the list
 QA_CANDIDATES_PER_WINDOW = 200  # spans pulled from each window before merging
 QA_CSV_SEPARATOR = ' | '
@@ -768,8 +768,10 @@ def process_csv_qa(file, model_display_name=QA_DEFAULT_MODEL, progress=gr.Progre
     df['answer'] = answers
     df['label'] = "Answer"
     
+    # Confidence Details
+    df['answer_confidence'] = confidences
+
     # Optional Details, Uncomment to View
-    # df['answer_confidence'] = confidences
     # df['answer_count'] = counts
 
     out = tempfile.NamedTemporaryFile(suffix='_qa_results.csv', delete=False)

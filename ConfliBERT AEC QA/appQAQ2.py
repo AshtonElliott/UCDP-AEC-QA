@@ -120,7 +120,7 @@ QA_NULL_THRESHOLD = 0.0
 # span, so it has no notion of "finding" a fixed number of answers: the length
 # of the returned list is governed by QA_ANSWER_MIN_RATIO and by overlap
 # suppression, not by a top-k cutoff. Lower the ratio to retrieve more.
-QA_ANSWER_MIN_RATIO = 0.10      # keep answers scoring >= this fraction of the best
+QA_ANSWER_MIN_RATIO = 0.00      # keep answers scoring >= this fraction of the best
 QA_MAX_ANSWERS = 0              # 0 = unlimited; positive values cap the list
 # Spans pulled from each window before deduplication. Overlapping variants of
 # the same mention ("the pipeline" / "pipeline") collapse into one, so this has
@@ -1049,12 +1049,15 @@ def process_csv_qa(file, model_display_name=QA_DEFAULT_MODEL,
     # columns.
     sep = QA_ANSWER_SEPARATOR
     answers, labels, confidences, methods, counts = [], [], [], [], []
+    answer_scores, answer_confs = [], []
     for _, row in progress.tqdm(df.iterrows(), total=len(df), desc="Answering"):
         if pd.isna(row['context']) or pd.isna(row['question']):
             answers.append("")
             labels.append("")
             confidences.append("")
             methods.append("")
+            answer_scores.append("")
+            answer_confs.append("")
             counts.append(0)
             continue
         try:
@@ -1067,6 +1070,8 @@ def process_csv_qa(file, model_display_name=QA_DEFAULT_MODEL,
             labels.append("")
             confidences.append("")
             methods.append("")
+            answer_scores.append("")
+            answer_confs.append("")
             counts.append(0)
             continue
         if not spans:
@@ -1074,6 +1079,8 @@ def process_csv_qa(file, model_display_name=QA_DEFAULT_MODEL,
             labels.append('Other')
             confidences.append("")
             methods.append('no-answer')
+            answer_scores.append("")
+            answer_confs.append("")
             counts.append(0)
             continue
         classified = [
@@ -1083,14 +1090,19 @@ def process_csv_qa(file, model_display_name=QA_DEFAULT_MODEL,
         labels.append(sep.join(label for label, _, _ in classified))
         confidences.append(sep.join(f"{score:.4f}" for _, score, _ in classified))
         methods.append(sep.join(method for _, _, method in classified))
+        answer_scores.append(sep.join(f"{span['score']:.4f}" for span in spans))
+        answer_confs.append(sep.join(f"{span['confidence']:.4f}" for span in spans))
         counts.append(len(spans))
 
     df['answer'] = answers
     df['label'] = labels
 
+    # Confidence Details
+    df['answer_confidence'] = answer_confs
+    df['label_confidence'] = confidences
+
     # Optional Details, Uncomment to View
     #df['n_answers'] = counts
-    #df['label_confidence'] = confidences
     #df['label_method'] = methods
 
     out = tempfile.NamedTemporaryFile(suffix='_qa_results.csv', delete=False)
