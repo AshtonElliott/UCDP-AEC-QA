@@ -7,36 +7,8 @@ import os
 import time
 os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
 
-# Patch gradio_client bug: bool JSON sub-schemas crash schema parsing
-try:
-    from gradio_client import utils as _gc_utils
-    _original_get_type = _gc_utils.get_type
-    def _patched_get_type(schema):
-        if isinstance(schema, bool):
-            return "Any"
-        return _original_get_type(schema)
-    _gc_utils.get_type = _patched_get_type
-
-    _original_json_schema = _gc_utils._json_schema_to_python_type
-    def _patched_json_schema(schema, defs=None):
-        if isinstance(schema, bool):
-            return "Any"
-        return _original_json_schema(schema, defs)
-    _gc_utils._json_schema_to_python_type = _patched_json_schema
-except Exception:
-    pass
-
 import torch
-from transformers import (
-    AutoTokenizer,
-    AutoModelForQuestionAnswering,
-    AutoModelForSequenceClassification,
-    AutoModelForTokenClassification,
-    TrainingArguments,
-    Trainer,
-    EarlyStoppingCallback,
-    TrainerCallback,
-)
+from transformers import AutoTokenizer, AutoModelForQuestionAnswering
 
 # QA model uses TensorFlow (transformers <5) or PyTorch fallback (transformers >=5)
 _USE_TF_QA = False
@@ -49,38 +21,12 @@ try:
 except (ImportError, ModuleNotFoundError):
     print("Using PyTorch for QA model")
 
-import gradio as gr
 import numpy as np
 import pandas as pd
 import re
-import csv
-import tempfile
 import threading
 from collections import OrderedDict
-from sklearn.metrics import (
-    accuracy_score as sk_accuracy,
-    precision_score as sk_precision,
-    recall_score as sk_recall,
-    f1_score as sk_f1,
-    roc_curve,
-    auc as sk_auc,
-)
-from sklearn.preprocessing import label_binarize
-from torch.utils.data import Dataset as TorchDataset
 import gc
-
-# LoRA / QLoRA support (optional)
-try:
-    from peft import LoraConfig, get_peft_model, TaskType
-    PEFT_AVAILABLE = True
-except ImportError:
-    PEFT_AVAILABLE = False
-
-try:
-    from transformers import BitsAndBytesConfig
-    BNB_AVAILABLE = True
-except ImportError:
-    BNB_AVAILABLE = False
 
 # ============================================================================
 # CONFIGURATION
@@ -92,8 +38,6 @@ elif hasattr(torch.backends, 'mps') and torch.backends.mps.is_available():
     device = torch.device('mps')
 else:
     device = torch.device('cpu')
-
-MAX_TOKEN_LENGTH = 4096
 
 # ConfliBERT-QA is a BERT-base architecture: 512 learned position embeddings is a
 # hard ceiling per forward pass. Longer contexts are handled by sliding overlapping
@@ -117,42 +61,7 @@ QA_CSV_SEPARATOR = ' | '
 # lower it (negative values allowed) to abstain more often.
 QA_NULL_THRESHOLD = 0.0
 
-
-def get_system_info():
-    """Build an HTML string describing the user's compute environment."""
-    import platform
-    lines = []
-
-    # Device
-    if device.type == 'cuda':
-        gpu_name = torch.cuda.get_device_name(0)
-        vram = torch.cuda.get_device_properties(0).total_memory / (1024 ** 3)
-        lines.append(f"GPU: {gpu_name} ({vram:.1f} GB VRAM)")
-        lines.append("FP16 training: supported")
-    elif device.type == 'mps':
-        lines.append("GPU: Apple Silicon (MPS)")
-        lines.append("FP16 training: not supported on MPS")
-    else:
-        lines.append("GPU: None detected (using CPU)")
-        lines.append("FP16 training: not supported on CPU")
-
-    # CPU / RAM
-    import os
-    cpu_count = os.cpu_count() or 1
-    lines.append(f"CPU cores: {cpu_count}")
-    try:
-        import psutil
-        ram_gb = psutil.virtual_memory().total / (1024 ** 3)
-        lines.append(f"RAM: {ram_gb:.1f} GB")
-    except ImportError:
-        pass
-
-    lines.append(f"Platform: {platform.system()} {platform.machine()}")
-    lines.append(f"PyTorch: {torch.__version__}")
-
-    return " · ".join(lines)
-
-# SQuAD 2.0 fine-tunes selectable in the QA tab. All are BERT-base, so the
+# SQuAD 2.0 fine-tunes selectable with --model. All are BERT-base, so the
 # QA_WINDOW / abstention settings apply to every one of them.
 Salsarra_QA_model_name = "salsarra/ConfliBERT-QA"
 QA_MODELS = {
@@ -173,7 +82,7 @@ QA_MODEL_CACHE_SIZE = 2
 # PRETRAINED MODEL LOADING
 # ============================================================================
 
-# QA models are loaded on first selection in the QA tab and kept in an LRU cache.
+# QA models are loaded on first use and kept in an LRU cache.
 _qa_model_cache = OrderedDict()
 _qa_model_lock = threading.Lock()
 
@@ -206,55 +115,21 @@ def get_qa_model(display_name):
         return model, tokenizer
 
 
-get_qa_model(QA_DEFAULT_MODEL)
-
 # ============================================================================
 # UTILITY FUNCTIONS
 # ============================================================================
 
-def get_path(f):
-    """Get file path from Gradio file component output."""
-    if f is None:
-        return None
-    return f if isinstance(f, str) else getattr(f, 'name', str(f))
-
-
-def truncate_text(text, tokenizer, max_length=MAX_TOKEN_LENGTH):
-    tokens = tokenizer.encode(text, truncation=False)
-    if len(tokens) > max_length:
-        tokens = tokens[:max_length - 1] + [tokenizer.sep_token_id]
-        return tokenizer.decode(tokens, skip_special_tokens=True)
-    return text
-
-
-def info_callout(text):
-    """Wrap markdown text in a styled callout div to avoid Gradio double-border."""
-    return (
-        "<div class='info-callout-inner' style='"
-        "background: #fff7f3; border-left: 3px solid #ff6b35; "
-        "padding: 0.75rem 1rem; border-radius: 0 8px 8px 0; "
-        "font-size: 0.9rem;'>\n\n"
-        f"{text}\n\n</div>"
-    )
-
-
-def handle_error(e, default_limit=512):
+def handle_error(e):
     msg = str(e)
     match = re.search(
         r"The size of tensor a \((\d+)\) must match the size of tensor b \((\d+)\)", msg
     )
     if match:
-        return (
-            f"<span style='color: #ef4444; font-weight: 600;'>"
-            f"Error: Input ({match.group(1)} tokens) exceeds model limit ({match.group(2)})</span>"
-        )
+        return f"Error: Input ({match.group(1)} tokens) exceeds model limit ({match.group(2)})"
     match_qa = re.search(r"indices\[0,(\d+)\] = \d+ is not in \[0, (\d+)\)", msg)
     if match_qa:
-        return (
-            f"<span style='color: #ef4444; font-weight: 600;'>"
-            f"Error: Input too long for model (limit: {match_qa.group(2)} tokens)</span>"
-        )
-    return f"<span style='color: #ef4444; font-weight: 600;'>Error: {msg}</span>"
+        return f"Error: Input too long for model (limit: {match_qa.group(2)} tokens)"
+    return f"Error: {msg}"
 
 
 # ============================================================================
@@ -377,7 +252,8 @@ def qa_extract_answers(context, question, qa_model, qa_tokenizer):
             null_threshold = -5.8
         else:
             null_threshold = QA_NULL_THRESHOLD
-            
+        if min_null - best_span > null_threshold:
+            return []
 
     candidates.sort(key=lambda c: -c[0])
     cutoff = candidates[0][0] * QA_ANSWER_MIN_RATIO
@@ -403,75 +279,22 @@ def qa_extract_answers(context, question, qa_model, qa_tokenizer):
         if QA_MAX_ANSWERS and len(answers) >= QA_MAX_ANSWERS:
             break
     return answers
-        
-def question_answering(context, question, model_display_name=QA_DEFAULT_MODEL):
-    if not context or not question:
-        return "Please provide both context and question."
-    try:
-        qa_model, qa_tokenizer = get_qa_model(model_display_name)
-        answers = qa_extract_answers(context, question, qa_model, qa_tokenizer)
-        if not answers:
-            return (
-                "<span style='color: #ef4444; font-weight: 600;'>"
-                "No answer found in the provided context.</span>"
-            )
-        rows = [
-            "<div style='margin-bottom: 0.4rem;'>"
-            f"<span style='color: #6b7280; font-size: 0.8rem;'>{n}.</span> "
-            f"<span style='color: #10b981; font-weight: 600;'>{a['answer']}</span> "
-            f"<span style='color: #6b7280; font-size: 0.8rem;'>"
-            f"({a['score']:.1%})</span></div>"
-            for n, a in enumerate(answers, 1)
-        ]
-        return "<div>" + "".join(rows) + "</div>"
-    except Exception as e:
-        return handle_error(e)
-
-def predict_with_model(text, model, tokenizer):
-    """Run inference with an arbitrary classification model."""
-    model.eval()
-    dev = next(model.parameters()).device
-    inputs = tokenizer(
-        text, return_tensors='pt', truncation=True, padding=True, max_length=512
-    )
-    inputs = {k: v.to(dev) for k, v in inputs.items()}
-
-    with torch.no_grad():
-        outputs = model(**inputs)
-
-    probs = torch.softmax(outputs.logits, dim=1).squeeze()
-    predicted = torch.argmax(probs).item()
-    num_classes = probs.shape[0] if probs.dim() > 0 else 1
-
-    lines = []
-    for i in range(num_classes):
-        p = probs[i].item() * 100 if probs.dim() > 0 else probs.item() * 100
-        if i == predicted:
-            lines.append(
-                f"<span style='color: #10b981; font-weight: 600;'>"
-                f"Class {i}: {p:.2f}% (predicted)</span>"
-            )
-        else:
-            lines.append(f"<span style='color: #9ca3af;'>Class {i}: {p:.2f}%</span>")
-    return "<br>".join(lines)
 
 
 # ============================================================================
 # CSV BATCH PROCESSING
 # ============================================================================
 
-def process_csv_qa(file, model_display_name=QA_DEFAULT_MODEL, progress=gr.Progress()):
+def process_csv_qa(input_path, output_path, model_display_name=QA_DEFAULT_MODEL):
+    from tqdm import tqdm
     start = time.perf_counter()
-    path = get_path(file)
-    if path is None:
-        return None
-    df = pd.read_csv(path)
+    df = pd.read_csv(input_path)
     if 'context' not in df.columns or 'question' not in df.columns:
         raise ValueError("CSV must contain 'context' and 'question' columns")
     qa_model, qa_tokenizer = get_qa_model(model_display_name)
 
     answers, confidences, counts = [], [], []
-    for _, row in progress.tqdm(df.iterrows(), total=len(df), desc="Answering"):
+    for _, row in tqdm(df.iterrows(), total=len(df), desc="Answering"):
         if pd.isna(row['context']) or pd.isna(row['question']):
             answers.append("")
             confidences.append("")
@@ -482,7 +305,7 @@ def process_csv_qa(file, model_display_name=QA_DEFAULT_MODEL, progress=gr.Progre
                 str(row['context']), str(row['question']), qa_model, qa_tokenizer,
             )
         except Exception as e:
-            answers.append(re.sub(r'<[^>]+>', '', handle_error(e)).strip())
+            answers.append(handle_error(e))
             confidences.append("")
             counts.append(0)
             continue
@@ -491,261 +314,66 @@ def process_csv_qa(file, model_display_name=QA_DEFAULT_MODEL, progress=gr.Progre
             QA_CSV_SEPARATOR.join(f"{a['score']:.4f}" for a in found)
         )
         counts.append(len(found))
-        
+
     df['answer'] = answers
     df['label'] = "Answer"
-    
+
     # Confidence Details
     df['answer_confidence'] = confidences
 
     # Optional Details, Uncomment to View
     # df['answer_count'] = counts
 
-    out = tempfile.NamedTemporaryFile(suffix='_qa_results.csv', delete=False)
-    df.to_csv(out.name, index=False)
+    df.to_csv(output_path, index=False)
 
-    # Print finshing time
     runtime = time.perf_counter() - start
-    print(f"QA finished: {runtime:.1f}s ({runtime / 60:.1f} min)",flush=True)
-    return out.name
-
-# ============================================================================
-# THEME & CSS
-# ============================================================================
-
-utd_orange = gr.themes.Color(
-    c50="#fff7f3", c100="#ffead9", c200="#ffd4b3", c300="#ffb380",
-    c400="#ff8c52", c500="#ff6b35", c600="#e8551f", c700="#c2410c",
-    c800="#9a3412", c900="#7c2d12", c950="#431407",
-)
-
-theme = gr.themes.Soft(
-    primary_hue=utd_orange,
-    secondary_hue="neutral",
-    font=[gr.themes.GoogleFont("Inter"), "ui-sans-serif", "system-ui", "sans-serif"],
-)
-
-custom_css = """
-/* Top accent bar */
-.gradio-container::before {
-    content: '';
-    display: block;
-    height: 4px;
-    background: linear-gradient(90deg, #ff6b35, #ff9f40, #ff6b35);
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    z-index: 1000;
-}
-
-/* Active tab styling */
-.tab-nav button.selected {
-    border-bottom-color: #ff6b35 !important;
-    color: #ff6b35 !important;
-    font-weight: 600 !important;
-}
-
-/* Log output - monospace */
-.log-output textarea {
-    font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace !important;
-    font-size: 0.8rem !important;
-    line-height: 1.5 !important;
-}
-
-/* Dark mode: info callout adjustment */
-.dark .info-callout-inner {
-    background: rgba(255, 107, 53, 0.1) !important;
-    color: #ffead9 !important;
-}
-
-/* Clean container width */
-.gradio-container {
-    max-width: 1200px !important;
-}
-
-/* Smooth transitions */
-.gradio-container * {
-    transition: background-color 0.2s ease, border-color 0.2s ease !important;
-}
-"""
+    print(f"QA finished: {runtime:.1f}s ({runtime / 60:.1f} min)", flush=True)
+    return output_path
 
 
 # ============================================================================
-# GRADIO UI
+# COMMAND LINE
 # ============================================================================
 
-with gr.Blocks(theme=theme, css=custom_css, title="ConfliBERT") as demo:
+if __name__ == "__main__":
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    input_path = os.path.join(script_dir, 'train.csv')
+    
+    while True:
+        process = input("Select which process to Run (by number) \n 1. ConfliBERT QA (Trained on SQuAD 1.0) \n 2. ConfliBERT scr-uncased (SQuAD 2.0) \n 3. ConfliBERT scr-cased (SQuAD 2.0) \n 4. ConfliBERT cont-uncased (SQuAD 2.0) \n 5. ConfliBERT cont-cased (SQuAD 2.0) \n 6. BERT Base Cased (SQuAD 2.0) \n 7. BERT Base Uncased (SQuAD 2.0) \n 8. Exit \n")
+        
+        if process == "1":
+            output_path = os.path.join(script_dir, 'ConfliBERT-QA-results.csv')
+            process_csv_qa(input_path, output_path, QA_DEFAULT_MODEL)
+                
+        elif process == "2":
+            output_path = os.path.join(script_dir, 'ConfliBERT-scr-uncased-squad2_results.csv')
+            process_csv_qa(input_path, output_path, "ConfliBERT scr-uncased (SQuAD 2.0)")
 
-    # ---- HEADER ----
-    gr.Markdown(
-        "<div style='text-align: center; padding: 1.5rem 0 0.5rem;'>"
-        "<h1 style='font-size: 2.5rem; font-weight: 800; margin: 0;'>"
-        "<a href='https://eventdata.utdallas.edu/conflibert/' target='_blank' "
-        "style='color: #ff6b35; text-decoration: none;'>ConfliBERT</a></h1>"
-        "<p style='color: #888; font-size: 0.95rem; margin: 0.25rem 0 0;'>"
-        "A Pretrained Language Model for Conflict and Political Violence</p></div>"
-    )
+        elif process == "3":
+            output_path = os.path.join(script_dir, 'ConfliBERT-scr-cased-squad2_results.csv')
+            process_csv_qa(input_path, output_path, "ConfliBERT scr-cased (SQuAD 2.0)")
 
-    with gr.Tabs():
+        elif process == "4":
+            output_path = os.path.join(script_dir, 'ConfliBERT-cont-uncased-squad2_results.csv')
+            process_csv_qa(input_path, output_path, "ConfliBERT cont-uncased (SQuAD 2.0)")
 
-        # ================================================================
-        # HOME TAB
-        # ================================================================
-        with gr.Tab("Home"):
-            gr.Markdown(
-                "## Welcome to ConfliBERT\n\n"
-                "ConfliBERT is a pretrained language model built specifically for "
-                "conflict and political violence text. This application lets you "
-                "run inference with ConfliBERT's pretrained models and fine-tune "
-                "your own classifiers on custom data. Use the tabs above to get started."
-            )
+        elif process == "5":
+            output_path = os.path.join(script_dir, 'ConfliBERT-cont-cased-squad2_results.csv')
+            process_csv_qa(input_path, output_path, "ConfliBERT cont-cased (SQuAD 2.0)")
 
-            with gr.Row(equal_height=True):
-                with gr.Column():
-                    gr.Markdown(
-                        "### Inference\n\n"
-                        "Run pretrained ConfliBERT models on your text. "
-                        "Each task has its own tab with single-text analysis "
-                        "and CSV batch processing.\n\n"
-                        "**Named Entity Recognition**\n"
-                        "Identify persons, organizations, locations, weapons, "
-                        "and other entities in text. Results are color-coded "
-                        "by entity type.\n\n"
-                        "**Binary Classification**\n"
-                        "Determine whether text is related to conflict, violence, "
-                        "or politics (positive) or not (negative). You can also "
-                        "load a custom fine-tuned model here.\n\n"
-                        "**Multilabel Classification**\n"
-                        "Score text against four event categories: Armed Assault, "
-                        "Bombing/Explosion, Kidnapping, and Other. Each category "
-                        "is scored independently.\n\n"
-                        "**Question Answering**\n"
-                        "Provide a context passage and ask a question. The model "
-                        "extracts the most relevant answer span from the text."
-                    )
-                with gr.Column():
-                    gr.Markdown(
-                        "### Fine-tuning\n\n"
-                        "Train your own binary or multiclass text classifier "
-                        "on custom labeled data, all within the browser.\n\n"
-                        "**Workflow:**\n"
-                        "1. Upload your training, validation, and test data as "
-                        "TSV files (or load a built-in example dataset)\n"
-                        "2. Pick a base model: ConfliBERT, BERT, RoBERTa, "
-                        "ModernBERT, DeBERTa, or DistilBERT\n"
-                        "3. Configure training parameters (sensible defaults "
-                        "are provided)\n"
-                        "4. Train and watch progress in real time\n"
-                        "5. Review test-set metrics (accuracy, precision, "
-                        "recall, F1)\n"
-                        "6. Try your model on new text immediately\n"
-                        "7. Run batch predictions on a CSV\n"
-                        "8. Save the model and load it later in the "
-                        "Classification tab\n\n"
-                        "**Advanced features:**\n"
-                        "- **LoRA / QLoRA** for parameter-efficient training "
-                        "(lower VRAM, faster)\n"
-                        "- **Active Learning** tab for iterative labeling "
-                        "with uncertainty sampling\n"
-                        "- Early stopping with configurable patience\n"
-                        "- Learning rate schedulers (linear, cosine, constant)\n"
-                        "- Mixed precision training (FP16 on CUDA GPUs)\n"
-                        "- Gradient accumulation for larger effective batch sizes\n"
-                        "- Weight decay regularization"
-                    )
+        elif process == "6":
+            output_path = os.path.join(script_dir, 'BERT-base-cased-squad2_results.csv')
+            process_csv_qa(input_path, output_path, "BERT Base Cased (SQuAD 2.0)")
 
-            gr.Markdown(
-                f"---\n\n"
-                f"**Your system:** {get_system_info()}"
-            )
+        elif process == "7":
+            output_path = os.path.join(script_dir, 'BERT-base-uncased-squad2_results.csv')
+            process_csv_qa(input_path, output_path, "BERT Base Uncased (SQuAD 2.0)")
 
-            gr.Markdown(
-                "**Citation:** Brandt, P.T., Alsarra, S., D'Orazio, V., "
-                "Heintze, D., Khan, L., Meher, S., Osorio, J. and Sianan, M., "
-                "2025. Extractive versus Generative Language Models for Political "
-                "Conflict Text Classification. *Political Analysis*, pp.1-29."
-            )
+        elif process == "8":
+            print("Exiting...")
+            exit()
+            
+        else:
+            print("Invalid Selection")
 
-        # ================================================================
-        # QUESTION ANSWERING TAB
-        # ================================================================
-        with gr.Tab("Question Answering"):
-            gr.Markdown(info_callout(
-                "Extract answers from a context passage. Provide a paragraph of "
-                "text and ask a question about it. Every sufficiently-confident "
-                "answer span is returned, ranked by confidence."
-            ))
-            qa_model_choice = gr.Dropdown(
-                choices=list(QA_MODELS.keys()),
-                value=QA_DEFAULT_MODEL,
-                label="QA Model",
-                info="Applies to single questions and CSV batches. "
-                     "A model not used yet is downloaded on first use.",
-            )
-            with gr.Row(equal_height=True):
-                with gr.Column():
-                    qa_context = gr.Textbox(
-                        lines=6,
-                        placeholder="Paste the context passage here...",
-                        label="Context",
-                    )
-                    qa_question = gr.Textbox(
-                        lines=2,
-                        placeholder="What would you like to know?",
-                        label="Question",
-                    )
-                    qa_btn = gr.Button("Get Answer", variant="primary")
-                with gr.Column():
-                    qa_output = gr.HTML(label="Answer")
-
-            with gr.Accordion("Batch Processing (CSV)", open=False):
-                gr.Markdown(
-                    "Upload a CSV file with `context` and `question` columns "
-                    "to process multiple questions at once."
-                )
-                with gr.Row():
-                    qa_csv_in = gr.File(
-                        label="Upload CSV", file_types=[".csv"],
-                    )
-                    qa_csv_out = gr.File(label="Download Results")
-                qa_csv_btn = gr.Button("Process CSV", variant="secondary")
-
-    # ---- FOOTER ----
-    gr.Markdown(
-        "<div style='text-align: center; padding: 1rem 0; margin-top: 0.5rem; "
-        "border-top: 1px solid #e5e7eb;'>"
-        "<p style='color: #888; font-size: 0.85rem; margin: 0;'>"
-        "Developed by "
-        "<a href='http://shreyasmeher.com' target='_blank' "
-        "style='color: #ff6b35; text-decoration: none;'>Shreyas Meher</a>"
-        "</p>"
-        "<p style='color: #999; font-size: 0.75rem; margin: 0.5rem 0 0; "
-        "max-width: 700px; margin-left: auto; margin-right: auto; line-height: 1.4;'>"
-        "If you use ConfliBERT in your research, please cite:<br>"
-        "<em>Brandt, P.T., Alsarra, S., D'Orazio, V., Heintze, D., Khan, L., "
-        "Meher, S., Osorio, J. and Sianan, M., 2025. Extractive versus Generative "
-        "Language Models for Political Conflict Text Classification. "
-        "Political Analysis, pp.1&ndash;29.</em>"
-        "</p></div>"
-    )
-
-    # ====================================================================
-    # EVENT HANDLERS
-    # ====================================================================
-    # Question Answering
-    qa_btn.click(
-        fn=question_answering,
-        inputs=[qa_context, qa_question, qa_model_choice],
-        outputs=[qa_output],
-    )
-    qa_csv_btn.click(
-        fn=process_csv_qa,
-        inputs=[qa_csv_in, qa_model_choice],
-        outputs=[qa_csv_out],
-    )
-# ============================================================================
-# LAUNCH
-# ============================================================================
-
-demo.launch(share=True, ssr_mode=False)
