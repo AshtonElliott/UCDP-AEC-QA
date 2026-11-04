@@ -343,7 +343,7 @@ if __name__ == "__main__":
         process = input("Select which process to Run (by number) \n 1. ConfliBERT QA (Trained on SQuAD 1.0) \n 2. ConfliBERT scr-uncased (SQuAD 2.0) \n 3. ConfliBERT scr-cased (SQuAD 2.0) \n 4. ConfliBERT cont-uncased (SQuAD 2.0) \n 5. ConfliBERT cont-cased (SQuAD 2.0) \n 6. BERT Base Cased (SQuAD 2.0) \n 7. BERT Base Uncased (SQuAD 2.0) \n 8. Exit \n")
         
         if process == "1":
-            output_path = os.path.join(script_dir, 'ConfliBERT-QA-results.csv')
+            output_path = os.path.join(script_dir, 'ConfliBERT_QA-squad1_results.csv')
             process_csv_qa(input_path, output_path, QA_DEFAULT_MODEL)
                 
         elif process == "2":

@@ -13,6 +13,7 @@ column_names_by_file = {
     'ConfliBERT-scr-cased-squad2_results2': {'question': 'question2'},
     'BERT-base-uncased-squad2_results2': {'question': 'question2'},
     'BERT-base-cased-squad2_results2': {'question': 'question2'},
+    'ConfliBERT_QA-squad1_results2': {'question': 'question2'},
 }
 
 # CSV stores everything as text; these fields are integers in the source JSON.
