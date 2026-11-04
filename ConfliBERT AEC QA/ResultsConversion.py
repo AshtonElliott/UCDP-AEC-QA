@@ -84,7 +84,8 @@ names = [
            'ConfliBERT-cont-uncased-squad2_results', 'ConfliBERT-cont-cased-squad2_results', 'ConfliBERT-scr-uncased-squad2_results',
            'ConfliBERT-scr-cased-squad2_results', 'BERT-base-uncased-squad2_results', 'BERT-base-cased-squad2_results',
            'ConfliBERT-cont-uncased-squad2_results2', 'ConfliBERT-cont-cased-squad2_results2', 'ConfliBERT-scr-uncased-squad2_results2',
-           'ConfliBERT-scr-cased-squad2_results2', 'BERT-base-uncased-squad2_results2', 'BERT-base-cased-squad2_results2'
+           'ConfliBERT-scr-cased-squad2_results2', 'BERT-base-uncased-squad2_results2', 'BERT-base-cased-squad2_results2',
+           'ConfliBERT_QA-squad1_results', 'ConfliBERT_QA-squad1_results2'
         ]
 
 for name in names:
