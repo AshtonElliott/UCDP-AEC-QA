@@ -470,11 +470,7 @@ def _qa_extract_spans(context, question, qa_model, qa_tokenizer,
 
     # SQuAD 1.0 models were never trained to abstain, so their [CLS] score is meaningless.
     if qa_model.name_or_path != Salsarra_QA_model_name:
-        # Check for ConfliBERT cont-cased-squad2 model
-        if qa_model.name_or_path == "shreyasmeher/ConfliBERT-cont-cased-squad2":
-            null_threshold = -5.8
-        else:
-            null_threshold = QA_NULL_THRESHOLD
+        null_threshold = QA_NULL_THRESHOLD
 
         # Abstention is a single verdict on the question: either the best span in
         # the whole context beats the null option or none of them do.
@@ -625,6 +621,14 @@ if __name__ == "__main__":
     while True:
         process = input("Select which process to Run (by number) \n 1. ConfliBERT QA (Trained on SQuAD 1.0) \n 2. ConfliBERT scr-uncased (SQuAD 2.0) \n 3. ConfliBERT scr-cased (SQuAD 2.0) \n 4. ConfliBERT cont-uncased (SQuAD 2.0) \n 5. ConfliBERT cont-cased (SQuAD 2.0) \n 6. BERT Base Cased (SQuAD 2.0) \n 7. BERT Base Uncased (SQuAD 2.0) \n 8. Exit \n")
         
+        if process == "8":
+            print("Exiting...")
+            exit()
+        
+        QA_ANSWER_MIN_RATIO = input("What is the Alpha value for the answer confidence score? \n")
+        QA_NULL_THRESHOLD = input("What is the Tau value for the null score? \n")
+        INFRA_MIN_CONFIDENCE = input("What is the Alpha value for the label confidence score? \n")
+
         if process == "1":
             output_path = os.path.join(script_dir, 'ConfliBERT_QA-squad1_results2.csv')
             process_csv_qa(input_path, output_path, QA_DEFAULT_MODEL)
@@ -653,9 +657,6 @@ if __name__ == "__main__":
             output_path = os.path.join(script_dir, 'BERT-base-uncased-squad2_results2.csv')
             process_csv_qa(input_path, output_path, "BERT Base Uncased (SQuAD 2.0)")
 
-        elif process == "8":
-            print("Exiting...")
-            exit()
             
         else:
             print("Invalid Selection")
