@@ -611,9 +611,6 @@ def process_csv_qa(input_path, output_path, model_display_name=QA_DEFAULT_MODEL,
 
     df.to_csv(output_path, index=False)
 
-    # Print finshing time
-    runtime = time.perf_counter() - start
-    print(f"QA finished: {runtime:.1f}s ({runtime / 60:.1f} min)", flush=True)
     return output_path
 
 
