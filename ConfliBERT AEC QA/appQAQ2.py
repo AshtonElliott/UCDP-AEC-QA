@@ -120,7 +120,7 @@ INFRA_LABELS = {
         'infrastructure related to crop cultivation and harvesting, or '
         'infrastructure related to fisheries'
     ),
-    'GOVERNMENT/REBEL': (
+    'Government/Rebel': (
         'infrastructure operated by a government or an armed group, such as '
         'schools, administrative buildings, courts, police stations, prisons, '
         'checkpoints, and military bases'
@@ -174,7 +174,7 @@ INFRA_LEXICON = {
         'fishing vessel', 'trawler', 'fish pond', 'aquaculture', 'hatchery',
         'greenhouse', 'threshing', 'harvest',
     ],
-    'GOVERNMENT/REBEL': [
+    'Government/Rebel': [
         'school', 'university', 'college', 'courthouse', 'court',
         'police station', 'prison', 'jail', 'detention center',
         'detention centre', 'military base', 'barracks', 'checkpoint',
@@ -469,7 +469,8 @@ def _qa_extract_spans(context, question, qa_model, qa_tokenizer,
         return []
 
     # SQuAD 1.0 models were never trained to abstain, so their [CLS] score is meaningless.
-    if qa_model.name_or_path != Salsarra_QA_model_name:
+    is_squad2 = (qa_model.name_or_path != Salsarra_QA_model_name)
+    if is_squad2:
         # Check for ConfliBERT cont-cased-squad2 model
         if qa_model.name_or_path == "shreyasmeher/ConfliBERT-cont-cased-squad2":
             null_threshold = -5.8
@@ -485,12 +486,9 @@ def _qa_extract_spans(context, question, qa_model, qa_tokenizer,
     cutoff = candidates[0][0] * QA_ANSWER_MIN_RATIO
 
     spans = []
-    seen = set()
     for score, logit, chunk, start, end in candidates:
         if max_answers and len(spans) >= max_answers:
             break
-        # Candidates are sorted, so once a span falls under the cutoff so does
-        # everything after it.
         if score < cutoff:
             break
 
@@ -502,14 +500,8 @@ def _qa_extract_spans(context, question, qa_model, qa_tokenizer,
         answer = context[start_char:end_char].strip()
         if not answer:
             continue
-        # Drop near-duplicates: overlapping spans describe one mention, and the
-        # stride makes windows re-score the text they share.
-        key = re.sub(r'\W+', ' ', answer.lower()).strip()
-        if key in seen:
-            continue
         if any(start_char < s['end_char'] and s['start_char'] < end_char for s in spans):
             continue
-        seen.add(key)
 
         # Widen to a context window so the classifier can judge function, not
         # just name.

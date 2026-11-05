@@ -169,9 +169,14 @@ def evaluate_models_globally(model_files, gt_map, q_num):
                 if not t: continue
                 ls = g.get('labels', [])
                 if isinstance(ls, list):
-                    for l in ls: g_tups.add((t, str(l).strip()))
-                elif isinstance(ls, str): g_tups.add((t, ls.strip()))
-                else: g_tups.add((t, "no_label"))
+                    for l in ls:
+                        lbl = str(l).strip()
+                        g_tups.add((t, lbl.title() if lbl.lower() != "no_label" else "no_label"))
+                elif isinstance(ls, str):
+                    lbl = ls.strip()
+                    g_tups.add((t, lbl.title() if lbl.lower() != "no_label" else "no_label"))
+                else:
+                    g_tups.add((t, "no_label"))
                     
             p_tups = set()
             for p in pred_spans:
@@ -179,9 +184,14 @@ def evaluate_models_globally(model_files, gt_map, q_num):
                 if not t: continue
                 ls = p.get('labels', [])
                 if isinstance(ls, list):
-                    for l in ls: p_tups.add((t, str(l).strip()))
-                elif isinstance(ls, str): p_tups.add((t, ls.strip()))
-                else: p_tups.add((t, "no_label"))
+                    for l in ls:
+                        lbl = str(l).strip()
+                        p_tups.add((t, lbl.title() if lbl.lower() != "no_label" else "no_label"))
+                elif isinstance(ls, str):
+                    lbl = ls.strip()
+                    p_tups.add((t, lbl.title() if lbl.lower() != "no_label" else "no_label"))
+                else:
+                    p_tups.add((t, "no_label"))
                     
             cat_stats = defaultdict(lambda: {"TP": 0, "FP": 0, "FN": 0})
             for t, l in g_tups:

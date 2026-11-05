@@ -240,13 +240,14 @@ def qa_extract_answers(context, question, qa_model, qa_tokenizer):
             char_start, char_end = int(offsets[i][start][0]), int(offsets[i][end][1])
             if char_end <= char_start:
                 continue
-            candidates.append((score, char_start, char_end))
+            candidates.append((score, float(pair[start, end]), char_start, char_end))
 
     if not candidates:
         return []
 
     # SQuAD 1.0 models were never trained to abstain, so their [CLS] score is meaningless.
-    if qa_model.name_or_path != Salsarra_QA_model_name:
+    is_squad2 = (qa_model.name_or_path != Salsarra_QA_model_name)
+    if is_squad2:
         # Check for ConfliBERT cont-cased-squad2 model
         if qa_model.name_or_path == "shreyasmeher/ConfliBERT-cont-cased-squad2":
             null_threshold = -5.8
@@ -258,21 +259,20 @@ def qa_extract_answers(context, question, qa_model, qa_tokenizer):
     candidates.sort(key=lambda c: -c[0])
     cutoff = candidates[0][0] * QA_ANSWER_MIN_RATIO
 
-    answers, spans, seen = [], [], set()
-    for score, char_start, char_end in candidates:
+    answers, spans = [], []
+    for score, logit, char_start, char_end in candidates:
         if score < cutoff:
             break
         if any(char_start < e and s < char_end for s, e in spans):
             continue
         text = context[char_start:char_end].strip()
-        key = text.lower()
-        if not text or key in seen:
+        if not text:
             continue
         spans.append((char_start, char_end))
-        seen.add(key)
         answers.append({
             'answer': text,
             'score': score,
+            'logit': logit,
             'start': char_start,
             'end': char_end,
         })
