@@ -16,6 +16,8 @@ dependencies = [
     "seaborn>=0.13.2",
     "sentencepiece>=0.2.1",
     "tabulate>=0.10.0",
+    "tensorflow>=2.21.0",
+    "tf-keras>=2.21.0",
     "torch>=2.12.1",
     "transformers>=4.46.0,<5",
 ]

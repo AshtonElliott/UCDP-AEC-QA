@@ -64,12 +64,12 @@ def discover_llm_files(data_dir, model_filter="all"):
         bert_dir = data_dir / "ConfliBERT Results"
         if bert_dir.exists():
             for filepath in sorted(bert_dir.glob("*.json")):
-                match = re.search(r"^(BERT|ConfliBERT)[-_](.*?)[-_]squad2_results(\d*)\.json$", filepath.name, re.IGNORECASE)
+                match = re.search(r"^(BERT|ConfliBERT)[-_](.*?)[-_](squad[12])_results(\d*)\.json$", filepath.name, re.IGNORECASE)
                 if match:
                     prefix = "ConfliBERT" if "confli" in match.group(1).lower() else "BERT"
                     variant = match.group(2).lower().replace("_", "-")
                     canonical_model_name = f"{prefix}-{variant}"
-                    q_num = int(match.group(3)) if match.group(3) else 1
+                    q_num = int(match.group(4)) if match.group(4) else 1
                     
                     strategy = "extractive"
                     thinking = "N/A"

@@ -1,8 +1,8 @@
 # LLM Evaluation Report
 # Master Evaluation Report: Generative LLMs vs. Domain-Adapted Encoders
-**Total Models Evaluated:** 14
+**Total Models Evaluated:** 15
 **Total Documents Processed:** 1860
-**Full Evaluation Compute Time:** 21.17 seconds
+**Full Evaluation Compute Time:** 77.07 seconds
 
 ## Part 1: Global Benchmark Leaderboard (SQuAD 2.0 Evaluation)
 > *All text metrics formatted as (Overall / HasAns)*
@@ -31,12 +31,13 @@
 |                         | Cookbook (NT) |        1860 |                 0.1  |                 0.02 | 0.18 / 0.27                  | 0.18 / 0.27                          | 0.21 / 0.33                         | 0.23 / 0.36                    |
 | Vicuna.13B              | Raw (NT)      |        1860 |                 0.28 |                 0.03 | 0.28 / 0.29                  | 0.28 / 0.27                          | 0.31 / 0.34                         | 0.31 / 0.34                    |
 |                         | Cookbook (NT) |        1860 |                 0.01 |                 0    | 0.03 / 0.04                  | 0.02 / 0.03                          | 0.03 / 0.05                         | 0.03 / 0.05                    |
-| ConfliBERT-scr-uncased  | Extractive QA |        1860 |                 0.58 |                 0.32 | 0.36 / 0.14                  | 0.36 / 0.13                          | 0.40 / 0.21                         | 0.39 / 0.19                    |
-| BERT-base-uncased       | Extractive QA |        1860 |                 0.5  |                 0.37 | 0.30 / 0.10                  | 0.29 / 0.09                          | 0.33 / 0.15                         | 0.32 / 0.15                    |
-| BERT-base-cased         | Extractive QA |        1860 |                 0.54 |                 0.37 | 0.32 / 0.10                  | 0.31 / 0.09                          | 0.34 / 0.15                         | 0.34 / 0.14                    |
-| ConfliBERT-scr-cased    | Extractive QA |         906 |                 0.76 |                 0.38 | 0.64 / 0.09                  | 0.63 / 0.05                          | 0.66 / 0.18                         | 0.65 / 0.14                    |
-| ConfliBERT-cont-uncased | Extractive QA |        1860 |                 0.63 |                 0.43 | 0.35 / 0.08                  | 0.35 / 0.07                          | 0.39 / 0.14                         | 0.38 / 0.12                    |
-| ConfliBERT-cont-cased   | Extractive QA |        1860 |                 0.8  |                 0.68 | 0.42 / 0.05                  | 0.42 / 0.04                          | 0.44 / 0.08                         | 0.44 / 0.08                    |
+| ConfliBERT-qa           | Extractive QA |        1860 |                 0    |                 0    | 0.07 / 0.15                  | 0.07 / 0.14                          | 0.11 / 0.23                         | 0.11 / 0.21                    |
+| ConfliBERT-scr-cased    | Extractive QA |        1860 |                 0.94 |                 0.49 | 0.53 / 0.13                  | 0.53 / 0.13                          | 0.56 / 0.17                         | 0.55 / 0.17                    |
+| ConfliBERT-scr-uncased  | Extractive QA |        1860 |                 0.94 |                 0.56 | 0.53 / 0.11                  | 0.53 / 0.11                          | 0.55 / 0.15                         | 0.54 / 0.14                    |
+| ConfliBERT-cont-uncased | Extractive QA |        1860 |                 0.89 |                 0.43 | 0.49 / 0.08                  | 0.49 / 0.08                          | 0.52 / 0.15                         | 0.51 / 0.13                    |
+| BERT-base-uncased       | Extractive QA |        1860 |                 0.9  |                 0.47 | 0.49 / 0.08                  | 0.49 / 0.08                          | 0.51 / 0.12                         | 0.51 / 0.12                    |
+| BERT-base-cased         | Extractive QA |        1860 |                 0.89 |                 0.45 | 0.49 / 0.08                  | 0.49 / 0.08                          | 0.51 / 0.12                         | 0.51 / 0.12                    |
+| ConfliBERT-cont-cased   | Extractive QA |        1860 |                 0.91 |                 0.55 | 0.49 / 0.07                  | 0.49 / 0.07                          | 0.51 / 0.11                         | 0.51 / 0.11                    |
 
 ---
 
@@ -67,11 +68,13 @@
 |                         | Cookbook (NT) |         954 |                 0    |                 0    | 0.26 / 0.32                  | 0.26 / 0.32                          | 0.32 / 0.40                         | 0.33 / 0.41                    |
 | Vicuna.13B              | Raw (NT)      |         954 |                 0.01 |                 0.01 | 0.24 / 0.29                  | 0.24 / 0.29                          | 0.27 / 0.34                         | 0.28 / 0.34                    |
 |                         | Cookbook (NT) |         954 |                 0    |                 0    | 0.02 / 0.03                  | 0.02 / 0.03                          | 0.03 / 0.04                         | 0.03 / 0.04                    |
-| ConfliBERT-scr-uncased  | Extractive QA |         954 |                 0.58 |                 0.35 | 0.23 / 0.15                  | 0.23 / 0.15                          | 0.28 / 0.20                         | 0.27 / 0.19                    |
-| BERT-base-cased         | Extractive QA |         954 |                 0.53 |                 0.4  | 0.17 / 0.08                  | 0.17 / 0.08                          | 0.20 / 0.12                         | 0.20 / 0.12                    |
-| BERT-base-uncased       | Extractive QA |         954 |                 0.55 |                 0.43 | 0.17 / 0.08                  | 0.17 / 0.08                          | 0.21 / 0.12                         | 0.21 / 0.12                    |
-| ConfliBERT-cont-uncased | Extractive QA |         954 |                 0.59 |                 0.45 | 0.18 / 0.07                  | 0.18 / 0.07                          | 0.22 / 0.13                         | 0.21 / 0.12                    |
-| ConfliBERT-cont-cased   | Extractive QA |         954 |                 0.82 |                 0.73 | 0.19 / 0.04                  | 0.19 / 0.04                          | 0.21 / 0.06                         | 0.21 / 0.06                    |
+| ConfliBERT-qa           | Extractive QA |         954 |                 0    |                 0    | 0.13 / 0.16                  | 0.13 / 0.16                          | 0.19 / 0.23                         | 0.18 / 0.22                    |
+| ConfliBERT-scr-cased    | Extractive QA |         954 |                 0.69 |                 0.38 | 0.26 / 0.16                  | 0.26 / 0.16                          | 0.30 / 0.21                         | 0.30 / 0.20                    |
+| ConfliBERT-scr-uncased  | Extractive QA |         954 |                 0.72 |                 0.47 | 0.25 / 0.13                  | 0.25 / 0.13                          | 0.29 / 0.18                         | 0.28 / 0.17                    |
+| ConfliBERT-cont-uncased | Extractive QA |         954 |                 0.47 |                 0.31 | 0.17 / 0.10                  | 0.17 / 0.10                          | 0.23 / 0.18                         | 0.22 / 0.16                    |
+| BERT-base-uncased       | Extractive QA |         954 |                 0.49 |                 0.35 | 0.18 / 0.10                  | 0.18 / 0.10                          | 0.22 / 0.15                         | 0.22 / 0.15                    |
+| BERT-base-cased         | Extractive QA |         954 |                 0.47 |                 0.33 | 0.17 / 0.10                  | 0.17 / 0.10                          | 0.21 / 0.14                         | 0.21 / 0.14                    |
+| ConfliBERT-cont-cased   | Extractive QA |         954 |                 0.58 |                 0.45 | 0.19 / 0.09                  | 0.19 / 0.09                          | 0.22 / 0.13                         | 0.22 / 0.13                    |
 
 ### Question 2 Leaderboard (Infrastructure Damage & Categorization)
 | Model                   | Method        |   Doc Count |   Abstention (NoAns) |   Missed Answer Rate | Span F1 (Overall / HasAns)   | Labeled Span F1 (Overall / HasAns)   | SQuAD Token F1 (Overall / HasAns)   | BERTScore (Overall / HasAns)   |
@@ -98,12 +101,13 @@
 |                         | Cookbook (NT) |         906 |                 0.01 |                 0.01 | 0.03 / 0.09                  | 0.01 / 0.02                          | 0.03 / 0.11                         | 0.03 / 0.12                    |
 | Mistral                 | Raw (NT)      |         906 |                 0.69 |                 0.35 | 0.61 / 0.25                  | 0.60 / 0.19                          | 0.62 / 0.30                         | 0.62 / 0.30                    |
 |                         | Cookbook (NT) |         906 |                 0.65 |                 0.24 | 0.58 / 0.27                  | 0.57 / 0.21                          | 0.59 / 0.33                         | 0.59 / 0.32                    |
-| BERT-base-uncased       | Extractive QA |         906 |                 0.48 |                 0.1  | 0.43 / 0.20                  | 0.42 / 0.13                          | 0.45 / 0.30                         | 0.45 / 0.27                    |
-| BERT-base-cased         | Extractive QA |         906 |                 0.54 |                 0.21 | 0.47 / 0.18                  | 0.46 / 0.10                          | 0.49 / 0.26                         | 0.48 / 0.24                    |
-| ConfliBERT-scr-uncased  | Extractive QA |         906 |                 0.58 |                 0.18 | 0.50 / 0.11                  | 0.49 / 0.07                          | 0.52 / 0.24                         | 0.51 / 0.19                    |
-| ConfliBERT-cont-cased   | Extractive QA |         906 |                 0.79 |                 0.42 | 0.67 / 0.10                  | 0.66 / 0.06                          | 0.68 / 0.20                         | 0.68 / 0.16                    |
-| ConfliBERT-scr-cased    | Extractive QA |         906 |                 0.76 |                 0.38 | 0.64 / 0.09                  | 0.63 / 0.05                          | 0.66 / 0.18                         | 0.65 / 0.14                    |
-| ConfliBERT-cont-uncased | Extractive QA |         906 |                 0.64 |                 0.31 | 0.54 / 0.09                  | 0.54 / 0.06                          | 0.56 / 0.17                         | 0.55 / 0.14                    |
+| ConfliBERT-qa           | Extractive QA |         906 |                 0    |                 0    | 0.02 / 0.11                  | 0.01 / 0.06                          | 0.03 / 0.18                         | 0.03 / 0.15                    |
+| BERT-base-uncased       | Extractive QA |         906 |                 1    |                 0.99 | 0.82 / 0.01                  | 0.82 / 0.00                          | 0.82 / 0.01                         | 0.82 / 0.01                    |
+| ConfliBERT-cont-cased   | Extractive QA |         906 |                 1    |                 0.99 | 0.82 / 0.00                  | 0.82 / 0.00                          | 0.82 / 0.00                         | 0.82 / 0.00                    |
+| BERT-base-cased         | Extractive QA |         906 |                 1    |                 1    | 0.82 / 0.00                  | 0.82 / 0.00                          | 0.82 / 0.00                         | 0.82 / 0.00                    |
+| ConfliBERT-cont-uncased | Extractive QA |         906 |                 1    |                 1    | 0.82 / 0.00                  | 0.82 / 0.00                          | 0.82 / 0.00                         | 0.82 / 0.00                    |
+| ConfliBERT-scr-cased    | Extractive QA |         906 |                 1    |                 1    | 0.82 / 0.00                  | 0.82 / 0.00                          | 0.82 / 0.00                         | 0.82 / 0.00                    |
+| ConfliBERT-scr-uncased  | Extractive QA |         906 |                 1    |                 1    | 0.82 / 0.00                  | 0.82 / 0.00                          | 0.82 / 0.00                         | 0.82 / 0.00                    |
 
 ---
 
