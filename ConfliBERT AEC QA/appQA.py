@@ -240,39 +240,35 @@ def qa_extract_answers(context, question, qa_model, qa_tokenizer):
             char_start, char_end = int(offsets[i][start][0]), int(offsets[i][end][1])
             if char_end <= char_start:
                 continue
-            candidates.append((score, float(pair[start, end]), char_start, char_end))
+            candidates.append((score, char_start, char_end))
 
     if not candidates:
         return []
 
     # SQuAD 1.0 models were never trained to abstain, so their [CLS] score is meaningless.
-    is_squad2 = (qa_model.name_or_path != Salsarra_QA_model_name)
-    if is_squad2:
-        # Check for ConfliBERT cont-cased-squad2 model
-        if qa_model.name_or_path == "shreyasmeher/ConfliBERT-cont-cased-squad2":
-            null_threshold = -5.8
-        else:
-            null_threshold = QA_NULL_THRESHOLD
+    if qa_model.name_or_path != Salsarra_QA_model_name:
+        null_threshold = QA_NULL_THRESHOLD
         if min_null - best_span > null_threshold:
             return []
 
     candidates.sort(key=lambda c: -c[0])
     cutoff = candidates[0][0] * QA_ANSWER_MIN_RATIO
 
-    answers, spans = [], []
-    for score, logit, char_start, char_end in candidates:
+    answers, spans, seen = [], [], set()
+    for score, char_start, char_end in candidates:
         if score < cutoff:
             break
         if any(char_start < e and s < char_end for s, e in spans):
             continue
         text = context[char_start:char_end].strip()
-        if not text:
+        key = text.lower()
+        if not text or key in seen:
             continue
         spans.append((char_start, char_end))
+        seen.add(key)
         answers.append({
             'answer': text,
             'score': score,
-            'logit': logit,
             'start': char_start,
             'end': char_end,
         })
@@ -326,8 +322,6 @@ def process_csv_qa(input_path, output_path, model_display_name=QA_DEFAULT_MODEL)
 
     df.to_csv(output_path, index=False)
 
-    runtime = time.perf_counter() - start
-    print(f"QA finished: {runtime:.1f}s ({runtime / 60:.1f} min)", flush=True)
     return output_path
 
 
@@ -341,9 +335,11 @@ if __name__ == "__main__":
     
     while True:
         process = input("Select which process to Run (by number) \n 1. ConfliBERT QA (Trained on SQuAD 1.0) \n 2. ConfliBERT scr-uncased (SQuAD 2.0) \n 3. ConfliBERT scr-cased (SQuAD 2.0) \n 4. ConfliBERT cont-uncased (SQuAD 2.0) \n 5. ConfliBERT cont-cased (SQuAD 2.0) \n 6. BERT Base Cased (SQuAD 2.0) \n 7. BERT Base Uncased (SQuAD 2.0) \n 8. Exit \n")
-        
+        QA_ANSWER_MIN_RATIO = input("What is the Alpha value for the confidence score? \n")
+        QA_NULL_THRESHOLD = input("What is the Tau value for the null score? \n")
+
         if process == "1":
-            output_path = os.path.join(script_dir, 'ConfliBERT-QA-results.csv')
+            output_path = os.path.join(script_dir, 'ConfliBERT_QA-squad1_results.csv')
             process_csv_qa(input_path, output_path, QA_DEFAULT_MODEL)
                 
         elif process == "2":

@@ -120,7 +120,7 @@ INFRA_LABELS = {
         'infrastructure related to crop cultivation and harvesting, or '
         'infrastructure related to fisheries'
     ),
-    'Government/Rebel': (
+    'GOVERNMENT/REBEL': (
         'infrastructure operated by a government or an armed group, such as '
         'schools, administrative buildings, courts, police stations, prisons, '
         'checkpoints, and military bases'
@@ -174,7 +174,7 @@ INFRA_LEXICON = {
         'fishing vessel', 'trawler', 'fish pond', 'aquaculture', 'hatchery',
         'greenhouse', 'threshing', 'harvest',
     ],
-    'Government/Rebel': [
+    'GOVERNMENT/REBEL': [
         'school', 'university', 'college', 'courthouse', 'court',
         'police station', 'prison', 'jail', 'detention center',
         'detention centre', 'military base', 'barracks', 'checkpoint',
@@ -469,13 +469,8 @@ def _qa_extract_spans(context, question, qa_model, qa_tokenizer,
         return []
 
     # SQuAD 1.0 models were never trained to abstain, so their [CLS] score is meaningless.
-    is_squad2 = (qa_model.name_or_path != Salsarra_QA_model_name)
-    if is_squad2:
-        # Check for ConfliBERT cont-cased-squad2 model
-        if qa_model.name_or_path == "shreyasmeher/ConfliBERT-cont-cased-squad2":
-            null_threshold = -5.8
-        else:
-            null_threshold = QA_NULL_THRESHOLD
+    if qa_model.name_or_path != Salsarra_QA_model_name:
+        null_threshold = QA_NULL_THRESHOLD
 
         # Abstention is a single verdict on the question: either the best span in
         # the whole context beats the null option or none of them do.
@@ -486,9 +481,12 @@ def _qa_extract_spans(context, question, qa_model, qa_tokenizer,
     cutoff = candidates[0][0] * QA_ANSWER_MIN_RATIO
 
     spans = []
+    seen = set()
     for score, logit, chunk, start, end in candidates:
         if max_answers and len(spans) >= max_answers:
             break
+        # Candidates are sorted, so once a span falls under the cutoff so does
+        # everything after it.
         if score < cutoff:
             break
 
@@ -500,8 +498,14 @@ def _qa_extract_spans(context, question, qa_model, qa_tokenizer,
         answer = context[start_char:end_char].strip()
         if not answer:
             continue
+        # Drop near-duplicates: overlapping spans describe one mention, and the
+        # stride makes windows re-score the text they share.
+        key = re.sub(r'\W+', ' ', answer.lower()).strip()
+        if key in seen:
+            continue
         if any(start_char < s['end_char'] and s['start_char'] < end_char for s in spans):
             continue
+        seen.add(key)
 
         # Widen to a context window so the classifier can judge function, not
         # just name.
@@ -603,9 +607,6 @@ def process_csv_qa(input_path, output_path, model_display_name=QA_DEFAULT_MODEL,
 
     df.to_csv(output_path, index=False)
 
-    # Print finshing time
-    runtime = time.perf_counter() - start
-    print(f"QA finished: {runtime:.1f}s ({runtime / 60:.1f} min)", flush=True)
     return output_path
 
 
@@ -615,13 +616,21 @@ def process_csv_qa(input_path, output_path, model_display_name=QA_DEFAULT_MODEL,
 
 if __name__ == "__main__":
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    input_path = os.path.join(script_dir, 'train.csv')
+    input_path = os.path.join(script_dir, 'train2.csv')
     
     while True:
         process = input("Select which process to Run (by number) \n 1. ConfliBERT QA (Trained on SQuAD 1.0) \n 2. ConfliBERT scr-uncased (SQuAD 2.0) \n 3. ConfliBERT scr-cased (SQuAD 2.0) \n 4. ConfliBERT cont-uncased (SQuAD 2.0) \n 5. ConfliBERT cont-cased (SQuAD 2.0) \n 6. BERT Base Cased (SQuAD 2.0) \n 7. BERT Base Uncased (SQuAD 2.0) \n 8. Exit \n")
         
+        if process == "8":
+            print("Exiting...")
+            exit()
+        
+        QA_ANSWER_MIN_RATIO = input("What is the Alpha value for the answer confidence score? \n")
+        QA_NULL_THRESHOLD = input("What is the Tau value for the null score? \n")
+        INFRA_MIN_CONFIDENCE = input("What is the Alpha value for the label confidence score? \n")
+
         if process == "1":
-            output_path = os.path.join(script_dir, 'ConfliBERT-QA-results2.csv')
+            output_path = os.path.join(script_dir, 'ConfliBERT_QA-squad1_results2.csv')
             process_csv_qa(input_path, output_path, QA_DEFAULT_MODEL)
                 
         elif process == "2":
@@ -648,9 +657,6 @@ if __name__ == "__main__":
             output_path = os.path.join(script_dir, 'BERT-base-uncased-squad2_results2.csv')
             process_csv_qa(input_path, output_path, "BERT Base Uncased (SQuAD 2.0)")
 
-        elif process == "8":
-            print("Exiting...")
-            exit()
             
         else:
             print("Invalid Selection")
