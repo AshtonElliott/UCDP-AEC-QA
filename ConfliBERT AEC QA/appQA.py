@@ -5,6 +5,8 @@
 
 import os
 import time
+import json
+import argparse
 os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
 
 import torch
@@ -77,6 +79,38 @@ QA_DEFAULT_MODEL = "ConfliBERT QA (Trained on SQuAD 1.0)"
 # Each model is ~420 MB; older ones are evicted beyond this many.
 QA_MODEL_CACHE_SIZE = 2
 
+MODEL_KEY_TO_NAME = {
+    "1": "ConfliBERT QA (Trained on SQuAD 1.0)",
+    "2": "ConfliBERT scr-uncased (SQuAD 2.0)",
+    "3": "ConfliBERT scr-cased (SQuAD 2.0)",
+    "4": "ConfliBERT cont-uncased (SQuAD 2.0)",
+    "5": "ConfliBERT cont-cased (SQuAD 2.0)",
+    "6": "BERT Base Cased (SQuAD 2.0)",
+    "7": "BERT Base Uncased (SQuAD 2.0)",
+}
+
+MODEL_FILE_SLUGS_Q1 = {
+    "ConfliBERT QA (Trained on SQuAD 1.0)": "ConfliBERT_QA-squad1_results.json",
+    "ConfliBERT scr-uncased (SQuAD 2.0)": "ConfliBERT-scr-uncased-squad2_results.json",
+    "ConfliBERT scr-cased (SQuAD 2.0)": "ConfliBERT-scr-cased-squad2_results.json",
+    "ConfliBERT cont-uncased (SQuAD 2.0)": "ConfliBERT-cont-uncased-squad2_results.json",
+    "ConfliBERT cont-cased (SQuAD 2.0)": "ConfliBERT-cont-cased-squad2_results.json",
+    "BERT Base Cased (SQuAD 2.0)": "BERT-base-cased-squad2_results.json",
+    "BERT Base Uncased (SQuAD 2.0)": "BERT-base-uncased-squad2_results.json",
+}
+
+# Per-model tuned defaults (calibrated via 5-fold CV to maximize Token F1).
+# Overridden if --tau or --alpha flags are passed explicitly on the CLI.
+MODEL_TUNED_DEFAULTS_Q1 = {
+    "ConfliBERT QA (Trained on SQuAD 1.0)": {"tau": 0.0, "alpha": 0.10},
+    "ConfliBERT scr-uncased (SQuAD 2.0)": {"tau": 0.0, "alpha": 0.10},
+    "ConfliBERT scr-cased (SQuAD 2.0)": {"tau": 0.0, "alpha": 0.10},
+    "ConfliBERT cont-uncased (SQuAD 2.0)": {"tau": 0.0, "alpha": 0.10},
+    "ConfliBERT cont-cased (SQuAD 2.0)": {"tau": 0.0, "alpha": 0.10},
+    "BERT Base Cased (SQuAD 2.0)": {"tau": 0.0, "alpha": 0.10},
+    "BERT Base Uncased (SQuAD 2.0)": {"tau": 0.0, "alpha": 0.10},
+}
+
 
 # ============================================================================
 # PRETRAINED MODEL LOADING
@@ -90,7 +124,10 @@ _qa_model_lock = threading.Lock()
 def get_qa_model(display_name):
     """Return (model, tokenizer) for a QA_MODELS key, loading it if needed."""
     if display_name not in QA_MODELS:
-        display_name = QA_DEFAULT_MODEL
+        raise ValueError(
+            f"Unknown model: '{display_name}'. Valid options are:\n  "
+            + "\n  ".join(f"- {k}" for k in QA_MODELS.keys())
+        )
     with _qa_model_lock:
         if display_name in _qa_model_cache:
             _qa_model_cache.move_to_end(display_name)
@@ -163,17 +200,12 @@ def _masked_softmax(logits, mask):
     return probs / total if total > 0 else probs
 
 
-def qa_extract_answers(context, question, qa_model, qa_tokenizer):
-    """Extract every sufficiently-confident answer span, best first.
+def qa_extract_answers(context, question, qa_model, qa_tokenizer,
+                       tau=QA_NULL_THRESHOLD, alpha=QA_ANSWER_MIN_RATIO,
+                       return_raw=False):
+    """Extract sufficiently-confident answer spans, best first.
 
-    Candidate spans are scored as P(start) * P(end), pooled across all sliding
-    windows, then deduplicated by character offset so the overlap between
-    adjacent windows cannot yield the same mention twice. Overlapping and
-    repeated spans are suppressed, since the runners-up of a strong answer are
-    otherwise just off-by-one variants of it.
-
-    Returns an empty list when the model judges the question unanswerable,
-    i.e. when the [CLS] score beats the best span by more than QA_NULL_THRESHOLD.
+    If return_raw=True, returns (answers, null_diff, raw_candidates).
     """
     is_tf = not isinstance(qa_model, torch.nn.Module)
     # 'only_second' keeps the question intact and windows the context alone.
@@ -242,43 +274,142 @@ def qa_extract_answers(context, question, qa_model, qa_tokenizer):
                 continue
             candidates.append((score, char_start, char_end))
 
+    null_diff = float(min_null - best_span) if (min_null < np.inf and best_span > -np.inf) else 999.0
+
     if not candidates:
+        if return_raw:
+            return [], null_diff, []
         return []
 
-    # SQuAD 1.0 models were never trained to abstain, so their [CLS] score is meaningless.
-    if qa_model.name_or_path != Salsarra_QA_model_name:
-        null_threshold = QA_NULL_THRESHOLD
-        if min_null - best_span > null_threshold:
-            return []
-
     candidates.sort(key=lambda c: -c[0])
-    cutoff = candidates[0][0] * QA_ANSWER_MIN_RATIO
-
-    answers, spans, seen = [], [], set()
+    raw_candidates = []
+    raw_spans = []
     for score, char_start, char_end in candidates:
-        if score < cutoff:
-            break
-        if any(char_start < e and s < char_end for s, e in spans):
+        if any(char_start < e and s < char_end for s, e in raw_spans):
             continue
         text = context[char_start:char_end].strip()
-        key = text.lower()
-        if not text or key in seen:
+        if not text:
             continue
-        spans.append((char_start, char_end))
-        seen.add(key)
-        answers.append({
+        raw_spans.append((char_start, char_end))
+        raw_candidates.append({
             'answer': text,
-            'score': score,
             'start': char_start,
             'end': char_end,
+            'score': round(float(score), 5),
+            'label': 'Answer',
         })
-        if QA_MAX_ANSWERS and len(answers) >= QA_MAX_ANSWERS:
-            break
+
+    # Abstention check
+    if qa_model.name_or_path != Salsarra_QA_model_name:
+        if null_diff > tau:
+            answers = []
+        else:
+            cutoff = raw_candidates[0]['score'] * alpha if raw_candidates else 0.0
+            answers = [c for c in raw_candidates if c['score'] >= cutoff]
+            if QA_MAX_ANSWERS and len(answers) > QA_MAX_ANSWERS:
+                answers = answers[:QA_MAX_ANSWERS]
+    else:
+        cutoff = raw_candidates[0]['score'] * alpha if raw_candidates else 0.0
+        answers = [c for c in raw_candidates if c['score'] >= cutoff]
+        if QA_MAX_ANSWERS and len(answers) > QA_MAX_ANSWERS:
+            answers = answers[:QA_MAX_ANSWERS]
+
+    if return_raw:
+        return answers, null_diff, raw_candidates
     return answers
 
 
 # ============================================================================
-# CSV BATCH PROCESSING
+# JSON BATCH PROCESSING
+# ============================================================================
+
+def process_json_qa(input_path, output_path=None, model_display_name=QA_DEFAULT_MODEL,
+                    tau=QA_NULL_THRESHOLD, alpha=QA_ANSWER_MIN_RATIO,
+                    cache_raw=False, cache_output_path=None):
+    """Run QA inference on canonical JSON data.
+
+    If cache_raw=True, saves raw candidates and null diff to cache_output_path.
+    Otherwise, saves production evaluation JSON directly to output_path.
+    """
+    from tqdm import tqdm
+    start = time.perf_counter()
+    with open(input_path, 'r', encoding='utf-8') as f:
+        data = json.load(f)
+
+    qa_model, qa_tokenizer = get_qa_model(model_display_name)
+
+    results = []
+    cache_records = []
+
+    for item in tqdm(data, desc=f"QA: {model_display_name}"):
+        context = item.get('source_article', item.get('context', ''))
+        question = item.get('question', item.get('question1', ''))
+        doc_id = item.get('id')
+
+        if not context or not question:
+            rec = {k: v for k, v in item.items() if k != 'answer_labels'}
+            rec['no_answer'] = "No arms or methods mentioned (Geniune No Answer)"
+            results.append(rec)
+            if cache_raw:
+                cache_records.append({'id': doc_id, 'null_diff': 999.0, 'candidates': []})
+            continue
+
+        try:
+            found, null_diff, raw_candidates = qa_extract_answers(
+                str(context), str(question), qa_model, qa_tokenizer,
+                tau=tau, alpha=alpha, return_raw=True,
+            )
+        except Exception as e:
+            rec = {k: v for k, v in item.items() if k != 'answer_labels'}
+            rec['error'] = handle_error(e)
+            rec['no_answer'] = "No arms or methods mentioned (Geniune No Answer)"
+            results.append(rec)
+            if cache_raw:
+                cache_records.append({'id': doc_id, 'null_diff': 999.0, 'candidates': []})
+            continue
+
+        if cache_raw:
+            cache_records.append({
+                'id': doc_id,
+                'null_diff': null_diff,
+                'candidates': raw_candidates,
+            })
+        else:
+            rec = {k: v for k, v in item.items() if k != 'answer_labels'}
+            if found:
+                rec.pop('no_answer', None)
+                rec['answer_labels'] = [
+                    {
+                        'text': a['answer'],
+                        'start': a['start'],
+                        'end': a['end'],
+                        'labels': ['Answer'],
+                    }
+                    for a in found
+                ]
+            else:
+                rec['no_answer'] = "No arms or methods mentioned (Geniune No Answer)"
+                rec.pop('answer_labels', None)
+            results.append(rec)
+
+    if cache_raw and cache_output_path:
+        os.makedirs(os.path.dirname(os.path.abspath(cache_output_path)), exist_ok=True)
+        with open(cache_output_path, 'w', encoding='utf-8') as f:
+            json.dump(cache_records, f, ensure_ascii=False, indent=2)
+        print(f"Raw cache saved to: {cache_output_path} ({len(cache_records)} records)")
+    elif output_path:
+        os.makedirs(os.path.dirname(os.path.abspath(output_path)), exist_ok=True)
+        with open(output_path, 'w', encoding='utf-8') as f:
+            json.dump(results, f, ensure_ascii=False, indent=2)
+        print(f"Results saved to: {output_path} ({len(results)} records)")
+
+    runtime = time.perf_counter() - start
+    print(f"Model {model_display_name} finished in {runtime:.1f}s ({runtime / 60:.1f} min)")
+    return output_path
+
+
+# ============================================================================
+# CSV BATCH PROCESSING (Legacy Backward Compatibility)
 # ============================================================================
 
 def process_csv_qa(input_path, output_path, model_display_name=QA_DEFAULT_MODEL):
@@ -313,15 +444,8 @@ def process_csv_qa(input_path, output_path, model_display_name=QA_DEFAULT_MODEL)
 
     df['answer'] = answers
     df['label'] = "Answer"
-
-    # Confidence Details
     df['answer_confidence'] = confidences
-
-    # Optional Details, Uncomment to View
-    # df['answer_count'] = counts
-
     df.to_csv(output_path, index=False)
-
     return output_path
 
 
@@ -331,45 +455,57 @@ def process_csv_qa(input_path, output_path, model_display_name=QA_DEFAULT_MODEL)
 
 if __name__ == "__main__":
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    input_path = os.path.join(script_dir, 'train.csv')
-    
-    while True:
-        process = input("Select which process to Run (by number) \n 1. ConfliBERT QA (Trained on SQuAD 1.0) \n 2. ConfliBERT scr-uncased (SQuAD 2.0) \n 3. ConfliBERT scr-cased (SQuAD 2.0) \n 4. ConfliBERT cont-uncased (SQuAD 2.0) \n 5. ConfliBERT cont-cased (SQuAD 2.0) \n 6. BERT Base Cased (SQuAD 2.0) \n 7. BERT Base Uncased (SQuAD 2.0) \n 8. Exit \n")
-        QA_ANSWER_MIN_RATIO = input("What is the Alpha value for the confidence score? \n")
-        QA_NULL_THRESHOLD = input("What is the Tau value for the null score? \n")
+    default_input = os.path.abspath(os.path.join(script_dir, "..", "evaluation", "data", "groundtruth", "ground_truth_q1.json"))
+    default_output_dir = os.path.abspath(os.path.join(script_dir, "..", "evaluation", "data", "ConfliBERT Results"))
+    default_cache_dir = os.path.abspath(os.path.join(script_dir, "..", "evaluation", "data", "cache"))
 
-        if process == "1":
-            output_path = os.path.join(script_dir, 'ConfliBERT_QA-squad1_results.csv')
-            process_csv_qa(input_path, output_path, QA_DEFAULT_MODEL)
-                
-        elif process == "2":
-            output_path = os.path.join(script_dir, 'ConfliBERT-scr-uncased-squad2_results.csv')
-            process_csv_qa(input_path, output_path, "ConfliBERT scr-uncased (SQuAD 2.0)")
+    parser = argparse.ArgumentParser(description="ConfliBERT QA Inference (Question 1: Weapons & Methods)")
+    parser.add_argument("--model", type=str, default="all",
+                        help="Model to run: 'all' (default), 1-7, or exact model name")
+    parser.add_argument("--tau", type=float, default=None,
+                        help="Null threshold (default: model-specific tuned default)")
+    parser.add_argument("--alpha", type=float, default=None,
+                        help="Answer confidence ratio (default: model-specific tuned default)")
+    parser.add_argument("--cache-raw", action="store_true",
+                        help="Extract and save raw candidate pool to cache (skips standard output)")
 
-        elif process == "3":
-            output_path = os.path.join(script_dir, 'ConfliBERT-scr-cased-squad2_results.csv')
-            process_csv_qa(input_path, output_path, "ConfliBERT scr-cased (SQuAD 2.0)")
+    args = parser.parse_args()
 
-        elif process == "4":
-            output_path = os.path.join(script_dir, 'ConfliBERT-cont-uncased-squad2_results.csv')
-            process_csv_qa(input_path, output_path, "ConfliBERT cont-uncased (SQuAD 2.0)")
+    # Determine models to run
+    if args.model.lower() == "all":
+        models_to_run = list(QA_MODELS.keys())
+    elif args.model in MODEL_KEY_TO_NAME:
+        models_to_run = [MODEL_KEY_TO_NAME[args.model]]
+    elif args.model in QA_MODELS:
+        models_to_run = [args.model]
+    else:
+        # Check comma separated
+        keys = [k.strip() for k in args.model.split(",")]
+        models_to_run = [MODEL_KEY_TO_NAME.get(k, k) for k in keys if MODEL_KEY_TO_NAME.get(k, k) in QA_MODELS]
+        if not models_to_run:
+            print(f"Error: Unknown model '{args.model}'. Choose from 1-7, 'all', or: {list(QA_MODELS.keys())}")
+            exit(1)
 
-        elif process == "5":
-            output_path = os.path.join(script_dir, 'ConfliBERT-cont-cased-squad2_results.csv')
-            process_csv_qa(input_path, output_path, "ConfliBERT cont-cased (SQuAD 2.0)")
+    print(f"Starting Q1 QA inference (Models: {len(models_to_run)}, cache_raw={args.cache_raw})")
 
-        elif process == "6":
-            output_path = os.path.join(script_dir, 'BERT-base-cased-squad2_results.csv')
-            process_csv_qa(input_path, output_path, "BERT Base Cased (SQuAD 2.0)")
+    for model_name in models_to_run:
+        tuned = MODEL_TUNED_DEFAULTS_Q1.get(model_name, {"tau": QA_NULL_THRESHOLD, "alpha": QA_ANSWER_MIN_RATIO})
+        model_tau = args.tau if args.tau is not None else tuned["tau"]
+        model_alpha = args.alpha if args.alpha is not None else tuned["alpha"]
 
-        elif process == "7":
-            output_path = os.path.join(script_dir, 'BERT-base-uncased-squad2_results.csv')
-            process_csv_qa(input_path, output_path, "BERT Base Uncased (SQuAD 2.0)")
+        slug = MODEL_FILE_SLUGS_Q1[model_name]
+        output_file = os.path.join(default_output_dir, slug)
+        cache_base = slug.replace('_results.json', '').replace('.json', '')
+        cache_file = os.path.join(default_cache_dir, f"raw_cache_q1_{cache_base}.json")
 
-        elif process == "8":
-            print("Exiting...")
-            exit()
-            
-        else:
-            print("Invalid Selection")
+        print(f"  -> Model '{model_name}': using tau={model_tau}, alpha={model_alpha}")
+        process_json_qa(
+            input_path=default_input,
+            output_path=output_file,
+            model_display_name=model_name,
+            tau=model_tau,
+            alpha=model_alpha,
+            cache_raw=args.cache_raw,
+            cache_output_path=cache_file,
+        )
 

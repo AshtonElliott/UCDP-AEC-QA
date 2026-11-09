@@ -5,6 +5,8 @@
 
 import os
 import time
+import json
+import argparse
 os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
 
 import torch
@@ -89,6 +91,38 @@ QA_DEFAULT_MODEL = "ConfliBERT QA (Trained on SQuAD 1.0)"
 # Each model is ~420 MB; older ones are evicted beyond this many.
 QA_MODEL_CACHE_SIZE = 2
 
+MODEL_KEY_TO_NAME = {
+    "1": "ConfliBERT QA (Trained on SQuAD 1.0)",
+    "2": "ConfliBERT scr-uncased (SQuAD 2.0)",
+    "3": "ConfliBERT scr-cased (SQuAD 2.0)",
+    "4": "ConfliBERT cont-uncased (SQuAD 2.0)",
+    "5": "ConfliBERT cont-cased (SQuAD 2.0)",
+    "6": "BERT Base Cased (SQuAD 2.0)",
+    "7": "BERT Base Uncased (SQuAD 2.0)",
+}
+
+MODEL_FILE_SLUGS_Q2 = {
+    "ConfliBERT QA (Trained on SQuAD 1.0)": "ConfliBERT_QA-squad1_results2.json",
+    "ConfliBERT scr-uncased (SQuAD 2.0)": "ConfliBERT-scr-uncased-squad2_results2.json",
+    "ConfliBERT scr-cased (SQuAD 2.0)": "ConfliBERT-scr-cased-squad2_results2.json",
+    "ConfliBERT cont-uncased (SQuAD 2.0)": "ConfliBERT-cont-uncased-squad2_results2.json",
+    "ConfliBERT cont-cased (SQuAD 2.0)": "ConfliBERT-cont-cased-squad2_results2.json",
+    "BERT Base Cased (SQuAD 2.0)": "BERT-base-cased-squad2_results2.json",
+    "BERT Base Uncased (SQuAD 2.0)": "BERT-base-uncased-squad2_results2.json",
+}
+
+# Per-model tuned defaults (calibrated via 5-fold CV to maximize Token F1).
+# Overridden if --tau or --alpha flags are passed explicitly on the CLI.
+MODEL_TUNED_DEFAULTS_Q2 = {
+    "ConfliBERT QA (Trained on SQuAD 1.0)": {"tau": 0.0, "alpha": 0.00},
+    "ConfliBERT scr-uncased (SQuAD 2.0)": {"tau": 0.0, "alpha": 0.00},
+    "ConfliBERT scr-cased (SQuAD 2.0)": {"tau": 0.0, "alpha": 0.00},
+    "ConfliBERT cont-uncased (SQuAD 2.0)": {"tau": 0.0, "alpha": 0.00},
+    "ConfliBERT cont-cased (SQuAD 2.0)": {"tau": 0.0, "alpha": 0.00},
+    "BERT Base Cased (SQuAD 2.0)": {"tau": 0.0, "alpha": 0.00},
+    "BERT Base Uncased (SQuAD 2.0)": {"tau": 0.0, "alpha": 0.00},
+}
+
 # ----------------------------------------------------------------------------
 # Infrastructure labels assigned to QA answers.
 #
@@ -120,7 +154,7 @@ INFRA_LABELS = {
         'infrastructure related to crop cultivation and harvesting, or '
         'infrastructure related to fisheries'
     ),
-    'GOVERNMENT/REBEL': (
+    'Government/Rebel': (
         'infrastructure operated by a government or an armed group, such as '
         'schools, administrative buildings, courts, police stations, prisons, '
         'checkpoints, and military bases'
@@ -174,7 +208,7 @@ INFRA_LEXICON = {
         'fishing vessel', 'trawler', 'fish pond', 'aquaculture', 'hatchery',
         'greenhouse', 'threshing', 'harvest',
     ],
-    'GOVERNMENT/REBEL': [
+    'Government/Rebel': [
         'school', 'university', 'college', 'courthouse', 'court',
         'police station', 'prison', 'jail', 'detention center',
         'detention centre', 'military base', 'barracks', 'checkpoint',
@@ -206,7 +240,10 @@ _qa_model_lock = threading.Lock()
 def get_qa_model(display_name):
     """Return (model, tokenizer) for a QA_MODELS key, loading it if needed."""
     if display_name not in QA_MODELS:
-        display_name = QA_DEFAULT_MODEL
+        raise ValueError(
+            f"Unknown model: '{display_name}'. Valid options are:\n  "
+            + "\n  ".join(f"- {k}" for k in QA_MODELS.keys())
+        )
     with _qa_model_lock:
         if display_name in _qa_model_cache:
             _qa_model_cache.move_to_end(display_name)
@@ -364,7 +401,8 @@ def classify_infrastructure(answer, window=None):
 
 
 def _qa_extract_spans(context, question, qa_model, qa_tokenizer,
-                      max_answers=QA_MAX_ANSWERS):
+                      tau=QA_NULL_THRESHOLD, alpha=QA_ANSWER_MIN_RATIO,
+                      max_answers=QA_MAX_ANSWERS, return_raw=False):
     """Run windowed QA and return every sufficiently-confident span, best first.
 
     Candidate spans are scored as P(start) * P(end) within their window, which
@@ -465,61 +503,52 @@ def _qa_extract_spans(context, question, qa_model, qa_tokenizer,
                 start, end = divmod(int(flat), width)
                 candidates.append((score, float(pair[flat]), i, start, end))
 
+    null_diff = float(min_null - best_logit) if (min_null < np.inf and best_logit > -np.inf) else 999.0
+
     if not candidates:
+        if return_raw:
+            return [], null_diff, []
         return []
 
-    # SQuAD 1.0 models were never trained to abstain, so their [CLS] score is meaningless.
-    if qa_model.name_or_path != Salsarra_QA_model_name:
-        null_threshold = QA_NULL_THRESHOLD
-
-        # Abstention is a single verdict on the question: either the best span in
-        # the whole context beats the null option or none of them do.
-        if min_null - best_logit > null_threshold:
-            return []
-
     candidates.sort(key=lambda c: -c[0])
-    cutoff = candidates[0][0] * QA_ANSWER_MIN_RATIO
-
-    spans = []
-    seen = set()
+    raw_spans = []
     for score, logit, chunk, start, end in candidates:
-        if max_answers and len(spans) >= max_answers:
-            break
-        # Candidates are sorted, so once a span falls under the cutoff so does
-        # everything after it.
-        if score < cutoff:
-            break
-
-        # Slice the original text rather than decoding tokens: uncased
-        # tokenizers would return decoded spans lowercased.
         chunk_offsets = offsets[chunk]
         start_char = int(chunk_offsets[start][0])
         end_char = int(chunk_offsets[end][1])
         answer = context[start_char:end_char].strip()
         if not answer:
             continue
-        # Drop near-duplicates: overlapping spans describe one mention, and the
-        # stride makes windows re-score the text they share.
-        key = re.sub(r'\W+', ' ', answer.lower()).strip()
-        if key in seen:
+        # Drop character-overlapping variants of the same mention
+        if any(start_char < s['end_char'] and s['start_char'] < end_char for s in raw_spans):
             continue
-        if any(start_char < s['end_char'] and s['start_char'] < end_char for s in spans):
-            continue
-        seen.add(key)
 
-        # Widen to a context window so the classifier can judge function, not
-        # just name.
         valid = np.flatnonzero(masks[chunk])
         lo = max(int(valid[0]), start - INFRA_CONTEXT_RADIUS)
         hi = min(int(valid[-1]), end + INFRA_CONTEXT_RADIUS)
-        spans.append({
+        raw_spans.append({
             'answer': answer,
             'window': context[chunk_offsets[lo][0]:chunk_offsets[hi][1]].strip(),
-            'score': score,
-            'logit': logit,
+            'score': round(float(score), 5),
+            'logit': float(logit),
             'start_char': start_char,
             'end_char': end_char,
         })
+
+    # Abstention check
+    if qa_model.name_or_path != Salsarra_QA_model_name:
+        if null_diff > tau:
+            spans = []
+        else:
+            cutoff = raw_spans[0]['score'] * alpha if raw_spans else 0.0
+            spans = [s for s in raw_spans if s['score'] >= cutoff]
+            if max_answers and len(spans) > max_answers:
+                spans = spans[:max_answers]
+    else:
+        cutoff = raw_spans[0]['score'] * alpha if raw_spans else 0.0
+        spans = [s for s in raw_spans if s['score'] >= cutoff]
+        if max_answers and len(spans) > max_answers:
+            spans = spans[:max_answers]
 
     if spans:
         logits = np.array([s['logit'] for s in spans] + [min_null])
@@ -527,6 +556,9 @@ def _qa_extract_spans(context, question, qa_model, qa_tokenizer,
         probs /= probs.sum()
         for span, prob in zip(spans, probs):
             span['confidence'] = float(prob)
+
+    if return_raw:
+        return spans, null_diff, raw_spans
     return spans
 
 
@@ -611,52 +643,176 @@ def process_csv_qa(input_path, output_path, model_display_name=QA_DEFAULT_MODEL,
 
 
 # ============================================================================
+# JSON BATCH PROCESSING
+# ============================================================================
+
+def process_json_qa(input_path, output_path=None, model_display_name=QA_DEFAULT_MODEL,
+                    tau=QA_NULL_THRESHOLD, alpha=QA_ANSWER_MIN_RATIO,
+                    label_conf=INFRA_MIN_CONFIDENCE,
+                    cache_raw=False, cache_output_path=None):
+    """Run Q2 QA inference on canonical JSON data.
+
+    If cache_raw=True, saves raw candidates, null diff, and infra labels to cache_output_path.
+    Otherwise, saves production evaluation JSON directly to output_path.
+    """
+    global INFRA_MIN_CONFIDENCE
+    old_infra_conf = INFRA_MIN_CONFIDENCE
+    INFRA_MIN_CONFIDENCE = float(label_conf)
+
+    from tqdm import tqdm
+    start = time.perf_counter()
+    with open(input_path, 'r', encoding='utf-8') as f:
+        data = json.load(f)
+
+    qa_model, qa_tokenizer = get_qa_model(model_display_name)
+
+    results = []
+    cache_records = []
+
+    for item in tqdm(data, desc=f"QA Q2: {model_display_name}"):
+        context = item.get('source_article', item.get('context', ''))
+        question = item.get('question2', item.get('question', ''))
+        doc_id = item.get('id')
+
+        if not context or not question:
+            rec = {k: v for k, v in item.items() if k != 'answer_labels'}
+            rec['no_answer'] = "No Damage Detected"
+            results.append(rec)
+            if cache_raw:
+                cache_records.append({'id': doc_id, 'null_diff': 999.0, 'candidates': []})
+            continue
+
+        try:
+            spans, null_diff, raw_spans = _qa_extract_spans(
+                str(context), str(question), qa_model, qa_tokenizer,
+                tau=tau, alpha=alpha, return_raw=True,
+            )
+        except Exception as e:
+            rec = {k: v for k, v in item.items() if k != 'answer_labels'}
+            rec['error'] = handle_error(e)
+            rec['no_answer'] = "No Damage Detected"
+            results.append(rec)
+            if cache_raw:
+                cache_records.append({'id': doc_id, 'null_diff': 999.0, 'candidates': []})
+            continue
+
+        if cache_raw:
+            # Classify all raw candidate spans for CV tuning
+            classified_raw = []
+            for s in raw_spans:
+                lbl, lbl_score, _ = classify_infrastructure(s['answer'], s['window'])
+                classified_raw.append({
+                    'text': s['answer'],
+                    'start': s['start_char'],
+                    'end': s['end_char'],
+                    'score': s['score'],
+                    'logit': s['logit'],
+                    'label': lbl,
+                    'label_score': round(float(lbl_score), 4),
+                })
+            cache_records.append({
+                'id': doc_id,
+                'null_diff': null_diff,
+                'candidates': classified_raw,
+            })
+        else:
+            rec = {k: v for k, v in item.items() if k != 'answer_labels'}
+            if spans:
+                rec.pop('no_answer', None)
+                classified = [
+                    classify_infrastructure(span['answer'], span['window']) for span in spans
+                ]
+                rec['answer_labels'] = [
+                    {
+                        'text': span['answer'],
+                        'start': span['start_char'],
+                        'end': span['end_char'],
+                        'labels': [label],
+                    }
+                    for span, (label, _, _) in zip(spans, classified)
+                ]
+            else:
+                rec['no_answer'] = "No Damage Detected"
+                rec.pop('answer_labels', None)
+            results.append(rec)
+
+    INFRA_MIN_CONFIDENCE = old_infra_conf
+
+    if cache_raw and cache_output_path:
+        os.makedirs(os.path.dirname(os.path.abspath(cache_output_path)), exist_ok=True)
+        with open(cache_output_path, 'w', encoding='utf-8') as f:
+            json.dump(cache_records, f, ensure_ascii=False, indent=2)
+        print(f"Raw cache saved to: {cache_output_path} ({len(cache_records)} records)")
+    elif output_path:
+        os.makedirs(os.path.dirname(os.path.abspath(output_path)), exist_ok=True)
+        with open(output_path, 'w', encoding='utf-8') as f:
+            json.dump(results, f, ensure_ascii=False, indent=2)
+        print(f"Results saved to: {output_path} ({len(results)} records)")
+
+    runtime = time.perf_counter() - start
+    print(f"Model {model_display_name} finished in {runtime:.1f}s ({runtime / 60:.1f} min)")
+    return output_path
+
+
+# ============================================================================
 # COMMAND LINE
 # ============================================================================
 
 if __name__ == "__main__":
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    input_path = os.path.join(script_dir, 'train2.csv')
-    
-    while True:
-        process = input("Select which process to Run (by number) \n 1. ConfliBERT QA (Trained on SQuAD 1.0) \n 2. ConfliBERT scr-uncased (SQuAD 2.0) \n 3. ConfliBERT scr-cased (SQuAD 2.0) \n 4. ConfliBERT cont-uncased (SQuAD 2.0) \n 5. ConfliBERT cont-cased (SQuAD 2.0) \n 6. BERT Base Cased (SQuAD 2.0) \n 7. BERT Base Uncased (SQuAD 2.0) \n 8. Exit \n")
-        
-        if process == "8":
-            print("Exiting...")
-            exit()
-        
-        QA_ANSWER_MIN_RATIO = input("What is the Alpha value for the answer confidence score? \n")
-        QA_NULL_THRESHOLD = input("What is the Tau value for the null score? \n")
-        INFRA_MIN_CONFIDENCE = input("What is the Alpha value for the label confidence score? \n")
+    default_input = os.path.abspath(os.path.join(script_dir, "..", "evaluation", "data", "groundtruth", "ground_truth_q2.json"))
+    default_output_dir = os.path.abspath(os.path.join(script_dir, "..", "evaluation", "data", "ConfliBERT Results"))
+    default_cache_dir = os.path.abspath(os.path.join(script_dir, "..", "evaluation", "data", "cache"))
 
-        if process == "1":
-            output_path = os.path.join(script_dir, 'ConfliBERT_QA-squad1_results2.csv')
-            process_csv_qa(input_path, output_path, QA_DEFAULT_MODEL)
-                
-        elif process == "2":
-            output_path = os.path.join(script_dir, 'ConfliBERT-scr-uncased-squad2_results2.csv')
-            process_csv_qa(input_path, output_path, "ConfliBERT scr-uncased (SQuAD 2.0)")
+    parser = argparse.ArgumentParser(description="ConfliBERT QA Inference (Question 2: Damaged Infrastructure)")
+    parser.add_argument("--model", type=str, default="all",
+                        help="Model to run: 'all' (default), 1-7, or exact model name")
+    parser.add_argument("--tau", type=float, default=None,
+                        help="Null threshold (default: model-specific tuned default)")
+    parser.add_argument("--alpha", type=float, default=None,
+                        help="Answer confidence ratio (default: model-specific tuned default)")
+    parser.add_argument("--label-conf", type=float, default=INFRA_MIN_CONFIDENCE,
+                        help=f"Infrastructure classifier confidence threshold (default: {INFRA_MIN_CONFIDENCE})")
+    parser.add_argument("--cache-raw", action="store_true",
+                        help="Extract and save raw candidate pool to cache (skips standard output)")
 
-        elif process == "3":
-            output_path = os.path.join(script_dir, 'ConfliBERT-scr-cased-squad2_results2.csv')
-            process_csv_qa(input_path, output_path, "ConfliBERT scr-cased (SQuAD 2.0)")
+    args = parser.parse_args()
 
-        elif process == "4":
-            output_path = os.path.join(script_dir, 'ConfliBERT-cont-uncased-squad2_results2.csv')
-            process_csv_qa(input_path, output_path, "ConfliBERT cont-uncased (SQuAD 2.0)")
+    # Determine models to run
+    if args.model.lower() == "all":
+        models_to_run = list(QA_MODELS.keys())
+    elif args.model in MODEL_KEY_TO_NAME:
+        models_to_run = [MODEL_KEY_TO_NAME[args.model]]
+    elif args.model in QA_MODELS:
+        models_to_run = [args.model]
+    else:
+        # Check comma separated
+        keys = [k.strip() for k in args.model.split(",")]
+        models_to_run = [MODEL_KEY_TO_NAME.get(k, k) for k in keys if MODEL_KEY_TO_NAME.get(k, k) in QA_MODELS]
+        if not models_to_run:
+            print(f"Error: Unknown model '{args.model}'. Choose from 1-7, 'all', or: {list(QA_MODELS.keys())}")
+            exit(1)
 
-        elif process == "5":
-            output_path = os.path.join(script_dir, 'ConfliBERT-cont-cased-squad2_results2.csv')
-            process_csv_qa(input_path, output_path, "ConfliBERT cont-cased (SQuAD 2.0)")
+    print(f"Starting Q2 QA inference (Models: {len(models_to_run)}, label_conf={args.label_conf}, cache_raw={args.cache_raw})")
 
-        elif process == "6":
-            output_path = os.path.join(script_dir, 'BERT-base-cased-squad2_results2.csv')
-            process_csv_qa(input_path, output_path, "BERT Base Cased (SQuAD 2.0)")
+    for model_name in models_to_run:
+        tuned = MODEL_TUNED_DEFAULTS_Q2.get(model_name, {"tau": QA_NULL_THRESHOLD, "alpha": QA_ANSWER_MIN_RATIO})
+        model_tau = args.tau if args.tau is not None else tuned["tau"]
+        model_alpha = args.alpha if args.alpha is not None else tuned["alpha"]
 
-        elif process == "7":
-            output_path = os.path.join(script_dir, 'BERT-base-uncased-squad2_results2.csv')
-            process_csv_qa(input_path, output_path, "BERT Base Uncased (SQuAD 2.0)")
+        slug = MODEL_FILE_SLUGS_Q2[model_name]
+        output_file = os.path.join(default_output_dir, slug)
+        cache_base = slug.replace('_results2.json', '').replace('.json', '')
+        cache_file = os.path.join(default_cache_dir, f"raw_cache_q2_{cache_base}.json")
 
-            
-        else:
-            print("Invalid Selection")
+        print(f"  -> Model '{model_name}': using tau={model_tau}, alpha={model_alpha}")
+        process_json_qa(
+            input_path=default_input,
+            output_path=output_file,
+            model_display_name=model_name,
+            tau=model_tau,
+            alpha=model_alpha,
+            label_conf=args.label_conf,
+            cache_raw=args.cache_raw,
+            cache_output_path=cache_file,
+        )
