@@ -3,7 +3,7 @@ import sys
 import os
 import shutil
 
-eval_project_dir = r"C:\Users\ashto\OneDrive\Documents\GitHub\UCDP-AEC-QA\evaluation"
+eval_project_dir = r"C:\Users\atown\OneDrive\Documents\GitHub\UCDP-AEC-QA\evaluation"
 eval_data_dir = os.path.join(eval_project_dir, "data", "ConfliBERT Results")
 script_dir = os.path.dirname(os.path.abspath(__file__))
 
@@ -43,4 +43,4 @@ for name in names:
 
 # Start Eval Pipeline
 uv = shutil.which('uv') or os.path.join(os.path.expanduser('~'), '.local', 'bin', 'uv.exe')
-subprocess.run([uv, '--directory', eval_project_dir, 'run', 'main.py', '--pipeline'], check=True)
+subprocess.run([uv, '--directory', eval_project_dir, 'run', 'main.py', '--pipeline', '--report'], check=True)

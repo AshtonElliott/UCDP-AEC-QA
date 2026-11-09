@@ -625,9 +625,9 @@ if __name__ == "__main__":
             print("Exiting...")
             exit()
         
-        QA_ANSWER_MIN_RATIO = input("What is the Alpha value for the answer confidence score? \n")
-        QA_NULL_THRESHOLD = input("What is the Tau value for the null score? \n")
-        INFRA_MIN_CONFIDENCE = input("What is the Alpha value for the label confidence score? \n")
+        QA_ANSWER_MIN_RATIO = float(input("What is the Alpha value for the answer confidence score? \n"))
+        QA_NULL_THRESHOLD = float(input("What is the Tau value for the null score? \n"))
+        INFRA_MIN_CONFIDENCE = float(input("What is the Alpha value for the label confidence score? \n"))
 
         if process == "1":
             output_path = os.path.join(script_dir, 'ConfliBERT_QA-squad1_results2.csv')
