@@ -70,8 +70,7 @@ def compute_dataset_metrics(cache_by_id, gold_dict, doc_ids, tau, alpha):
 
 def tune_model_cv(cache_records, gold_dict, model_name, question_label="Q1"):
     """Run 5-Fold Stratified CV tuning for a single cached model balancing both Span & Token F1.
-
-    Uses vectorized/memoized precomputation of per-document scores for ultra-fast grid search.
+    Uses vectorized/memoized precomputation of per-document scores for fast grid search.
     """
     cache_by_id = {r['id']: r for r in cache_records if 'id' in r}
     all_doc_ids = [doc_id for doc_id in gold_dict.keys() if doc_id in cache_by_id]
@@ -104,7 +103,7 @@ def tune_model_cv(cache_records, gold_dict, model_name, question_label="Q1"):
     print(f"\n--- Tuning {question_label}: {model_name} (Objective: SQuAD Token F1) ---")
     print(f"Dataset: {len(all_doc_ids)} docs | Search Grid: {len(tau_grid)} tau x {len(alpha_grid)} alpha = {len(tau_grid)*len(alpha_grid)} pairs")
 
-    # 2. Precompute evaluations per document to make grid search 200x faster
+    # 2. Precompute evaluations per document to make grid search faster
     doc_null_eval = {}
     doc_null_diff = {}
     doc_ans_eval = {doc_id: {} for doc_id in all_doc_ids}

@@ -101,13 +101,13 @@ MODEL_FILE_SLUGS_Q1 = {
 # Per-model tuned defaults (calibrated via 5-fold CV to maximize Token F1).
 # Overridden if --tau or --alpha flags are passed explicitly on the CLI.
 MODEL_TUNED_DEFAULTS_Q1 = {
-    "ConfliBERT QA (Trained on SQuAD 1.0)": {"tau": 0.0, "alpha": 0.10},
-    "ConfliBERT scr-uncased (SQuAD 2.0)": {"tau": 0.0, "alpha": 0.10},
-    "ConfliBERT scr-cased (SQuAD 2.0)": {"tau": 0.0, "alpha": 0.10},
-    "ConfliBERT cont-uncased (SQuAD 2.0)": {"tau": 0.0, "alpha": 0.10},
-    "ConfliBERT cont-cased (SQuAD 2.0)": {"tau": 0.0, "alpha": 0.10},
-    "BERT Base Cased (SQuAD 2.0)": {"tau": 0.0, "alpha": 0.10},
-    "BERT Base Uncased (SQuAD 2.0)": {"tau": 0.0, "alpha": 0.10},
+    "ConfliBERT QA (Trained on SQuAD 1.0)": {"tau": -8.73, "alpha": 0.02},
+    "ConfliBERT scr-uncased (SQuAD 2.0)": {"tau": -1.28, "alpha": 0.02},
+    "ConfliBERT scr-cased (SQuAD 2.0)": {"tau": 1.95, "alpha": 0.02},
+    "ConfliBERT cont-uncased (SQuAD 2.0)": {"tau": 1.60, "alpha": 0.02},
+    "ConfliBERT cont-cased (SQuAD 2.0)": {"tau": -2.75, "alpha": 0.02},
+    "BERT Base Cased (SQuAD 2.0)": {"tau": 0.89, "alpha": 0.02},
+    "BERT Base Uncased (SQuAD 2.0)": {"tau": 0.73, "alpha": 0.02},
 }
 
 
