@@ -75,7 +75,6 @@ QA_MODELS = {
     "BERT Base Cased (SQuAD 2.0)": "shreyasmeher/BERT-base-cased-squad2",
     "BERT Base Uncased (SQuAD 2.0)": "shreyasmeher/BERT-base-uncased-squad2",
 }
-QA_DEFAULT_MODEL = "ConfliBERT QA (Trained on SQuAD 1.0)"
 # Each model is ~420 MB; older ones are evicted beyond this many.
 QA_MODEL_CACHE_SIZE = 2
 
@@ -137,8 +136,13 @@ def get_qa_model(display_name):
         if model_id == Salsarra_QA_model_name and _USE_TF_QA:
             model = TFAutoModelForQuestionAnswering.from_pretrained(model_id)
         elif model_id == Salsarra_QA_model_name:
-            model = AutoModelForQuestionAnswering.from_pretrained(model_id, from_tf=True).to(device)
-            model.eval()
+            try:
+                model = AutoModelForQuestionAnswering.from_pretrained(model_id, from_tf=True).to(device)
+                model.eval()
+            except (ImportError, ModuleNotFoundError) as err:
+                print(f"\n[Warning] Skipping '{display_name}': Requires TensorFlow to import TF weights ({err}).")
+                print("Note: Models 2-7 are native PyTorch SQuAD 2.0 checkpoints and do not require TensorFlow.")
+                return None, None
         else:
             model = AutoModelForQuestionAnswering.from_pretrained(model_id).to(device)
             model.eval()
@@ -323,7 +327,7 @@ def qa_extract_answers(context, question, qa_model, qa_tokenizer,
 # JSON BATCH PROCESSING
 # ============================================================================
 
-def process_json_qa(input_path, output_path=None, model_display_name=QA_DEFAULT_MODEL,
+def process_json_qa(input_path, output_path=None, model_display_name=None,
                     tau=QA_NULL_THRESHOLD, alpha=QA_ANSWER_MIN_RATIO,
                     cache_raw=False, cache_output_path=None):
     """Run QA inference on canonical JSON data.
@@ -331,12 +335,16 @@ def process_json_qa(input_path, output_path=None, model_display_name=QA_DEFAULT_
     If cache_raw=True, saves raw candidates and null diff to cache_output_path.
     Otherwise, saves production evaluation JSON directly to output_path.
     """
+    if not model_display_name:
+        raise ValueError("model_display_name is required (no default model).")
     from tqdm import tqdm
     start = time.perf_counter()
     with open(input_path, 'r', encoding='utf-8') as f:
         data = json.load(f)
 
     qa_model, qa_tokenizer = get_qa_model(model_display_name)
+    if qa_model is None or qa_tokenizer is None:
+        return None
 
     results = []
     cache_records = []
@@ -412,13 +420,17 @@ def process_json_qa(input_path, output_path=None, model_display_name=QA_DEFAULT_
 # CSV BATCH PROCESSING (Legacy Backward Compatibility)
 # ============================================================================
 
-def process_csv_qa(input_path, output_path, model_display_name=QA_DEFAULT_MODEL):
+def process_csv_qa(input_path, output_path, model_display_name=None):
+    if not model_display_name:
+        raise ValueError("model_display_name is required (no default model).")
     from tqdm import tqdm
     start = time.perf_counter()
     df = pd.read_csv(input_path)
     if 'context' not in df.columns or 'question' not in df.columns:
         raise ValueError("CSV must contain 'context' and 'question' columns")
     qa_model, qa_tokenizer = get_qa_model(model_display_name)
+    if qa_model is None or qa_tokenizer is None:
+        return None
 
     answers, confidences, counts = [], [], []
     for _, row in tqdm(df.iterrows(), total=len(df), desc="Answering"):
@@ -471,7 +483,7 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    # Determine models to run
+    # Determine models to run (all 7 models)
     if args.model.lower() == "all":
         models_to_run = list(QA_MODELS.keys())
     elif args.model in MODEL_KEY_TO_NAME:

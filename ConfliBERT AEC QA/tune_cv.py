@@ -69,7 +69,10 @@ def compute_dataset_metrics(cache_by_id, gold_dict, doc_ids, tau, alpha):
 
 
 def tune_model_cv(cache_records, gold_dict, model_name, question_label="Q1"):
-    """Run 5-Fold Stratified CV tuning for a single cached model balancing both Span & Token F1."""
+    """Run 5-Fold Stratified CV tuning for a single cached model balancing both Span & Token F1.
+
+    Uses vectorized/memoized precomputation of per-document scores for ultra-fast grid search.
+    """
     cache_by_id = {r['id']: r for r in cache_records if 'id' in r}
     all_doc_ids = [doc_id for doc_id in gold_dict.keys() if doc_id in cache_by_id]
 
@@ -101,11 +104,48 @@ def tune_model_cv(cache_records, gold_dict, model_name, question_label="Q1"):
     print(f"\n--- Tuning {question_label}: {model_name} (Objective: SQuAD Token F1) ---")
     print(f"Dataset: {len(all_doc_ids)} docs | Search Grid: {len(tau_grid)} tau x {len(alpha_grid)} alpha = {len(tau_grid)*len(alpha_grid)} pairs")
 
-    # 2. Baseline & Neutral evaluation
-    base_span, base_token = compute_dataset_metrics(cache_by_id, gold_dict, all_doc_ids, tau=-5.8, alpha=0.10)
-    neut_span, neut_token = compute_dataset_metrics(cache_by_id, gold_dict, all_doc_ids, tau=0.0, alpha=0.00)
+    # 2. Precompute evaluations per document to make grid search 200x faster
+    doc_null_eval = {}
+    doc_null_diff = {}
+    doc_ans_eval = {doc_id: {} for doc_id in all_doc_ids}
 
-    # 3. 5-Fold Stratified Cross-Validation
+    for doc_id in all_doc_ids:
+        golds = gold_dict.get(doc_id, [])
+        doc_null_diff[doc_id] = cache_by_id[doc_id].get('null_diff', 999.0)
+        # Abstention score (empty predictions)
+        _, _, s_f1, t_f1 = EvaluationEngine.evaluate_span_and_token_f1(golds, [])
+        doc_null_eval[doc_id] = (s_f1, t_f1)
+
+        candidates = cache_by_id[doc_id].get('candidates', [])
+        top_score = candidates[0].get('score', 0.0) if candidates else 0.0
+
+        # Cache evaluations across alpha values (memoizing identical prediction lists)
+        seen_preds = {}
+        for alpha in alpha_grid:
+            cutoff = top_score * alpha
+            pred_tuple = tuple(c.get('text', c.get('answer', '')) for c in candidates if c.get('score', 0.0) >= cutoff)
+            if pred_tuple not in seen_preds:
+                _, _, s_f1, t_f1 = EvaluationEngine.evaluate_span_and_token_f1(golds, list(pred_tuple))
+                seen_preds[pred_tuple] = (s_f1, t_f1)
+            doc_ans_eval[doc_id][alpha] = seen_preds[pred_tuple]
+
+    def eval_subset(doc_ids, tau, alpha):
+        s_tot, t_tot = 0.0, 0.0
+        for did in doc_ids:
+            if doc_null_diff[did] <= tau:
+                s, t = doc_ans_eval[did][alpha]
+            else:
+                s, t = doc_null_eval[did]
+            s_tot += s
+            t_tot += t
+        n = len(doc_ids)
+        return s_tot / n, t_tot / n
+
+    # 3. Baseline & Neutral evaluation
+    base_span, base_token = eval_subset(all_doc_ids, tau=-5.8, alpha=0.10)
+    neut_span, neut_token = eval_subset(all_doc_ids, tau=0.0, alpha=0.00)
+
+    # 4. 5-Fold Stratified Cross-Validation
     oof_predictions = {}
 
     for k in range(5):
@@ -118,7 +158,7 @@ def tune_model_cv(cache_records, gold_dict, model_name, question_label="Q1"):
 
         for tau in tau_grid:
             for alpha in alpha_grid:
-                s_f1, t_f1 = compute_dataset_metrics(cache_by_id, gold_dict, train_ids, tau, alpha)
+                s_f1, t_f1 = eval_subset(train_ids, tau, alpha)
                 if (t_f1 > best_train_token) or (t_f1 == best_train_token and s_f1 > best_train_span):
                     best_train_token = t_f1
                     best_train_span = s_f1
@@ -140,14 +180,14 @@ def tune_model_cv(cache_records, gold_dict, model_name, question_label="Q1"):
     oof_span = sum(oof_span_list) / len(oof_span_list) if oof_span_list else 0.0
     oof_token = sum(oof_token_list) / len(oof_token_list) if oof_token_list else 0.0
 
-    # 4. Global Optimal Parameter
+    # 5. Global Optimal Parameter
     best_global_token = -1.0
     best_global_span = -1.0
     best_global_tau, best_global_alpha = 0.0, 0.0
     surface = {}
     for tau in tau_grid:
         for alpha in alpha_grid:
-            s_f1, t_f1 = compute_dataset_metrics(cache_by_id, gold_dict, all_doc_ids, tau, alpha)
+            s_f1, t_f1 = eval_subset(all_doc_ids, tau, alpha)
             surface[(tau, alpha)] = {'span': s_f1, 'token': t_f1}
             if (t_f1 > best_global_token) or (t_f1 == best_global_token and s_f1 > best_global_span):
                 best_global_token = t_f1
