@@ -42,7 +42,7 @@ if not args.cache_raw and not args.skip_eval:
     if os.name == 'nt' and not uv:
         uv = os.path.join(os.path.expanduser('~'), '.local', 'bin', 'uv.exe')
     if uv and (shutil.which(uv) or os.path.exists(uv)):
-        subprocess.run([uv, '--directory', eval_project_dir, 'run', 'main.py', '--pipeline'], check=True)
+        subprocess.run([uv, '--directory', eval_project_dir, 'run', 'main.py', '--pipeline', '--report'], check=True)
     else:
         # Fallback to python runner
-        subprocess.run([sys.executable, 'main.py', '--pipeline'], cwd=eval_project_dir, check=True)
+        subprocess.run([sys.executable, 'main.py', '--pipeline', '--report'], cwd=eval_project_dir, check=True)
