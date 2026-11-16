@@ -17,14 +17,18 @@
 # zero-shot classifier; the "labels" in your ground truth are ignored here.
 #
 # Usage:
-#   python finetuneQA.py --question 1 --train-data q1_labels.json --base-model 2
-#   python finetuneQA.py --question 2 --train-data q2_labels.json --base-model 3
+#   python finetuneQA.py --question 1 --train-data q1_labels.json --base-model all
+#   python finetuneQA.py --question 2 --train-data q2_labels.json --base-model all
+#
+# With several base models ('all' = 2-7, or a list like '2,3,5') each one is
+# saved to its own subfolder, e.g. finetuned_q1/ConfliBERT-scr-uncased-squad2.
 #
 # Afterwards, call register_finetuned_model(<output dir>, question=1|2) before
 # running inference, then re-tune tau/alpha with tune_cv.py: the defaults in the
 # app modules were calibrated for the original checkpoints, not yours.
 # ============================================================================
 
+import gc
 import os
 import sys
 import json
@@ -240,6 +244,29 @@ def _resolve_base_model(app, base_model):
     return name, model_id
 
 
+def expand_base_models(app, spec):
+    """'all', a comma-separated list, or a single model -> list of base model specs.
+
+    'all' means every PyTorch model in MODEL_KEY_TO_NAME (2-7); model 1 is
+    TensorFlow-only. A single spec is returned unchanged so HF ids and local
+    paths that happen to contain commas are not split.
+    """
+    spec = str(spec).strip()
+    if spec.lower() == 'all':
+        return [k for k, name in app.MODEL_KEY_TO_NAME.items()
+                if app.QA_MODELS.get(name) != app.Salsarra_QA_model_name]
+    if spec in app.MODEL_KEY_TO_NAME or spec in app.QA_MODELS or ',' not in spec:
+        return [spec]
+    return [s.strip() for s in spec.split(',') if s.strip()]
+
+
+def model_dir_name(app, base_model):
+    """Folder-safe name for a base model, e.g. 'ConfliBERT-scr-uncased-squad2'."""
+    _, model_id = _resolve_base_model(app, base_model)
+    name = os.path.basename(str(model_id).rstrip('/\\'))
+    return "".join(c if c.isalnum() or c in "-_." else "_" for c in name)
+
+
 def finetune_qa(train_json, base_model, output_dir, question=1, epochs=3, lr=3e-5,
                 batch_size=8, grad_accum=2, val_frac=0.15, seed=42,
                 warmup_ratio=0.1, weight_decay=0.01):
@@ -366,10 +393,12 @@ if __name__ == "__main__":
     parser.add_argument("--train-data", required=True,
                         help="Canonical JSON with answer_labels (start/end char offsets)")
     parser.add_argument("--base-model", default="2",
-                        help="1-7, a QA_MODELS name, a HF model id, or a local path (default: 2). "
+                        help="1-7, 'all' (2-7), a comma-separated list such as '2,3,5', "
+                             "a QA_MODELS name, a HF model id, or a local path (default: 2). "
                              "Model 1 is TensorFlow-only and not supported.")
     parser.add_argument("--output-dir", default=None,
-                        help="Where to save the model (default: finetuned_q<question>)")
+                        help="Where to save the model (default: finetuned_q<question>). With "
+                             "several base models, each is saved to a subfolder of this directory.")
     parser.add_argument("--epochs", type=int, default=3)
     parser.add_argument("--lr", type=float, default=3e-5)
     parser.add_argument("--batch-size", type=int, default=8)
@@ -380,15 +409,42 @@ if __name__ == "__main__":
     parser.add_argument("--seed", type=int, default=42)
     cli = parser.parse_args()
 
-    finetune_qa(
-        train_json=cli.train_data,
-        base_model=cli.base_model,
-        output_dir=cli.output_dir or os.path.join(SCRIPT_DIR, f"finetuned_q{cli.question}"),
-        question=cli.question,
-        epochs=cli.epochs,
-        lr=cli.lr,
-        batch_size=cli.batch_size,
-        grad_accum=cli.grad_accum,
-        val_frac=cli.val_frac,
-        seed=cli.seed,
-    )
+    app = get_app(cli.question)
+    base_models = expand_base_models(app, cli.base_model)
+    out_root = cli.output_dir or os.path.join(SCRIPT_DIR, f"finetuned_q{cli.question}")
+
+    results = {}
+    for i, base_model in enumerate(base_models, 1):
+        if len(base_models) > 1:
+            print(f"\n=== [{i}/{len(base_models)}] base model {base_model} ===")
+        try:
+            output_dir = (out_root if len(base_models) == 1
+                          else os.path.join(out_root, model_dir_name(app, base_model)))
+            results[base_model] = finetune_qa(
+                train_json=cli.train_data,
+                base_model=base_model,
+                output_dir=output_dir,
+                question=cli.question,
+                epochs=cli.epochs,
+                lr=cli.lr,
+                batch_size=cli.batch_size,
+                grad_accum=cli.grad_accum,
+                val_frac=cli.val_frac,
+                seed=cli.seed,
+            )
+        except Exception as e:
+            if len(base_models) == 1:
+                raise
+            print(f"[Error] Fine-tuning {base_model} failed: {e}")
+            results[base_model] = None
+        finally:
+            gc.collect()
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+
+    if len(base_models) > 1:
+        print("\n=== Summary ===")
+        for base_model, output_dir in results.items():
+            print(f"  {base_model}: {output_dir or 'FAILED'}")
+        if not any(results.values()):
+            sys.exit(1)

@@ -9,11 +9,22 @@ eval_project_dir = os.path.abspath(os.path.join(script_dir, "..", "evaluation"))
 
 parser = argparse.ArgumentParser(description="Master Runner: ConfliBERT QA Pipeline")
 parser.add_argument("--model", type=str, default="all", help="Model to run ('all' or specific model)")
+parser.add_argument("--base-model", type=str, default="all", help="Model to run Finetuning ('all' or specific model)")
 parser.add_argument("--tau", type=float, default=None, help="Null threshold override")
 parser.add_argument("--alpha", type=float, default=None, help="Answer confidence ratio override")
 parser.add_argument("--cache-raw", action="store_true", help="Cache raw candidate pools")
 parser.add_argument("--skip-eval", action="store_true", help="Skip running evaluation pipeline at the end")
 args = parser.parse_args()
+
+print("Would you like to run the models standard or finetuned?\n")
+Finetuning = int(input("0. Standard\n1. Finetuned\n"))
+
+if Finetuning == 1:
+    qa_f_cmd = [sys.executable, 'finetuneQA.py', '--question', '1', '--train-data', 'ground_truth_q1.json', '--base-model', args.base_model]
+    qaq2_f_cmd = [sys.executable, 'finetuneQA.py', '--question', '2', '--train-data', 'ground_truth_q2.json', '--base-model', args.base_model]
+    
+    subprocess.run(qa_f_cmd,cwd=script_dir, check=True)
+    subprocess.run(qaq2_f_cmd,cwd=script_dir, check=True)
 
 qa_cmd = [sys.executable, 'appQA.py', '--model', args.model]
 qa2_cmd = [sys.executable, 'appQAQ2.py', '--model', args.model]
