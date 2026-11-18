@@ -30,6 +30,7 @@
 
 import gc
 import os
+import re
 import sys
 import json
 import inspect
@@ -361,25 +362,74 @@ def finetune_qa(train_json, base_model, output_dir, question=1, epochs=3, lr=3e-
 # ============================================================================
 
 def register_finetuned_model(model_dir, question=1, display_name=None,
-                             tau=None, alpha=None):
+                             tau=None, alpha=None, app=None, results_file=None):
     """Make a saved model selectable in appQA (question=1) or appQAQ2 (question=2).
 
     Call before get_qa_model / process_json_qa of that module. tau and alpha are
     placeholders (the module's untuned defaults) until you tune them with
-    tune_cv.py for this model. Returns the display name to pass as
+    tune_cv.py for this model. Pass app=sys.modules['__main__'] when calling
+    from appQA / appQAQ2 run as a script: importing them by name would register
+    into a second copy of the module. Returns the display name to pass as
     model_display_name.
     """
-    app = get_app(question)
+    app = app or get_app(question)
     cfg = QUESTION_CONFIG[int(question)]
     display_name = display_name or f"ConfliBERT Q{int(question)} fine-tuned"
-    slug = "".join(c if c.isalnum() or c in "-_" else "_" for c in display_name)
+    if results_file is None:
+        slug = "".join(c if c.isalnum() or c in "-_" else "_" for c in display_name)
+        results_file = f"{slug}{cfg['slug_suffix']}"
     app.QA_MODELS[display_name] = os.path.abspath(model_dir)
-    getattr(app, cfg['slugs'])[display_name] = f"{slug}{cfg['slug_suffix']}"
+    getattr(app, cfg['slugs'])[display_name] = results_file
     getattr(app, cfg['defaults'])[display_name] = {
         "tau": app.QA_NULL_THRESHOLD if tau is None else tau,
         "alpha": app.QA_ANSWER_MIN_RATIO if alpha is None else alpha,
     }
     return display_name
+
+
+def find_finetuned_models(finetuned_dir):
+    """Model folders under finetuned_dir: the folder itself and/or its subfolders."""
+    candidates = [finetuned_dir] + [
+        os.path.join(finetuned_dir, name) for name in sorted(os.listdir(finetuned_dir))
+        if not name.startswith('checkpoint-')
+    ]
+    return [d for d in candidates
+            if os.path.isfile(os.path.join(d, 'config.json'))]
+
+
+def register_finetuned_dir(finetuned_dir, question=1, app=None):
+    """Register every fine-tuned model under finetuned_dir with appQA / appQAQ2.
+
+    Each model is named '<original display name> [fine-tuned]' and writes its
+    results next to the original's with '-ft' added before '-squad2', e.g.
+    ConfliBERT-scr-uncased-ft-squad2_results.json, which the evaluation
+    pipeline picks up as a separate model. Returns {base model display name
+    (or base model id when it is not one of QA_MODELS): fine-tuned display name}.
+    """
+    app = app or get_app(question)
+    cfg = QUESTION_CONFIG[int(question)]
+    original_slugs = getattr(app, cfg['slugs'])
+    id_to_name = {model_id: name for name, model_id in app.QA_MODELS.items()}
+
+    registered = {}
+    for model_dir in find_finetuned_models(finetuned_dir):
+        base_id = None
+        info_path = os.path.join(model_dir, 'finetune_info.json')
+        if os.path.isfile(info_path):
+            with open(info_path, 'r', encoding='utf-8') as f:
+                base_id = json.load(f).get('base_model')
+        base_name = id_to_name.get(base_id)
+        folder = os.path.basename(os.path.abspath(model_dir))
+        if base_name:
+            display_name = f"{base_name} [fine-tuned]"
+            results_file = re.sub(r'-(squad[12])', r'-ft-\1', original_slugs[base_name], count=1)
+        else:
+            display_name = f"{folder} [fine-tuned]"
+            results_file = f"{folder}-ft{cfg['slug_suffix']}"
+        register_finetuned_model(model_dir, question=question, display_name=display_name,
+                                 app=app, results_file=results_file)
+        registered[base_name or base_id or folder] = display_name
+    return registered
 
 
 # ============================================================================

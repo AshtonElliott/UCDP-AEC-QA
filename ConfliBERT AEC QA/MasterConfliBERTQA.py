@@ -14,20 +14,27 @@ parser.add_argument("--tau", type=float, default=None, help="Null threshold over
 parser.add_argument("--alpha", type=float, default=None, help="Answer confidence ratio override")
 parser.add_argument("--cache-raw", action="store_true", help="Cache raw candidate pools")
 parser.add_argument("--skip-eval", action="store_true", help="Skip running evaluation pipeline at the end")
+parser.add_argument("--finetuned-dir", type=str, default=None,
+                        help="Run the fine-tuned models saved by finetuneQA.py in this folder "
+                             "instead of the originals (--model then picks which base models)")
 args = parser.parse_args()
 
 print("Would you like to run the models standard or finetuned?\n")
 Finetuning = int(input("0. Standard\n1. Finetuned\n"))
 
 if Finetuning == 1:
-    qa_f_cmd = [sys.executable, 'finetuneQA.py', '--question', '1', '--train-data', 'ground_truth_q1.json', '--base-model', args.base_model]
-    qaq2_f_cmd = [sys.executable, 'finetuneQA.py', '--question', '2', '--train-data', 'ground_truth_q2.json', '--base-model', args.base_model]
+    qa_f_cmd = [sys.executable, 'finetuneQA.py', '--question', '1', '--train-data', 'ground_truth_q1_sample.json', '--base-model', args.base_model]
+    qaq2_f_cmd = [sys.executable, 'finetuneQA.py', '--question', '2', '--train-data', 'ground_truth_q2_sample.json', '--base-model', args.base_model]
     
     subprocess.run(qa_f_cmd,cwd=script_dir, check=True)
     subprocess.run(qaq2_f_cmd,cwd=script_dir, check=True)
 
 qa_cmd = [sys.executable, 'appQA.py', '--model', args.model]
 qa2_cmd = [sys.executable, 'appQAQ2.py', '--model', args.model]
+
+qa_fr_cmd = [sys.executable, 'appQA.py', '--model',  '--finetuned-dir', 'finetuned_q1', args.model]
+qa2_fr_cmd = [sys.executable, 'appQAQ2.py', '--model',  '--finetuned-dir', 'finetuned_q2', args.model]
+
 if args.tau is not None:
     qa_cmd.extend(['--tau', str(args.tau)])
     qa2_cmd.extend(['--tau', str(args.tau)])
@@ -40,11 +47,17 @@ if args.cache_raw:
 
 # Step 1: Question 1
 print("\n=== Running ConfliBERT QA (Question 1) ===")
-subprocess.run(qa_cmd, cwd=script_dir, check=True)
+if Finetuning == 1:
+    subprocess.run(qa_fr_cmd, cwd=script_dir, check=True)
+else:
+    subprocess.run(qa_cmd, cwd=script_dir, check=True)
 
 # Step 2: Question 2
 print("\n=== Running ConfliBERT QA (Question 2) ===")
-subprocess.run(qa2_cmd, cwd=script_dir, check=True)
+if Finetuning == 1:
+    subprocess.run(qaq2_fr_cmd, cwd=script_dir, check=True)
+else:
+    subprocess.run(qa2_cmd, cwd=script_dir, check=True)
 
 # Step 3: Run Eval Pipeline (if not caching and not skipped)
 if not args.cache_raw and not args.skip_eval:

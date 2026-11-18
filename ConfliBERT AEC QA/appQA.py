@@ -480,6 +480,9 @@ if __name__ == "__main__":
                         help="Answer confidence ratio (default: model-specific tuned default)")
     parser.add_argument("--cache-raw", action="store_true",
                         help="Extract and save raw candidate pool to cache (skips standard output)")
+    parser.add_argument("--finetuned-dir", type=str, default=None,
+                        help="Run the fine-tuned models saved by finetuneQA.py in this folder "
+                             "instead of the originals (--model then picks which base models)")
 
     args = parser.parse_args()
 
@@ -496,6 +499,22 @@ if __name__ == "__main__":
         models_to_run = [MODEL_KEY_TO_NAME.get(k, k) for k in keys if MODEL_KEY_TO_NAME.get(k, k) in QA_MODELS]
         if not models_to_run:
             print(f"Error: Unknown model '{args.model}'. Choose from 1-7, 'all', or: {list(QA_MODELS.keys())}")
+            exit(1)
+
+    if args.finetuned_dir:
+        import sys
+        from finetuneQA import register_finetuned_dir
+        finetuned_dir = os.path.join(script_dir, args.finetuned_dir)
+        finetuned = register_finetuned_dir(finetuned_dir, question=1, app=sys.modules[__name__])
+        if args.model.lower() == "all":
+            models_to_run = list(finetuned.values())
+        else:
+            for name in models_to_run:
+                if name not in finetuned:
+                    print(f"[Warning] No fine-tuned version of '{name}' in {finetuned_dir}; skipping.")
+            models_to_run = [finetuned[name] for name in models_to_run if name in finetuned]
+        if not models_to_run:
+            print(f"Error: No fine-tuned models to run in {finetuned_dir}")
             exit(1)
 
     print(f"Starting Q1 QA inference (Models: {len(models_to_run)}, cache_raw={args.cache_raw})")
