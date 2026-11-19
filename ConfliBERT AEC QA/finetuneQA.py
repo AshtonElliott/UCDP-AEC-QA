@@ -93,12 +93,13 @@ def load_training_docs(path, question_keys):
     """Canonical JSON -> list of documents with their gold answer spans.
 
     Each document is {'id', 'context', 'question', 'spans': [(start, end), ...]}.
-    A record with no valid spans is a negative (no-answer) document.
+    Text-only labels are matched exactly against the context (all occurrences).
+    Only records without answer labels are negative (no-answer) documents.
     """
     with open(path, 'r', encoding='utf-8') as f:
         data = json.load(f)
 
-    docs, skipped_spans = [], 0
+    docs, recovered_labels = [], 0
     for n, item in enumerate(data):
         context = item.get('source_article', item.get('context', ''))
         question = ''
@@ -113,16 +114,30 @@ def load_training_docs(path, question_keys):
         spans = set()
         for s in item.get('answer_labels') or []:
             start, end = s.get('start'), s.get('end')
+            if start is None and end is None:
+                text = s.get('text')
+                matches = (list(re.finditer(re.escape(text), context))
+                           if isinstance(text, str) and text.strip() else [])
+                if not matches:
+                    raise ValueError(
+                        f"Document {item.get('id', n)!r}: answer text {text!r} "
+                        "cannot be located exactly in its context. Fix the annotation."
+                    )
+                spans.update((m.start(), m.end()) for m in matches)
+                recovered_labels += 1
+                continue
             if (not isinstance(start, int) or not isinstance(end, int)
                     or not 0 <= start < end <= len(context)):
-                skipped_spans += 1
-                continue
+                raise ValueError(
+                    f"Document {item.get('id', n)!r}: invalid answer offsets "
+                    f"({start!r}, {end!r}). Fix the annotation."
+                )
             spans.add((start, end))
         docs.append({'id': str(item.get('id', n)), 'context': context,
                      'question': question, 'spans': sorted(spans)})
 
-    if skipped_spans:
-        print(f"[Warning] Skipped {skipped_spans} answer span(s) with invalid offsets.")
+    if recovered_labels:
+        print(f"Recovered character offsets for {recovered_labels} text-only answer label(s).")
     return docs
 
 
@@ -307,7 +322,6 @@ def finetune_qa(train_json, base_model, output_dir, question=1, epochs=3, lr=3e-
         per_device_eval_batch_size=batch_size * 2,
         gradient_accumulation_steps=grad_accum,
         weight_decay=weight_decay,
-        warmup_ratio=warmup_ratio,
         fp16=torch.cuda.is_available(),
         save_strategy='epoch',
         save_total_limit=1,
@@ -315,6 +329,11 @@ def finetune_qa(train_json, base_model, output_dir, question=1, epochs=3, lr=3e-
         seed=seed,
         report_to='none',
     )
+    # Transformers 5 uses fractional warmup_steps instead of warmup_ratio.
+    if 'warmup_ratio' in ta_params:
+        args_kwargs['warmup_ratio'] = warmup_ratio
+    else:
+        args_kwargs['warmup_steps'] = warmup_ratio
     if val_ds is not None:
         args_kwargs[eval_key] = 'epoch'
         args_kwargs['load_best_model_at_end'] = True
