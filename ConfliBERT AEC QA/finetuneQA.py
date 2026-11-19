@@ -215,7 +215,7 @@ def build_features(docs, tokenizer, app):
                     ts, te = first, last
                     while ts <= te and offsets[ts][0] <= s_char:
                         ts += 1
-                    while te >= ts and offsets[te][1] >= e_char:
+                    while te >= first and offsets[te][1] >= e_char:
                         te -= 1
                     labels.append((ts - 1, te + 1))
             for start_pos, end_pos in (labels or [(0, 0)]):
