@@ -32,8 +32,8 @@ if Finetuning == 1:
 qa_cmd = [sys.executable, 'appQA.py', '--model', args.model]
 qa2_cmd = [sys.executable, 'appQAQ2.py', '--model', args.model]
 
-qa_fr_cmd = [sys.executable, 'appQA.py', '--model',  '--finetuned-dir', 'finetuned_q1', args.model]
-qa2_fr_cmd = [sys.executable, 'appQAQ2.py', '--model',  '--finetuned-dir', 'finetuned_q2', args.model]
+qa_fr_cmd = [sys.executable, 'appQA.py',  '--finetuned-dir', 'finetuned_q1', '--model', args.model]
+qa2_fr_cmd = [sys.executable, 'appQAQ2.py',  '--finetuned-dir', 'finetuned_q2', '--model', args.model]
 
 if args.tau is not None:
     qa_cmd.extend(['--tau', str(args.tau)])
