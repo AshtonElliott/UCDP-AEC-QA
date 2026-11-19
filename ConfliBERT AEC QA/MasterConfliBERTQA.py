@@ -55,7 +55,7 @@ else:
 # Step 2: Question 2
 print("\n=== Running ConfliBERT QA (Question 2) ===")
 if Finetuning == 1:
-    subprocess.run(qaq2_fr_cmd, cwd=script_dir, check=True)
+    subprocess.run(qa2_fr_cmd, cwd=script_dir, check=True)
 else:
     subprocess.run(qa2_cmd, cwd=script_dir, check=True)
 
