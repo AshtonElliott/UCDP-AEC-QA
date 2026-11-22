@@ -17,12 +17,10 @@ parser.add_argument("--skip-eval", action="store_true", help="Skip running evalu
 parser.add_argument("--finetuned-dir", type=str, default=None,
                         help="Run the fine-tuned models saved by finetuneQA.py in this folder "
                              "instead of the originals (--model then picks which base models)")
+parser.add_argument("--run-finetuning", type=int, default=0, help="Choose whether to run finetuning. 0 turns off finetuning and 1 turns it on.")                 
 args = parser.parse_args()
 
-print("Would you like to run the models standard or finetuned?\n")
-Finetuning = int(input("0. Standard\n1. Finetuned\n"))
-
-if Finetuning == 1:
+if args.run_finetuning == 1:
     qa_f_cmd = [sys.executable, 'finetuneQA.py', '--question', '1', '--train-data', 'ground_truth_q1_sample.json', '--base-model', args.base_model]
     qaq2_f_cmd = [sys.executable, 'finetuneQA.py', '--question', '2', '--train-data', 'ground_truth_q2_sample.json', '--base-model', args.base_model]
     
@@ -47,14 +45,14 @@ if args.cache_raw:
 
 # Step 1: Question 1
 print("\n=== Running ConfliBERT QA (Question 1) ===")
-if Finetuning == 1:
+if args.run_finetuning == 1:
     subprocess.run(qa_fr_cmd, cwd=script_dir, check=True)
 else:
     subprocess.run(qa_cmd, cwd=script_dir, check=True)
 
 # Step 2: Question 2
 print("\n=== Running ConfliBERT QA (Question 2) ===")
-if Finetuning == 1:
+if args.run_finetuning == 1:
     subprocess.run(qa2_fr_cmd, cwd=script_dir, check=True)
 else:
     subprocess.run(qa2_cmd, cwd=script_dir, check=True)
