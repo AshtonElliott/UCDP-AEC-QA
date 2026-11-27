@@ -42,6 +42,8 @@ if args.alpha is not None:
 if args.cache_raw:
     qa_cmd.append('--cache-raw')
     qa2_cmd.append('--cache-raw')
+    qa_fr_cmd.append('--cache-raw')
+    qa2_fr_cmd.append('--cache-raw')
 
 # Step 1: Question 1
 print("\n=== Running ConfliBERT QA (Question 1) ===")
