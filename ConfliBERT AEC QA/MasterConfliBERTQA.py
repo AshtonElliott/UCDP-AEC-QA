@@ -1,7 +1,6 @@
 import subprocess
 import sys
 import os
-import shutil
 import argparse
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -62,11 +61,8 @@ else:
 # Step 3: Run Eval Pipeline (if not caching and not skipped)
 if not args.cache_raw and not args.skip_eval:
     print("\n=== Running Evaluation Pipeline ===")
-    uv = shutil.which('uv') or os.path.join(os.path.expanduser('~'), '.local', 'bin', 'uv')
-    if os.name == 'nt' and not uv:
-        uv = os.path.join(os.path.expanduser('~'), '.local', 'bin', 'uv.exe')
-    if uv and (shutil.which(uv) or os.path.exists(uv)):
-        subprocess.run([uv, '--directory', eval_project_dir, 'run', 'main.py', '--pipeline', '--report'], check=True)
-    else:
-        # Fallback to python runner
-        subprocess.run([sys.executable, 'main.py', '--pipeline', '--report'], cwd=eval_project_dir, check=True)
+    subprocess.run(
+        [sys.executable, 'main.py', '--pipeline', '--report'],
+        cwd=eval_project_dir,
+        check=True,
+    )

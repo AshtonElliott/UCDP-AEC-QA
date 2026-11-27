@@ -16,27 +16,40 @@ In order to use the QA here, your document must be in a json or csv format. If y
 
 The script assumes you have two JSON files, train.json and train2.json.
 
-Also, you need the proper python/conda environment to run the script. To do so, first install torch with either to use your cpu or gpu.
+Use the shared environment defined in `../evaluation/pyproject.toml` and
+`../evaluation/uv.lock` for training, prediction, and evaluation. Install uv once:
 
-For CPU, run this command:
-```bash
- pip install torch
+```powershell
+python -m pip install uv
 ```
-For GPU, run this command:
-```bash
- pip install torch --index-url https://download.pytorch.org/whl/cu124
-```
-Then, navigate to the this folder on your cloned repo in your terminal and run the following:
-```bash
- pip install -r requirements.txt
-```
-After that's finish, you now have a working environment for the script.
 
 ## Running ConfliBERT-QA
- To use the ConfliBERT-QA, simply call the master script from this repo.
- ```bash
- python MasterConfliBERTQA.py
+
+From the `ConfliBERT AEC QA` folder, train and run model 2 for both questions,
+then evaluate all saved results:
+
+```powershell
+python -m uv run --project ..\evaluation python MasterConfliBERTQA.py --base-model 2 --model 2 --run-finetuning 1
 ```
+
+uv selects and synchronizes the project environment once. Every child process
+uses that same Python through `sys.executable`; the master does not launch uv
+again. GPU support comes from the project's CUDA-enabled PyTorch dependency.
+
+To run the original model 2 without fine-tuning, omit `--run-finetuning 1`.
+To generate predictions with saved fine-tuned checkpoints without retraining:
+
+```powershell
+python -m uv run --project ..\evaluation python appQA.py --finetuned-dir finetuned_q1 --model 2
+python -m uv run --project ..\evaluation python appQAQ2.py --finetuned-dir finetuned_q2 --model 2
+```
+
+To rerun evaluation only:
+
+```powershell
+python -m uv run --project ..\evaluation python ..\evaluation\main.py --pipeline --report
+```
+
 This script runs both the QA and Eval pipeline. It has a number of arguments that can be used. These include:
 ```bash
 parser.add_argument("--model", type=str, default="all", help="Model to run ('all' or specific model)")

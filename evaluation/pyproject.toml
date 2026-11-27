@@ -5,6 +5,7 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
+    "accelerate>=1.1.0",
     "bert-score>=0.3.13",
     "matplotlib>=3.11.0",
     "nltk>=3.9.4",
@@ -26,3 +27,11 @@ dependencies = [
 dev = [
     "ipykernel>=7.3.0",
 ]
+
+[tool.uv.sources]
+torch = { index = "pytorch" }
+
+[[tool.uv.index]]
+name = "pytorch"
+url = "https://download.pytorch.org/whl/cu130"
+explicit = true
